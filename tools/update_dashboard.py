@@ -423,7 +423,7 @@ def build_candidate(folder, video, media_dir, copy_media, records, merged_candid
 
     # Stable verification folders use IDs such as EV20260610T0918_36764F_1024.
     # Prefer the exact v9 event row for these folders.
-    stable_id = re.sub(r"_\\d+$", "", candidate_id).upper()
+    stable_id = re.sub(r"_\d+$", "", candidate_id).upper()
     stable_meta = events_by_id.get(stable_id, {})
     for key, value in stable_meta.items():
         if value is not None:
@@ -550,16 +550,30 @@ def main():
                 pass
     candidates = list(deduped.values())
 
-    payload = {"demo": False, "generated_at": now_iso(), "candidates": candidates}
-    (data_dir / "candidates.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    candidates_path = data_dir / "candidates.json"
+    status_path = data_dir / "status.json"
 
-    status = {
-        "generated_at": payload["generated_at"],
-        "candidate_count": len(candidates),
-        "strong_review_count": sum(1 for c in candidates if c["review_class"] == "STRONG_REVIEW"),
-        "secondary_count": sum(1 for c in candidates if c["review_class"] == "SECONDARY"),
-    }
-    (data_dir / "status.json").write_text(json.dumps(status, indent=2), encoding="utf-8")
+    previous = {}
+    if candidates_path.exists():
+        try:
+            previous = json.loads(candidates_path.read_text(encoding="utf-8"))
+        except Exception:
+            previous = {}
+
+    if previous.get("candidates") == candidates and previous.get("demo") is False:
+        payload = previous
+        print("[OK] Candidate data unchanged; preserving existing dashboard timestamp.")
+    else:
+        payload = {"demo": False, "generated_at": now_iso(), "candidates": candidates}
+        candidates_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+        status = {
+            "generated_at": payload["generated_at"],
+            "candidate_count": len(candidates),
+            "strong_review_count": sum(1 for c in candidates if c["review_class"] == "STRONG_REVIEW"),
+            "secondary_count": sum(1 for c in candidates if c["review_class"] == "SECONDARY"),
+        }
+        status_path.write_text(json.dumps(status, indent=2), encoding="utf-8")
 
     scored = sum(1 for c in candidates if c.get("score") is not None)
     classified = sum(1 for c in candidates if c.get("review_class") != "UNCLASSIFIED")
