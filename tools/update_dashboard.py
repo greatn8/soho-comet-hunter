@@ -14,11 +14,11 @@ IMAGE_PATTERNS = ("*.png", "*.jpg", "*.jpeg", "*.webp")
 MAX_MEDIA_MB = 50
 
 FIELD_ALIASES = {
-    "score": ("score", "rank_score", "ranking_score", "event_score", "total_score"),
-    "speed": ("speed", "track_speed", "speed_px_frame", "speed_px_per_frame", "velocity"),
-    "sun_distance": ("sun", "sun_distance", "solar_distance", "sun_dist", "rho"),
-    "rms": ("rms", "fit_rms", "track_rms", "residual_rms"),
-    "frames": ("frames", "nframes", "frame_count", "num_frames"),
+    "score": ("score", "review_score", "rank_score", "ranking_score", "event_score", "total_score"),
+    "speed": ("speed", "event_speed", "track_speed", "speed_px_frame", "speed_px_per_frame", "velocity"),
+    "sun_distance": ("sun", "avg_sunward", "sunward", "sun_distance", "solar_distance", "sun_dist", "rho"),
+    "rms": ("rms", "best_rms", "fit_rms", "track_rms", "residual_rms"),
+    "frames": ("frames", "max_frames", "nframes", "frame_count", "num_frames"),
     "members": ("members", "member_count", "n_members", "num_members"),
     "family": ("family", "comet_family"),
     "first_seen": ("first_seen", "start_time", "timestamp", "time", "date"),
@@ -323,6 +323,41 @@ def load_event_classes(results_root):
     print(f"[INFO] Loaded event classifications for {len(by_member)} dated member keys.")
     return by_member
 
+
+def load_events_by_id(results_root):
+    path = results_root / "v9_events_all.tsv"
+    out = {}
+    if not path.exists():
+        return out
+
+    try:
+        with path.open("r", encoding="utf-8", errors="replace", newline="") as f:
+            for row in csv.DictReader(f, delimiter="\t"):
+                event_id = clean(row.get("event_id"))
+                if not event_id:
+                    continue
+                camera = (clean(row.get("camera")) or "").lower()
+                source = f"SOHO {camera.upper()}" if camera in {"c2", "c3"} else "SOHO"
+                instrument = f"LASCO {camera.upper()}" if camera in {"c2", "c3"} else "LASCO"
+                out[event_id.upper()] = {
+                    "event_id": event_id,
+                    "review_class": clean(row.get("lane")),
+                    "score": number(row.get("review_score")),
+                    "speed": number(row.get("event_speed")),
+                    "sun_distance": number(row.get("avg_sunward")),
+                    "rms": number(row.get("best_rms")),
+                    "frames": number(row.get("max_frames")),
+                    "members": number(row.get("members")),
+                    "first_seen": clean(row.get("start_iso")),
+                    "source": source,
+                    "instrument": instrument,
+                }
+    except Exception as exc:
+        print(f"[WARN] Could not parse stable events from {path}: {exc}")
+
+    print(f"[INFO] Loaded stable event metadata for {len(out)} events.")
+    return out
+
 def merged_group_id(candidate_id):
     return re.sub(r"_\d+$", "", str(candidate_id)).upper()
 
@@ -349,11 +384,19 @@ def event_for_merged(meta, event_classes):
 
     return {}
 
-def build_candidate(folder, video, media_dir, copy_media, records, merged_candidates, event_classes):
+def build_candidate(folder, video, media_dir, copy_media, records, merged_candidates, event_classes, events_by_id):
     json_meta = load_json_metadata(folder)
     candidate_id = str(json_meta.get("id") or folder.name)
 
     meta = pipeline_metadata(candidate_id, records)
+
+    # Stable verification folders use IDs such as EV20260610T0918_36764F_1024.
+    # Prefer the exact v9 event row for these folders.
+    stable_id = re.sub(r"_\\d+$", "", candidate_id).upper()
+    stable_meta = events_by_id.get(stable_id, {})
+    for key, value in stable_meta.items():
+        if value is not None:
+            meta[key] = value
 
     gid = merged_group_id(candidate_id)
     merged_meta = merged_candidates.get(gid, {})
@@ -440,12 +483,36 @@ def main():
     records = load_metadata_records(results_root)
     merged_candidates = load_merged_candidates(results_root)
     event_classes = load_event_classes(results_root)
+    events_by_id = load_events_by_id(results_root)
     print(f"[INFO] Metadata records available: {len(records)}")
 
     candidates = [
-        build_candidate(folder, video, media_dir, not args.no_copy_media, records, merged_candidates, event_classes)
+        build_candidate(folder, video, media_dir, not args.no_copy_media, records, merged_candidates, event_classes, events_by_id)
         for folder, video in folders
     ]
+
+    # Old Gxxxx folders can be earlier visualisations of the same physical event.
+    # Publish one card per event and prefer a stable EV... folder when available.
+    deduped = {}
+    for candidate in candidates:
+        key = candidate.get("event_id") or candidate["id"]
+        previous = deduped.get(key)
+        if previous is None:
+            deduped[key] = candidate
+            continue
+        candidate_is_ev = str(candidate["id"]).upper().startswith("EV")
+        previous_is_ev = str(previous["id"]).upper().startswith("EV")
+        candidate_score = candidate.get("score")
+        previous_score = previous.get("score")
+        if candidate_is_ev and not previous_is_ev:
+            deduped[key] = candidate
+        elif candidate_is_ev == previous_is_ev:
+            try:
+                if float(candidate_score) > float(previous_score):
+                    deduped[key] = candidate
+            except (TypeError, ValueError):
+                pass
+    candidates = list(deduped.values())
 
     payload = {"demo": False, "generated_at": now_iso(), "candidates": candidates}
     (data_dir / "candidates.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
