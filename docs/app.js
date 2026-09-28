@@ -1,9 +1,9 @@
 const state = {
   candidates: [],
   query: "",
-  status: "all",
+  reviewClass: "all",
   family: "all",
-  sort: "newest"
+  sort: "score"
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -27,40 +27,48 @@ function formatDate(value) {
   });
 }
 
-function confidenceText(c) {
-  return Number.isFinite(Number(c)) ? `${Math.round(Number(c))}%` : "—";
+function scoreText(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(1) : "—";
 }
 
-function normalizeStatus(status) {
-  return String(status || "candidate").toLowerCase().replaceAll(" ", "_");
+function metricText(value, digits = 2) {
+  const n = Number(value);
+  if (Number.isFinite(n)) return n.toFixed(digits).replace(/\.00$/, "");
+  return value ?? "—";
 }
 
-function prettyStatus(status) {
-  const s = normalizeStatus(status).replaceAll("_", " ");
-  return s.replace(/\b\w/g, c => c.toUpperCase());
+function normalizeClass(value) {
+  return String(value || "UNCLASSIFIED").trim().toUpperCase().replaceAll(" ", "_");
+}
+
+function prettyClass(value) {
+  return normalizeClass(value).replaceAll("_", " ");
+}
+
+function badgeClass(value) {
+  const c = normalizeClass(value);
+  if (c === "STRONG_REVIEW") return "status-confirmed";
+  if (c === "SECONDARY") return "status-known";
+  if (c === "REJECTED") return "status-rejected";
+  return "status-candidate";
 }
 
 function candidateCard(c) {
-  const confidence = Number.isFinite(Number(c.confidence)) ? Number(c.confidence) : null;
   const preview = c.thumbnail
     ? `<img src="${escapeHtml(c.thumbnail)}" alt="Preview for ${escapeHtml(c.id)}">`
     : `<div class="preview-fallback">☄</div>`;
-
-  const videoButton = c.video
-    ? `<button data-open="${escapeHtml(c.id)}">Review candidate</button>`
-    : `<button data-open="${escapeHtml(c.id)}">View details</button>`;
 
   return `
     <article class="candidate-card">
       <div class="preview">
         ${preview}
         <div class="preview-overlay">
-          <span class="badge status-${escapeHtml(normalizeStatus(c.status))}">
-            ${escapeHtml(prettyStatus(c.status))}
-          </span>
+          <span class="badge ${badgeClass(c.review_class)}">${escapeHtml(prettyClass(c.review_class))}</span>
           <span class="badge">${escapeHtml(c.source || "SOHO")}</span>
         </div>
       </div>
+
       <div class="card-body">
         <div class="card-top">
           <div>
@@ -68,33 +76,25 @@ function candidateCard(c) {
             <p class="card-subtitle">${escapeHtml(c.id)}</p>
           </div>
           <div class="confidence">
-            ${confidenceText(confidence)}
-            <small>CONFIDENCE</small>
+            ${scoreText(c.score)}
+            <small>PIPELINE SCORE</small>
           </div>
         </div>
-
-        <div class="meter"><span style="width:${confidence ?? 0}%"></span></div>
 
         <div class="meta-grid">
-          <div class="meta-item">
-            <span>Family</span>
-            <strong>${escapeHtml(c.family || "Unknown")}</strong>
-          </div>
-          <div class="meta-item">
-            <span>Frames</span>
-            <strong>${escapeHtml(c.frames ?? "—")}</strong>
-          </div>
-          <div class="meta-item">
-            <span>First seen</span>
-            <strong>${escapeHtml(formatDate(c.first_seen))}</strong>
-          </div>
-          <div class="meta-item">
-            <span>Instrument</span>
-            <strong>${escapeHtml(c.instrument || "LASCO")}</strong>
-          </div>
+          <div class="meta-item"><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
+          <div class="meta-item"><span>Members</span><strong>${escapeHtml(c.members ?? "—")}</strong></div>
+          <div class="meta-item"><span>Speed</span><strong>${escapeHtml(metricText(c.speed))}</strong></div>
+          <div class="meta-item"><span>Sun distance</span><strong>${escapeHtml(metricText(c.sun_distance))}</strong></div>
+          <div class="meta-item"><span>RMS</span><strong>${escapeHtml(metricText(c.rms))}</strong></div>
+          <div class="meta-item"><span>Family</span><strong>${escapeHtml(c.family || "Unknown")}</strong></div>
+          <div class="meta-item"><span>First seen</span><strong>${escapeHtml(formatDate(c.first_seen))}</strong></div>
+          <div class="meta-item"><span>Instrument</span><strong>${escapeHtml(c.instrument || "LASCO")}</strong></div>
         </div>
 
-        <div class="card-actions">${videoButton}</div>
+        <div class="card-actions">
+          <button data-open="${escapeHtml(c.id)}">${c.video ? "Review candidate" : "View details"}</button>
+        </div>
       </div>
     </article>
   `;
@@ -104,25 +104,25 @@ function filteredCandidates() {
   const q = state.query.trim().toLowerCase();
   let rows = state.candidates.filter(c => {
     const matchesQuery = !q || [
-      c.id, c.title, c.family, c.source, c.instrument, c.notes
+      c.id, c.title, c.family, c.source, c.instrument, c.notes, c.review_class
     ].some(v => String(v || "").toLowerCase().includes(q));
 
-    const matchesStatus = state.status === "all" ||
-      normalizeStatus(c.status) === state.status;
+    const matchesClass = state.reviewClass === "all" ||
+      normalizeClass(c.review_class) === state.reviewClass;
 
     const matchesFamily = state.family === "all" ||
       String(c.family || "Unknown") === state.family;
 
-    return matchesQuery && matchesStatus && matchesFamily;
+    return matchesQuery && matchesClass && matchesFamily;
   });
 
   rows.sort((a, b) => {
-    if (state.sort === "confidence") {
-      return Number(b.confidence || -1) - Number(a.confidence || -1);
+    if (state.sort === "score") {
+      const av = Number.isFinite(Number(a.score)) ? Number(a.score) : -Infinity;
+      const bv = Number.isFinite(Number(b.score)) ? Number(b.score) : -Infinity;
+      return bv - av;
     }
-    if (state.sort === "frames") {
-      return Number(b.frames || 0) - Number(a.frames || 0);
-    }
+    if (state.sort === "frames") return Number(b.frames || 0) - Number(a.frames || 0);
     return new Date(b.first_seen || 0) - new Date(a.first_seen || 0);
   });
 
@@ -158,14 +158,19 @@ function openDialog(c) {
       <p>${escapeHtml(c.notes || "No review notes have been added yet.")}</p>
 
       <div class="dialog-info">
-        <div><span>Status</span><strong>${escapeHtml(prettyStatus(c.status))}</strong></div>
-        <div><span>Confidence</span><strong>${confidenceText(c.confidence)}</strong></div>
-        <div><span>Family</span><strong>${escapeHtml(c.family || "Unknown")}</strong></div>
+        <div><span>Review class</span><strong>${escapeHtml(prettyClass(c.review_class))}</strong></div>
+        <div><span>Pipeline score</span><strong>${scoreText(c.score)}</strong></div>
         <div><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
+        <div><span>Members</span><strong>${escapeHtml(c.members ?? "—")}</strong></div>
       </div>
 
-      <p><strong>First seen:</strong> ${escapeHtml(formatDate(c.first_seen))}<br>
-      <strong>Source:</strong> ${escapeHtml(c.source || "SOHO")} · ${escapeHtml(c.instrument || "LASCO")}</p>
+      <p>
+        <strong>Speed:</strong> ${escapeHtml(metricText(c.speed))}<br>
+        <strong>Sun distance:</strong> ${escapeHtml(metricText(c.sun_distance))}<br>
+        <strong>RMS:</strong> ${escapeHtml(metricText(c.rms))}<br>
+        <strong>First seen:</strong> ${escapeHtml(formatDate(c.first_seen))}<br>
+        <strong>Source:</strong> ${escapeHtml(c.source || "SOHO")} · ${escapeHtml(c.instrument || "LASCO")}
+      </p>
 
       ${media}
     </div>
@@ -184,16 +189,20 @@ async function loadData() {
 
     const payload = await candidateResponse.json();
     const status = statusResponse.ok ? await statusResponse.json() : {};
-
     state.candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
 
     $("#demoBanner").classList.toggle("hidden", !payload.demo);
     $("#candidateCount").textContent = state.candidates.length;
-    $("#highConfidenceCount").textContent =
-      state.candidates.filter(c => Number(c.confidence) >= 80).length;
-    $("#reviewCount").textContent =
-      state.candidates.filter(c => ["candidate", "review"].includes(normalizeStatus(c.status))).length;
+    $("#strongCount").textContent =
+      state.candidates.filter(c => normalizeClass(c.review_class) === "STRONG_REVIEW").length;
+    $("#secondaryCount").textContent =
+      state.candidates.filter(c => normalizeClass(c.review_class) === "SECONDARY").length;
     $("#lastUpdated").textContent = formatDate(payload.generated_at || status.generated_at);
+
+    const classes = [...new Set(state.candidates.map(c => normalizeClass(c.review_class)))].sort();
+    $("#classFilter").innerHTML =
+      `<option value="all">All classes</option>` +
+      classes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(prettyClass(c))}</option>`).join("");
 
     const families = [...new Set(state.candidates.map(c => c.family || "Unknown"))]
       .sort((a, b) => a.localeCompare(b));
@@ -207,14 +216,14 @@ async function loadData() {
       <section class="empty panel">
         <div class="empty-icon">!</div>
         <h3>Dashboard data could not be loaded</h3>
-        <p>${escapeHtml(error.message)}. If you opened index.html directly, run a local web server or publish it with GitHub Pages.</p>
+        <p>${escapeHtml(error.message)}</p>
       </section>
     `;
   }
 }
 
 $("#searchInput").addEventListener("input", e => { state.query = e.target.value; render(); });
-$("#statusFilter").addEventListener("change", e => { state.status = e.target.value; render(); });
+$("#classFilter").addEventListener("change", e => { state.reviewClass = e.target.value; render(); });
 $("#familyFilter").addEventListener("change", e => { state.family = e.target.value; render(); });
 $("#sortSelect").addEventListener("change", e => { state.sort = e.target.value; render(); });
 $("#dialogClose").addEventListener("click", () => $("#candidateDialog").close());
