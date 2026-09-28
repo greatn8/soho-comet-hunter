@@ -225,11 +225,147 @@ def pipeline_metadata(candidate_id, records):
                 merged[k] = v
     return merged
 
-def build_candidate(folder, video, media_dir, copy_media, records):
+
+def load_merged_candidates(results_root):
+    path = results_root / "merged_candidates.tsv"
+    out = {}
+    if not path.exists():
+        return out
+
+    with path.open("r", encoding="utf-8", errors="replace", newline="") as f:
+        reader = csv.reader(f, delimiter="\t")
+        rows = list(reader)
+
+    if not rows:
+        return out
+
+    # Detect whether the first row is a header.
+    header = [str(x).strip().lower() for x in rows[0]]
+    has_header = any(x in header for x in ("group_id", "candidate_id", "id", "score", "frames"))
+    data_rows = rows[1:] if has_header else rows
+
+    # The current merged_candidates.tsv layout is:
+    # GID, run_id, chunk_start, chunk_end, priority, candidate_id, members,
+    # score, frames, speed, vx, vy, rms, brightness_cv, sunward,
+    # first_fname, first_x, first_y, last_fname, last_x, last_y, member_ids
+    for row in data_rows:
+        if not row:
+            continue
+        gid = clean(row[0]) if len(row) > 0 else None
+        if not gid or not gid.upper().startswith("G"):
+            continue
+
+        try:
+            out[gid.upper()] = {
+                "priority": clean(row[4]) if len(row) > 4 else None,
+                "candidate_id": clean(row[5]) if len(row) > 5 else None,
+                "members": number(row[6]) if len(row) > 6 else None,
+                "score": number(row[7]) if len(row) > 7 else None,
+                "frames": number(row[8]) if len(row) > 8 else None,
+                "speed": number(row[9]) if len(row) > 9 else None,
+                "rms": number(row[12]) if len(row) > 12 else None,
+                "sun_distance": number(row[14]) if len(row) > 14 else None,
+                "first_fname": clean(row[15]) if len(row) > 15 else None,
+                "last_fname": clean(row[18]) if len(row) > 18 else None,
+                "member_ids": clean(row[21]) if len(row) > 21 else None,
+            }
+        except Exception:
+            continue
+
+    print(f"[INFO] Loaded merged candidate metrics for {len(out)} groups.")
+    return out
+
+
+def load_event_classes(results_root):
+    path = results_root / "v9_events_all.tsv"
+    by_member = {}
+    if not path.exists():
+        return by_member
+
+    try:
+        with path.open("r", encoding="utf-8", errors="replace", newline="") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            for row in reader:
+                lane = clean(row.get("lane"))
+                event_id = clean(row.get("event_id"))
+                members = clean(row.get("member_ids"))
+                review_score = number(row.get("review_score"))
+                event_speed = number(row.get("event_speed"))
+                best_rms = number(row.get("best_rms"))
+                sunward = number(row.get("avg_sunward"))
+                max_frames = number(row.get("max_frames"))
+                member_count = number(row.get("members"))
+
+                if not members:
+                    continue
+                for token in members.split(","):
+                    token = token.strip()
+                    if not token:
+                        continue
+                    # Store both the complete date:Cxx form and the Cxx suffix.
+                    keys = {token.upper()}
+                    if ":" in token:
+                        keys.add(token.split(":")[-1].upper())
+                    for key in keys:
+                        by_member[key] = {
+                            "review_class": lane,
+                            "event_id": event_id,
+                            "event_score": review_score,
+                            "event_speed": event_speed,
+                            "event_rms": best_rms,
+                            "event_sunward": sunward,
+                            "event_frames": max_frames,
+                            "event_members": member_count,
+                        }
+    except Exception as exc:
+        print(f"[WARN] Could not parse {path}: {exc}")
+
+    print(f"[INFO] Loaded event classifications for {len(by_member)} member keys.")
+    return by_member
+
+
+def merged_group_id(candidate_id):
+    return re.sub(r"_\d+$", "", str(candidate_id)).upper()
+
+
+def event_for_merged(meta, event_classes):
+    ids = []
+    member_ids = clean(meta.get("member_ids"))
+    candidate_id = clean(meta.get("candidate_id"))
+
+    if member_ids:
+        ids.extend(x.strip().upper() for x in member_ids.split(",") if x.strip())
+    if candidate_id:
+        ids.append(candidate_id.upper())
+
+    for mid in ids:
+        if mid in event_classes:
+            return event_classes[mid]
+        if ":" in mid and mid.split(":")[-1] in event_classes:
+            return event_classes[mid.split(":")[-1]]
+    return {}
+
+def build_candidate(folder, video, media_dir, copy_media, records, merged_candidates, event_classes):
     json_meta = load_json_metadata(folder)
     candidate_id = str(json_meta.get("id") or folder.name)
 
     meta = pipeline_metadata(candidate_id, records)
+
+    gid = merged_group_id(candidate_id)
+    merged_meta = merged_candidates.get(gid, {})
+    for key, value in merged_meta.items():
+        if value is not None:
+            meta[key] = value
+
+    event_meta = event_for_merged(merged_meta, event_classes)
+    if event_meta.get("review_class"):
+        meta["review_class"] = event_meta["review_class"]
+    if event_meta.get("event_id"):
+        meta["event_id"] = event_meta["event_id"]
+
+    # Keep group-level score/speed/RMS from merged_candidates because they
+    # describe the exact Gxxxx visual candidate. Event-level values remain
+    # available through the classification but do not overwrite them.
     meta.update({k: v for k, v in json_meta.items() if v is not None})
 
     source_name, instrument = infer_source(folder)
@@ -259,6 +395,7 @@ def build_candidate(folder, video, media_dir, copy_media, records):
         "title": meta.get("title") or f"Candidate {candidate_id}",
         "score": meta.get("score"),
         "review_class": meta.get("review_class") or "UNCLASSIFIED",
+        "event_id": meta.get("event_id"),
         "speed": meta.get("speed"),
         "sun_distance": meta.get("sun_distance"),
         "rms": meta.get("rms"),
@@ -297,10 +434,12 @@ def main():
         raise SystemExit(f"[ERROR] No candidate MP4 files found under: {source}")
 
     records = load_metadata_records(results_root)
+    merged_candidates = load_merged_candidates(results_root)
+    event_classes = load_event_classes(results_root)
     print(f"[INFO] Metadata records available: {len(records)}")
 
     candidates = [
-        build_candidate(folder, video, media_dir, not args.no_copy_media, records)
+        build_candidate(folder, video, media_dir, not args.no_copy_media, records, merged_candidates, event_classes)
         for folder, video in folders
     ]
 
