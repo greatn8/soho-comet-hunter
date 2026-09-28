@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b14">
+  <title>SOHO Comet Hunter</title>
+  <meta name="description" content="Live candidate dashboard for an automated SOHO comet-hunting pipeline.">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="stars" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="brand">
+      <div class="brand-mark">☄</div>
+      <div>
+        <h1>SOHO Comet Hunter</h1>
+        <p>Automated candidate detection dashboard</p>
+      </div>
+    </div>
+    <div class="live-pill"><span></span> SYSTEM ONLINE</div>
+  </header>
+
+  <main>
+    <section id="demoBanner" class="demo-banner hidden">
+      Demo data is being shown. Run <code>python tools/update_dashboard.py</code> to replace it with your real results.
+    </section>
+
+    <section class="hero panel">
+      <div>
+        <div class="eyebrow">AUTONOMOUS SEARCH PIPELINE</div>
+        <h2>Watching the Sun for faint moving objects.</h2>
+        <p>
+          Candidates produced by the comet-hunting pipeline are collected here for rapid human review.
+          The dashboard does not claim a discovery until a candidate has been independently checked.
+        </p>
+      </div>
+      <div class="sun-wrap" aria-hidden="true">
+        <div class="sun"></div>
+        <div class="orbit orbit-one"></div>
+        <div class="orbit orbit-two"></div>
+        <div class="comet"></div>
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stat panel">
+        <span class="stat-label">Candidates</span>
+        <strong id="candidateCount">—</strong>
+        <small>currently published</small>
+      </article>
+      <article class="stat panel">
+        <span class="stat-label">High confidence</span>
+        <strong id="highConfidenceCount">—</strong>
+        <small>confidence ≥ 80%</small>
+      </article>
+      <article class="stat panel">
+        <span class="stat-label">Needs review</span>
+        <strong id="reviewCount">—</strong>
+        <small>unconfirmed candidates</small>
+      </article>
+      <article class="stat panel">
+        <span class="stat-label">Last update</span>
+        <strong class="small-stat" id="lastUpdated">—</strong>
+        <small>dashboard data</small>
+      </article>
+    </section>
+
+    <section class="controls panel">
+      <label class="search">
+        <span>Search</span>
+        <input id="searchInput" type="search" placeholder="Candidate ID, family, instrument…">
+      </label>
+      <label>
+        <span>Status</span>
+        <select id="statusFilter">
+          <option value="all">All statuses</option>
+          <option value="candidate">Candidate</option>
+          <option value="review">Needs review</option>
+          <option value="known">Known object</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </label>
+      <label>
+        <span>Family</span>
+        <select id="familyFilter">
+          <option value="all">All families</option>
+        </select>
+      </label>
+      <label>
+        <span>Sort</span>
+        <select id="sortSelect">
+          <option value="newest">Newest first</option>
+          <option value="confidence">Highest confidence</option>
+          <option value="frames">Most frames</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="section-heading">
+      <div>
+        <div class="eyebrow">LATEST OUTPUT</div>
+        <h2>Candidate queue</h2>
+      </div>
+      <span id="visibleCount"></span>
+    </section>
+
+    <section id="candidateGrid" class="candidate-grid" aria-live="polite"></section>
+
+    <section id="emptyState" class="empty panel hidden">
+      <div class="empty-icon">✦</div>
+      <h3>No matching candidates</h3>
+      <p>Try changing the filters, or run the dashboard updater after your detector produces new results.</p>
+    </section>
+
+    <footer>
+      <span>SOHO Comet Hunter</span>
+      <span>Candidate ≠ confirmed discovery. Verify before reporting.</span>
+    </footer>
+  </main>
+
+  <dialog id="candidateDialog">
+    <button class="dialog-close" id="dialogClose" aria-label="Close">×</button>
+    <div id="dialogBody"></div>
+  </dialog>
+
+  <script src="./app.js"></script>
+</body>
+</html>
