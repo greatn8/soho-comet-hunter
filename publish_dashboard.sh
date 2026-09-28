@@ -23,6 +23,11 @@ echo "Publishing comet dashboard"
 echo "Source: $SOURCE_DIR"
 echo "============================================================"
 
+# Keep the shared checkout synchronized with direct GitHub changes.
+# Rebase any local dashboard commits instead of letting the watcher become
+# permanently stuck behind origin/main.
+git pull --rebase --autostash origin main
+
 python3 tools/update_dashboard.py   --source "$SOURCE_DIR"   --results-root results
 
 git add docs
