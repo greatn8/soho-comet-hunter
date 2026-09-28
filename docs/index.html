@@ -33,7 +33,7 @@
         <h2>Watching the Sun for faint moving objects.</h2>
         <p>
           Candidates produced by the comet-hunting pipeline are collected here for rapid human review.
-          The dashboard does not claim a discovery until a candidate has been independently checked.
+          Scores are pipeline ranking scores, not calibrated probabilities. The dashboard does not claim a discovery until a candidate has been independently checked.
         </p>
       </div>
       <div class="sun-wrap" aria-hidden="true">
@@ -51,14 +51,14 @@
         <small>currently published</small>
       </article>
       <article class="stat panel">
-        <span class="stat-label">High confidence</span>
-        <strong id="highConfidenceCount">—</strong>
-        <small>confidence ≥ 80%</small>
+        <span class="stat-label">Strong review</span>
+        <strong id="strongCount">—</strong>
+        <small>top pipeline review class</small>
       </article>
       <article class="stat panel">
-        <span class="stat-label">Needs review</span>
-        <strong id="reviewCount">—</strong>
-        <small>unconfirmed candidates</small>
+        <span class="stat-label">Secondary</span>
+        <strong id="secondaryCount">—</strong>
+        <small>secondary review class</small>
       </article>
       <article class="stat panel">
         <span class="stat-label">Last update</span>
@@ -73,14 +73,9 @@
         <input id="searchInput" type="search" placeholder="Candidate ID, family, instrument…">
       </label>
       <label>
-        <span>Status</span>
-        <select id="statusFilter">
-          <option value="all">All statuses</option>
-          <option value="candidate">Candidate</option>
-          <option value="review">Needs review</option>
-          <option value="known">Known object</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="rejected">Rejected</option>
+        <span>Review class</span>
+        <select id="classFilter">
+          <option value="all">All classes</option>
         </select>
       </label>
       <label>
@@ -92,8 +87,8 @@
       <label>
         <span>Sort</span>
         <select id="sortSelect">
+          <option value="score">Highest score</option>
           <option value="newest">Newest first</option>
-          <option value="confidence">Highest confidence</option>
           <option value="frames">Most frames</option>
         </select>
       </label>
