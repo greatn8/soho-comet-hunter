@@ -257,6 +257,7 @@ def load_merged_candidates(results_root):
 
         try:
             out[gid.upper()] = {
+                "chunk_start": clean(row[2]) if len(row) > 2 else None,
                 "priority": clean(row[4]) if len(row) > 4 else None,
                 "candidate_id": clean(row[5]) if len(row) > 5 else None,
                 "members": number(row[6]) if len(row) > 6 else None,
@@ -298,38 +299,38 @@ def load_event_classes(results_root):
 
                 if not members:
                     continue
+
                 for token in members.split(","):
-                    token = token.strip()
+                    token = token.strip().upper()
                     if not token:
                         continue
-                    # Store both the complete date:Cxx form and the Cxx suffix.
-                    keys = {token.upper()}
-                    if ":" in token:
-                        keys.add(token.split(":")[-1].upper())
-                    for key in keys:
-                        by_member[key] = {
-                            "review_class": lane,
-                            "event_id": event_id,
-                            "event_score": review_score,
-                            "event_speed": event_speed,
-                            "event_rms": best_rms,
-                            "event_sunward": sunward,
-                            "event_frames": max_frames,
-                            "event_members": member_count,
-                        }
+                    # Keep the full dated key, e.g. 2026-08-31:C02.
+                    # Cxx IDs repeat across archive chunks, so suffix-only
+                    # matching can silently select the wrong event.
+                    by_member[token] = {
+                        "review_class": lane,
+                        "event_id": event_id,
+                        "event_score": review_score,
+                        "event_speed": event_speed,
+                        "event_rms": best_rms,
+                        "event_sunward": sunward,
+                        "event_frames": max_frames,
+                        "event_members": member_count,
+                    }
     except Exception as exc:
         print(f"[WARN] Could not parse {path}: {exc}")
 
-    print(f"[INFO] Loaded event classifications for {len(by_member)} member keys.")
+    print(f"[INFO] Loaded event classifications for {len(by_member)} dated member keys.")
     return by_member
-
 
 def merged_group_id(candidate_id):
     return re.sub(r"_\d+$", "", str(candidate_id)).upper()
 
 
 def event_for_merged(meta, event_classes):
+    chunk_start = clean(meta.get("chunk_start"))
     ids = []
+
     member_ids = clean(meta.get("member_ids"))
     candidate_id = clean(meta.get("candidate_id"))
 
@@ -338,11 +339,14 @@ def event_for_merged(meta, event_classes):
     if candidate_id:
         ids.append(candidate_id.upper())
 
-    for mid in ids:
-        if mid in event_classes:
-            return event_classes[mid]
-        if ":" in mid and mid.split(":")[-1] in event_classes:
-            return event_classes[mid.split(":")[-1]]
+    # Exact dated match prevents collisions such as C02 appearing in
+    # multiple archive chunks.
+    if chunk_start:
+        for mid in ids:
+            dated_key = f"{chunk_start}:{mid}".upper()
+            if dated_key in event_classes:
+                return event_classes[dated_key]
+
     return {}
 
 def build_candidate(folder, video, media_dir, copy_media, records, merged_candidates, event_classes):
