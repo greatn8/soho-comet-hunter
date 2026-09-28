@@ -46,6 +46,10 @@ function prettyClass(value) {
   return normalizeClass(value).replaceAll("_", " ");
 }
 
+function prettyVideoVariant(value) {
+  return String(value || "verification video").replaceAll("_", " ");
+}
+
 function badgeClass(value) {
   const c = normalizeClass(value);
   if (c === "STRONG_REVIEW") return "status-confirmed";
@@ -73,7 +77,7 @@ function candidateCard(c) {
         <div class="card-top">
           <div>
             <h3 class="card-title">${escapeHtml(c.title || c.id)}</h3>
-            <p class="card-subtitle">${escapeHtml(c.id)}</p>
+            <p class="card-subtitle">${escapeHtml(c.event_id || c.id)}</p>
           </div>
           <div class="confidence">
             ${scoreText(c.score)}
@@ -82,10 +86,11 @@ function candidateCard(c) {
         </div>
 
         <div class="meta-grid">
-          <div class="meta-item"><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
+          <div class="meta-item"><span>Track frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
+          <div class="meta-item"><span>Verified frames</span><strong>${escapeHtml(c.verified_frames ?? "—")}</strong></div>
           <div class="meta-item"><span>Members</span><strong>${escapeHtml(c.members ?? "—")}</strong></div>
           <div class="meta-item"><span>Speed</span><strong>${escapeHtml(metricText(c.speed))}</strong></div>
-          <div class="meta-item"><span>Sun distance</span><strong>${escapeHtml(metricText(c.sun_distance))}</strong></div>
+          <div class="meta-item"><span>Sunward motion</span><strong>${escapeHtml(metricText(c.sun_distance))}</strong></div>
           <div class="meta-item"><span>RMS</span><strong>${escapeHtml(metricText(c.rms))}</strong></div>
           <div class="meta-item"><span>Family</span><strong>${escapeHtml(c.family || "Unknown")}</strong></div>
           <div class="meta-item"><span>First seen</span><strong>${escapeHtml(formatDate(c.first_seen))}</strong></div>
@@ -104,7 +109,7 @@ function filteredCandidates() {
   const q = state.query.trim().toLowerCase();
   let rows = state.candidates.filter(c => {
     const matchesQuery = !q || [
-      c.id, c.title, c.family, c.source, c.instrument, c.notes, c.review_class
+      c.id, c.event_id, c.title, c.family, c.source, c.instrument, c.notes, c.review_class
     ].some(v => String(v || "").toLowerCase().includes(q));
 
     const matchesClass = state.reviewClass === "all" ||
@@ -158,17 +163,22 @@ function openDialog(c) {
       <p>${escapeHtml(c.notes || "No review notes have been added yet.")}</p>
 
       <div class="dialog-info">
+        <div><span>Event ID</span><strong>${escapeHtml(c.event_id || c.id)}</strong></div>
         <div><span>Review class</span><strong>${escapeHtml(prettyClass(c.review_class))}</strong></div>
         <div><span>Pipeline score</span><strong>${scoreText(c.score)}</strong></div>
-        <div><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
+        <div><span>Track frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
+        <div><span>Verified frames</span><strong>${escapeHtml(c.verified_frames ?? "—")}</strong></div>
         <div><span>Members</span><strong>${escapeHtml(c.members ?? "—")}</strong></div>
+        <div><span>Video</span><strong>${escapeHtml(prettyVideoVariant(c.video_variant))}</strong></div>
       </div>
 
       <p>
         <strong>Speed:</strong> ${escapeHtml(metricText(c.speed))}<br>
-        <strong>Sun distance:</strong> ${escapeHtml(metricText(c.sun_distance))}<br>
+        <strong>Sunward motion:</strong> ${escapeHtml(metricText(c.sun_distance))}<br>
         <strong>RMS:</strong> ${escapeHtml(metricText(c.rms))}<br>
+        <strong>Family:</strong> ${escapeHtml(c.family || "Unknown")}<br>
         <strong>First seen:</strong> ${escapeHtml(formatDate(c.first_seen))}<br>
+        <strong>Last seen:</strong> ${escapeHtml(formatDate(c.last_seen))}<br>
         <strong>Source:</strong> ${escapeHtml(c.source || "SOHO")} · ${escapeHtml(c.instrument || "LASCO")}
       </p>
 
