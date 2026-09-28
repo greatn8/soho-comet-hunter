@@ -9,7 +9,13 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-VIDEO_PATTERNS = ("annotated*.mp4", "*.mp4")
+VIDEO_PREFERENCE = (
+    "zoom_annotated.mp4",
+    "full_annotated.mp4",
+    "zoom_raw.mp4",
+    "full_raw.mp4",
+    "zoom_difference.mp4",
+)
 IMAGE_PATTERNS = ("*.png", "*.jpg", "*.jpeg", "*.webp")
 MAX_MEDIA_MB = 50
 
@@ -87,6 +93,33 @@ def first_matching(folder, patterns):
             return matches[0]
     return None
 
+def preferred_video(folder):
+    for name in VIDEO_PREFERENCE:
+        p = folder / name
+        if p.exists():
+            return p
+    videos = sorted(folder.glob("*.mp4"))
+    return videos[0] if videos else None
+
+def preferred_thumbnail(folder):
+    contact = folder / "zoom_contact_sheet.jpg"
+    if contact.exists():
+        return contact
+    return first_matching(folder, IMAGE_PATTERNS)
+
+def verified_frame_count(folder):
+    manifest = folder / "manifest.tsv"
+    if not manifest.exists():
+        return None
+    try:
+        lines = [line for line in manifest.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip()]
+        if not lines:
+            return None
+        # manifest.tsv normally has one header row followed by one row per downloaded frame.
+        return max(0, len(lines) - 1)
+    except Exception:
+        return None
+
 def count_frames(folder):
     exts = {".png", ".jpg", ".jpeg", ".webp", ".fits", ".fit"}
     return sum(1 for p in folder.iterdir() if p.is_file() and p.suffix.lower() in exts)
@@ -101,15 +134,12 @@ def safe_copy(source, destination):
     return destination.name
 
 def discover_candidate_folders(source):
-    found, seen = [], set()
-    for pattern in VIDEO_PATTERNS:
-        for video in source.rglob(pattern):
-            folder = video.parent.resolve()
-            if folder not in seen:
-                seen.add(folder)
-                found.append((folder, video))
-        if found:
-            break
+    folders = {video.parent.resolve() for video in source.rglob("*.mp4")}
+    found = []
+    for folder in folders:
+        video = preferred_video(folder)
+        if video is not None:
+            found.append((folder, video))
     return sorted(found, key=lambda x: x[1].stat().st_mtime, reverse=True)
 
 def metadata_files(results_root):
@@ -348,7 +378,8 @@ def load_events_by_id(results_root):
                     "rms": number(row.get("best_rms")),
                     "frames": number(row.get("max_frames")),
                     "members": number(row.get("members")),
-                    "first_seen": clean(row.get("start_iso")),
+                    "first_seen": clean(row.get("start_iso")) or clean(row.get("start_time")) or clean(row.get("start")),
+                    "last_seen": clean(row.get("end_iso")) or clean(row.get("end_time")) or clean(row.get("end")),
                     "source": source,
                     "instrument": instrument,
                 }
@@ -422,11 +453,11 @@ def build_candidate(folder, video, media_dir, copy_media, records, merged_candid
     if copy_media:
         clean_id = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in candidate_id)
         out_dir = media_dir / clean_id
-        copied_video = safe_copy(video, out_dir / "annotated.mp4")
+        copied_video = safe_copy(video, out_dir / video.name)
         if copied_video:
             video_url = f"./media/{clean_id}/{copied_video}"
 
-        thumb = first_matching(folder, IMAGE_PATTERNS)
+        thumb = preferred_thumbnail(folder)
         if thumb:
             thumb_name = safe_copy(thumb, out_dir / f"preview{thumb.suffix.lower()}")
             if thumb_name:
@@ -436,6 +467,8 @@ def build_candidate(folder, video, media_dir, copy_media, records, merged_candid
     if frames is None:
         n = count_frames(folder)
         frames = n if n else None
+
+    verified_frames = verified_frame_count(folder)
 
     return {
         "id": candidate_id,
@@ -451,7 +484,10 @@ def build_candidate(folder, video, media_dir, copy_media, records, merged_candid
         "source": meta.get("source") or source_name,
         "instrument": meta.get("instrument") or instrument,
         "first_seen": meta.get("first_seen") or iso_from_mtime(video),
+        "last_seen": meta.get("last_seen"),
         "frames": frames,
+        "verified_frames": verified_frames,
+        "video_variant": video.stem,
         "notes": meta.get("notes") or "Automatically added from the comet-hunter results folder. Human review required.",
         "video": meta.get("video") or video_url,
         "thumbnail": meta.get("thumbnail") or thumb_url,
