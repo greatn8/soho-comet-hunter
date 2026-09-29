@@ -1,8 +1,21 @@
+const REVIEW_STATES = [
+  "UNREVIEWED",
+  "INTERESTING",
+  "LIKELY_COMET",
+  "LIKELY_STREAMER",
+  "LIKELY_STAR",
+  "LIKELY_ARTIFACT",
+  "KNOWN_OBJECT"
+];
+
 const state = {
   candidates: [],
   query: "",
   reviewClass: "all",
   motion: "all",
+  instrument: "all",
+  myReview: "all",
+  markedOnly: false,
   sort: "verified"
 };
 
@@ -62,7 +75,6 @@ function motionClass(c) {
   const speed = Math.abs(Number(c.speed));
   const sun = Number(c.sun_distance);
   if (!Number.isFinite(speed) || speed < 0.05 || !Number.isFinite(sun)) return "Unclassified motion";
-
   const ratio = Math.min(1.5, Math.abs(sun) / speed);
   if (sun > 0 && ratio >= 0.78) return "Strong sunward";
   if (sun > 0 && ratio >= 0.35) return "Sunward";
@@ -89,12 +101,50 @@ function knownFamily(c) {
   return family && !/^unknown$/i.test(family) && !/^unclassified$/i.test(family);
 }
 
+function candidateKey(c) {
+  return String(c.event_id || c.id);
+}
+
+function reviewStorageKey(c) {
+  return "soho-review:" + candidateKey(c);
+}
+
+function markStorageKey(c) {
+  return "soho-mark:" + candidateKey(c);
+}
+
+function getReview(c) {
+  const value = localStorage.getItem(reviewStorageKey(c)) || "UNREVIEWED";
+  return REVIEW_STATES.includes(value) ? value : "UNREVIEWED";
+}
+
+function setReview(c, value) {
+  if (value === "UNREVIEWED") localStorage.removeItem(reviewStorageKey(c));
+  else localStorage.setItem(reviewStorageKey(c), value);
+}
+
+function isMarked(c) {
+  return localStorage.getItem(markStorageKey(c)) === "1";
+}
+
+function setMarked(c, marked) {
+  if (marked) localStorage.setItem(markStorageKey(c), "1");
+  else localStorage.removeItem(markStorageKey(c));
+}
+
+function reviewBadge(c) {
+  const review = getReview(c);
+  if (review === "UNREVIEWED") return "";
+  return `<span class="badge user-review-badge">${escapeHtml(prettyClass(review))}</span>`;
+}
+
 function candidateCard(c) {
   const preview = c.thumbnail
     ? `<img src="${escapeHtml(c.thumbnail)}" alt="Preview for ${escapeHtml(c.id)}">`
     : `<div class="preview-fallback">☄</div>`;
 
   const freshBadge = isFresh(c) ? '<span class="badge badge-new">NEW</span>' : "";
+  const marked = isMarked(c);
   const motion = motionClass(c);
 
   return `
@@ -102,10 +152,14 @@ function candidateCard(c) {
       aria-label="Open review for ${escapeHtml(c.event_id || c.id)}">
       <div class="preview">
         ${preview}
+        <button class="mark-button ${marked ? "is-marked" : ""}" data-mark="${escapeHtml(c.id)}"
+          type="button" aria-label="${marked ? "Unmark" : "Mark"} ${escapeHtml(c.event_id || c.id)}"
+          title="${marked ? "Remove mark" : "Mark interesting"}">${marked ? "★" : "☆"}</button>
         <div class="preview-play" aria-hidden="true">▶</div>
         <div class="preview-overlay">
           <span class="badge ${badgeClass(c.review_class)}">${escapeHtml(prettyClass(c.review_class))}</span>
           <span class="badge-stack">
+            ${reviewBadge(c)}
             ${freshBadge}
             <span class="badge">${escapeHtml(c.source || "SOHO")}</span>
           </span>
@@ -148,17 +202,22 @@ function filteredCandidates() {
   const q = state.query.trim().toLowerCase();
   let rows = state.candidates.filter(c => {
     const motion = motionClass(c);
+    const review = getReview(c);
     const matchesQuery = !q || [
       c.id, c.event_id, c.title, c.family, c.source, c.instrument, c.notes,
-      c.review_class, motion
+      c.review_class, motion, review
     ].some(v => String(v || "").toLowerCase().includes(q));
 
     const matchesClass = state.reviewClass === "all" ||
       normalizeClass(c.review_class) === state.reviewClass;
-
     const matchesMotion = state.motion === "all" || motion === state.motion;
+    const matchesInstrument = state.instrument === "all" ||
+      String(c.instrument || "LASCO") === state.instrument;
+    const matchesReview = state.myReview === "all" || review === state.myReview;
+    const matchesMarked = !state.markedOnly || isMarked(c);
 
-    return matchesQuery && matchesClass && matchesMotion;
+    return matchesQuery && matchesClass && matchesMotion &&
+      matchesInstrument && matchesReview && matchesMarked;
   });
 
   rows.sort((a, b) => {
@@ -175,18 +234,36 @@ function filteredCandidates() {
   return rows;
 }
 
+function updateMarkedButton() {
+  const button = $("#markedOnly");
+  button.setAttribute("aria-pressed", state.markedOnly ? "true" : "false");
+  button.textContent = state.markedOnly ? "★ Marked only" : "☆ Show marked only";
+  button.classList.toggle("active", state.markedOnly);
+}
+
 function bindCards() {
   document.querySelectorAll("[data-open-card]").forEach(card => {
-    const open = () => {
+    const open = (e) => {
+      if (e && e.target.closest("button, select, input, a")) return;
       const candidate = state.candidates.find(c => c.id === card.dataset.openCard);
       if (candidate) openDialog(candidate);
     };
     card.addEventListener("click", open);
     card.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === " ") {
+      if ((e.key === "Enter" || e.key === " ") && !e.target.closest("button, select, input, a")) {
         e.preventDefault();
-        open();
+        open(e);
       }
+    });
+  });
+
+  document.querySelectorAll("[data-mark]").forEach(button => {
+    button.addEventListener("click", e => {
+      e.stopPropagation();
+      const candidate = state.candidates.find(c => c.id === button.dataset.mark);
+      if (!candidate) return;
+      setMarked(candidate, !isMarked(candidate));
+      render();
     });
   });
 }
@@ -194,9 +271,32 @@ function bindCards() {
 function render() {
   const rows = filteredCandidates();
   $("#candidateGrid").innerHTML = rows.map(candidateCard).join("");
-  $("#visibleCount").textContent = `${rows.length} shown`;
+  const markedCount = state.candidates.filter(isMarked).length;
+  $("#visibleCount").textContent = `${rows.length} shown · ${markedCount} marked`;
   $("#emptyState").classList.toggle("hidden", rows.length !== 0);
+  updateMarkedButton();
   bindCards();
+}
+
+function reportText(c) {
+  return [
+    "SOHO Comet Hunter candidate review",
+    "Event ID: " + (c.event_id || c.id),
+    "Instrument: " + (c.instrument || "LASCO"),
+    "Pipeline class: " + prettyClass(c.review_class),
+    "Pipeline score: " + scoreText(c.score),
+    "My review: " + prettyClass(getReview(c)),
+    "Marked: " + (isMarked(c) ? "yes" : "no"),
+    "Trajectory: " + motionClass(c),
+    "Speed: " + metricText(c.speed) + " px/h",
+    "Sunward component: " + metricText(c.sun_distance) + " px/h",
+    "Fit RMS: " + metricText(c.rms),
+    "Track frames: " + (c.frames ?? "—"),
+    "Verified frames: " + (c.verified_frames ?? "—"),
+    "First seen: " + formatDate(c.first_seen),
+    "Last seen: " + formatDate(c.last_seen),
+    "Verified: " + formatDate(c.verified_at)
+  ].join("\n");
 }
 
 function openDialog(c) {
@@ -211,11 +311,25 @@ function openDialog(c) {
     ? `<strong>Comet family:</strong> ${escapeHtml(c.family)}<br>`
     : "";
 
+  const reviewOptions = REVIEW_STATES.map(value =>
+    `<option value="${value}" ${getReview(c) === value ? "selected" : ""}>${escapeHtml(prettyClass(value))}</option>`
+  ).join("");
+
   $("#dialogBody").innerHTML = `
     <div class="dialog-content">
       <div class="eyebrow">CANDIDATE REVIEW</div>
       <h2>${escapeHtml(c.event_id || c.id)}</h2>
       <p>${escapeHtml(c.notes || "Automatically selected for human review.")}</p>
+
+      <div class="review-toolbar">
+        <label>
+          <span>My review</span>
+          <select id="dialogReview">${reviewOptions}</select>
+        </label>
+        <button id="dialogMark" type="button">${isMarked(c) ? "★ Marked" : "☆ Mark interesting"}</button>
+        <button id="copyReport" type="button">Copy candidate report</button>
+      </div>
+      <small class="local-note">Review labels and marks are saved in this browser.</small>
 
       <div class="dialog-info">
         <div><span>Review class</span><strong>${escapeHtml(prettyClass(c.review_class))}</strong></div>
@@ -239,13 +353,36 @@ function openDialog(c) {
       </p>
 
       <div class="science-note">
-        Trajectory labels are descriptive classifications from the measured motion in the image plane.
-        A named comet family is shown only when the pipeline has an actual family classification; it is not guessed from motion alone.
+        Trajectory labels are descriptive classifications from measured image-plane motion.
+        A named comet family is shown only when the pipeline has an actual family classification.
       </div>
 
       ${media}
     </div>
   `;
+
+  $("#dialogReview").addEventListener("change", e => {
+    setReview(c, e.target.value);
+    render();
+  });
+
+  $("#dialogMark").addEventListener("click", () => {
+    setMarked(c, !isMarked(c));
+    $("#dialogMark").textContent = isMarked(c) ? "★ Marked" : "☆ Mark interesting";
+    render();
+  });
+
+  $("#copyReport").addEventListener("click", async () => {
+    const button = $("#copyReport");
+    try {
+      await navigator.clipboard.writeText(reportText(c));
+      button.textContent = "Copied";
+      setTimeout(() => { button.textContent = "Copy candidate report"; }, 1200);
+    } catch {
+      button.textContent = "Copy failed";
+    }
+  });
+
   $("#candidateDialog").showModal();
 }
 
@@ -280,6 +417,12 @@ async function loadData() {
       `<option value="all">All trajectories</option>` +
       motions.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
 
+    const instruments = [...new Set(state.candidates.map(c => String(c.instrument || "LASCO")))]
+      .sort((a, b) => a.localeCompare(b));
+    $("#instrumentFilter").innerHTML =
+      `<option value="all">All instruments</option>` +
+      instruments.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+
     render();
   } catch (error) {
     $("#candidateGrid").innerHTML = `
@@ -295,7 +438,10 @@ async function loadData() {
 $("#searchInput").addEventListener("input", e => { state.query = e.target.value; render(); });
 $("#classFilter").addEventListener("change", e => { state.reviewClass = e.target.value; render(); });
 $("#motionFilter").addEventListener("change", e => { state.motion = e.target.value; render(); });
+$("#instrumentFilter").addEventListener("change", e => { state.instrument = e.target.value; render(); });
+$("#reviewFilter").addEventListener("change", e => { state.myReview = e.target.value; render(); });
 $("#sortSelect").addEventListener("change", e => { state.sort = e.target.value; render(); });
+$("#markedOnly").addEventListener("click", () => { state.markedOnly = !state.markedOnly; render(); });
 $("#dialogClose").addEventListener("click", () => $("#candidateDialog").close());
 $("#candidateDialog").addEventListener("click", e => {
   if (e.target === $("#candidateDialog")) $("#candidateDialog").close();
