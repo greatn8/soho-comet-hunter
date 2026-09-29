@@ -487,6 +487,7 @@ def build_candidate(folder, video, media_dir, copy_media, records, merged_candid
         "last_seen": meta.get("last_seen"),
         "frames": frames,
         "verified_frames": verified_frames,
+        "verified_at": iso_from_mtime(video),
         "video_variant": video.stem,
         "notes": meta.get("notes") or "Automatically added from the comet-hunter results folder. Human review required.",
         "video": meta.get("video") or video_url,
