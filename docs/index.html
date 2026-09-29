@@ -85,6 +85,25 @@
         </select>
       </label>
       <label>
+        <span>Instrument</span>
+        <select id="instrumentFilter">
+          <option value="all">All instruments</option>
+        </select>
+      </label>
+      <label>
+        <span>My review</span>
+        <select id="reviewFilter">
+          <option value="all">All review states</option>
+          <option value="UNREVIEWED">Unreviewed</option>
+          <option value="INTERESTING">Interesting</option>
+          <option value="LIKELY_COMET">Likely comet</option>
+          <option value="LIKELY_STREAMER">Likely streamer</option>
+          <option value="LIKELY_STAR">Likely star</option>
+          <option value="LIKELY_ARTIFACT">Likely artifact</option>
+          <option value="KNOWN_OBJECT">Known object</option>
+        </select>
+      </label>
+      <label>
         <span>Sort</span>
         <select id="sortSelect">
           <option value="verified">Latest verified</option>
@@ -92,6 +111,10 @@
           <option value="observed">Latest observation</option>
           <option value="frames">Most frames</option>
         </select>
+      </label>
+      <label class="marked-toggle">
+        <span>Marked</span>
+        <button id="markedOnly" type="button" aria-pressed="false">☆ Show marked only</button>
       </label>
     </section>
 
