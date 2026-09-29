@@ -5,13 +5,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 SOURCE_DIR="${1:-results/v9_visual}"
-LOCK_FILE=".dashboard_publish.lock"
+LOCK_DIR=".dashboard_publish.lockdir"
 
-exec 9>"$LOCK_FILE"
-if ! flock -n 9; then
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   echo "Dashboard publisher is already running; skipping this cycle."
   exit 0
 fi
+cleanup_lock() {
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+trap cleanup_lock EXIT INT TERM
 
 if [[ ! -d "$SOURCE_DIR" ]]; then
   echo "Source directory not found: $SOURCE_DIR" >&2
