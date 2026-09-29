@@ -560,3 +560,98 @@ dialog::backdrop {
   .dialog-info { grid-template-columns: 1fr 1fr; }
   footer { flex-direction: column; }
 }
+
+
+/* Candidate review UX */
+.candidate-card {
+  cursor: pointer;
+  position: relative;
+}
+.candidate-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-color: rgba(103,232,249,.55);
+}
+.preview-play {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%) scale(.92);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding-left: 3px;
+  font-size: 14px;
+  color: #fff;
+  background: rgba(4,9,18,.62);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  opacity: 0;
+  transition: opacity .18s ease, transform .18s ease, background .18s ease;
+  pointer-events: none;
+}
+.candidate-card:hover .preview-play,
+.candidate-card:focus-visible .preview-play {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  background: rgba(14,31,52,.88);
+}
+.badge-stack {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.badge-new {
+  color: #08151e;
+  background: var(--accent);
+  border-color: rgba(103,232,249,.75);
+}
+.motion-strip {
+  margin: 14px 0;
+  padding: 10px 11px;
+  border: 1px solid rgba(103,232,249,.13);
+  border-radius: 10px;
+  background: rgba(103,232,249,.045);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.motion-strip span {
+  color: #dffbff;
+  font-size: 11px;
+  font-weight: 800;
+}
+.motion-strip small {
+  color: var(--muted);
+  font-size: 9px;
+  text-align: right;
+}
+.card-open-hint {
+  border-top: 1px solid rgba(139,177,255,.09);
+  padding-top: 13px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-open-hint span {
+  font-size: 16px;
+  transition: transform .18s ease;
+}
+.candidate-card:hover .card-open-hint span {
+  transform: translateX(3px);
+}
+.science-note {
+  margin-top: 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(167,139,250,.18);
+  background: rgba(167,139,250,.06);
+  color: #b8c8df;
+  font-size: 11px;
+  line-height: 1.55;
+}
