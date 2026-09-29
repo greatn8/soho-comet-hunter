@@ -655,3 +655,67 @@ dialog::backdrop {
   font-size: 11px;
   line-height: 1.55;
 }
+
+
+/* Lightweight human-review tools */
+.controls {
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+}
+.controls .search {
+  min-width: 230px;
+}
+.marked-toggle button {
+  min-height: 40px;
+  width: 100%;
+}
+.marked-toggle button.active {
+  color: #fff2a8;
+  border-color: rgba(255,209,102,.45);
+  background: rgba(255,209,102,.11);
+}
+.mark-button {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  z-index: 4;
+  width: 37px;
+  height: 37px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(5,9,17,.78);
+  font-size: 20px;
+  line-height: 1;
+}
+.mark-button.is-marked {
+  color: #ffe48a;
+  border-color: rgba(255,209,102,.55);
+  background: rgba(65,49,10,.76);
+}
+.user-review-badge {
+  color: #dff7ff;
+  border-color: rgba(103,232,249,.32);
+  background: rgba(8,33,46,.78);
+}
+.review-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 9px;
+  align-items: end;
+  margin: 18px 0 6px;
+}
+.review-toolbar button {
+  min-height: 40px;
+}
+.local-note {
+  display: block;
+  color: #6f85a6;
+  font-size: 10px;
+  margin-bottom: 14px;
+}
+@media (max-width: 700px) {
+  .review-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
