@@ -2,7 +2,7 @@
 """Realtime SOHO/LASCO C3 comet hunter supervisor."""
 
 from __future__ import annotations
-import argparse, datetime as dt, fcntl, html, json, math, os, re, signal, subprocess, time
+import argparse, datetime as dt, fcntl, html, json, math, os, re, shutil, signal, subprocess, time
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urljoin
@@ -226,6 +226,16 @@ def run_detector(project,cache_dir,results_dir,args):
     if proc.returncode!=0:
         log(f"WARN: CUDA detector exited {proc.returncode}; see {log_path}"); return
     last_run.write_text(newest)
+
+    latest_frame = results_dir / "latest_frame.jpg"
+    try:
+        tmp_frame = results_dir / "latest_frame.jpg.part"
+        shutil.copy2(frames[-1], tmp_frame)
+        tmp_frame.replace(latest_frame)
+        log(f"Saved dashboard preview for processed frame: {newest}")
+    except Exception as exc:
+        log(f"WARN: could not save latest processed frame preview: {exc}")
+
     candidates=[c for c in parse_candidates(proc.stdout) if comet_like(c)]
     log(f"Realtime comet-like tracks: {len(candidates)}")
     if not candidates:return

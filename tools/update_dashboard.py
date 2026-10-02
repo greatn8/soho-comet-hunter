@@ -725,6 +725,7 @@ def publish_realtime_data(realtime_source, data_dir):
             "available": False,
             "source_updated_at": None,
             "last_frame": None,
+            "latest_frame_image": None,
             "alerts_total": 0,
             "known_matches_total": 0,
             "latest_alert": None,
@@ -743,6 +744,7 @@ def publish_realtime_data(realtime_source, data_dir):
             "available": False,
             "source_updated_at": None,
             "last_frame": None,
+            "latest_frame_image": None,
             "alerts_total": 0,
             "known_matches_total": 0,
             "latest_alert": None,
@@ -759,6 +761,30 @@ def publish_realtime_data(realtime_source, data_dir):
     known_path = source / "known_matches.tsv"
     frame_path = source / "last_detector_frame.txt"
     alert_text_path = source / "latest_alert.txt"
+    latest_frame_path = source / "latest_frame.jpg"
+
+    if not latest_frame_path.exists() and frame_path.exists():
+        try:
+            frame_name = frame_path.read_text(encoding="utf-8").strip()
+            shm_candidate = Path("/dev/shm") / f"comet_realtime_{Path.home().name}_c3_512" / frame_name
+            if shm_candidate.exists():
+                latest_frame_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(shm_candidate, latest_frame_path)
+                print(f"[OK] Recovered latest processed frame from RAM cache: {frame_name}")
+        except Exception as exc:
+            print(f"[WARN] Could not recover realtime preview from RAM cache: {exc}")
+
+    latest_frame_url = None
+    if latest_frame_path.exists():
+        try:
+            realtime_media_dir = data_dir.parent / "media" / "realtime"
+            realtime_media_dir.mkdir(parents=True, exist_ok=True)
+            published_frame = realtime_media_dir / "latest_frame.jpg"
+            shutil.copy2(latest_frame_path, published_frame)
+            version = int(latest_frame_path.stat().st_mtime)
+            latest_frame_url = f"./media/realtime/latest_frame.jpg?v={version}"
+        except Exception as exc:
+            print(f"[WARN] Could not publish latest realtime frame image: {exc}")
 
     latest_candidates = []
     if candidates_path.exists():
@@ -787,7 +813,7 @@ def publish_realtime_data(realtime_source, data_dir):
             pass
 
     source_files = [
-        p for p in (candidates_path, alerts_path, known_path, frame_path, alert_text_path)
+        p for p in (candidates_path, alerts_path, known_path, frame_path, alert_text_path, latest_frame_path)
         if p.exists()
     ]
     newest = max(source_files, key=lambda p: p.stat().st_mtime) if source_files else None
@@ -796,6 +822,7 @@ def publish_realtime_data(realtime_source, data_dir):
         "available": bool(source_files),
         "source_updated_at": file_iso(newest) if newest else None,
         "last_frame": last_frame,
+        "latest_frame_image": latest_frame_url,
         "alerts_total": len(alerts),
         "known_matches_total": len(known),
         "latest_alert": latest_alert,

@@ -461,10 +461,14 @@ function renderRealtime(payload) {
   const alertCountEl = $("#realtimeAlertCount");
   const knownCountEl = $("#realtimeKnownCount");
   const updatedEl = $("#realtimeUpdated");
+  const frameWrap = $("#realtimeFrameWrap");
+  const frameImage = $("#realtimeFrameImage");
+  const frameCaption = $("#realtimeFrameCaption");
   const alertBox = $("#realtimeAlertBox");
   const candidatesEl = $("#realtimeCandidates");
 
-  if (!stateEl || !lastFrameEl || !alertCountEl || !knownCountEl || !updatedEl || !alertBox || !candidatesEl) {
+  if (!stateEl || !lastFrameEl || !alertCountEl || !knownCountEl || !updatedEl ||
+      !frameWrap || !frameImage || !frameCaption || !alertBox || !candidatesEl) {
     return;
   }
 
@@ -475,6 +479,9 @@ function renderRealtime(payload) {
     alertCountEl.textContent = "0";
     knownCountEl.textContent = "0";
     updatedEl.textContent = "—";
+    frameWrap.classList.add("hidden");
+    frameImage.removeAttribute("src");
+    frameCaption.textContent = "—";
     alertBox.classList.add("hidden");
     candidatesEl.innerHTML = '<div class="realtime-empty">Realtime hunter has not published data yet.</div>';
     return;
@@ -488,6 +495,17 @@ function renderRealtime(payload) {
   alertCountEl.textContent = String(payload.alerts_total ?? 0);
   knownCountEl.textContent = String(payload.known_matches_total ?? 0);
   updatedEl.textContent = formatDate(payload.source_updated_at);
+
+  if (payload.latest_frame_image) {
+    frameImage.src = payload.latest_frame_image;
+    frameImage.alt = `LASCO C3 frame ${compactFrameName(payload.last_frame)} processed by the realtime detector`;
+    frameCaption.innerHTML = frameDisplay(payload.last_frame);
+    frameWrap.classList.remove("hidden");
+  } else {
+    frameWrap.classList.add("hidden");
+    frameImage.removeAttribute("src");
+    frameCaption.textContent = "—";
+  }
 
   const latestAlert = String(payload.latest_alert || "").trim();
   if (latestAlert) {
