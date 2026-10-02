@@ -406,6 +406,13 @@ function compactFrameName(value) {
   return text.replace(/_c3_512\.jpg$/i, "");
 }
 
+function frameDisplay(value) {
+  const raw = compactFrameName(value);
+  const m = raw.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})$/);
+  if (!m) return raw || "—";
+  return `${raw}<small>${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]} UTC</small>`;
+}
+
 function realtimeStatusClass(payload) {
   if (!payload || !payload.available) return "waiting";
   const updated = new Date(payload.source_updated_at || 0).getTime();
@@ -475,7 +482,7 @@ function renderRealtime(payload) {
   stateEl.className = "realtime-state " + cls;
   stateEl.innerHTML = "<span></span> " + (cls === "live" ? "LIVE" : "STALE / CHECK HUNTER");
 
-  lastFrameEl.textContent = compactFrameName(payload.last_frame) || "—";
+  lastFrameEl.innerHTML = frameDisplay(payload.last_frame);
   alertCountEl.textContent = String(payload.alerts_total ?? 0);
   knownCountEl.textContent = String(payload.known_matches_total ?? 0);
   updatedEl.textContent = formatDate(payload.source_updated_at);
