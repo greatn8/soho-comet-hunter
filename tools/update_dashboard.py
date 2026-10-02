@@ -6,7 +6,7 @@ import csv
 import json
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 VIDEO_PREFERENCE = (
@@ -513,6 +513,180 @@ def read_tsv_records(path):
         return []
 
 
+
+FRAME_NAME_RE = re.compile(
+    r"(?P<date>20\\d{6})_(?P<hm>\\d{4})_c[23]_(?:512|1024)\\.jpg",
+    re.IGNORECASE,
+)
+
+
+def frame_iso(frame_name):
+    if not frame_name:
+        return None
+    match = FRAME_NAME_RE.search(str(frame_name))
+    if not match:
+        return None
+    try:
+        value = datetime.strptime(
+            match.group("date") + match.group("hm"),
+            "%Y%m%d%H%M",
+        ).replace(tzinfo=timezone.utc)
+        return value.isoformat().replace("+00:00", "Z")
+    except ValueError:
+        return None
+
+
+def realtime_archive_id(row):
+    last = clean(row.get("last")) or "unknown"
+    candidate = clean(row.get("candidate")) or "CXX"
+    match = FRAME_NAME_RE.search(last)
+    stamp = (match.group("date") + "T" + match.group("hm")) if match else norm_id(last)[:20]
+    return f"RT{stamp}_{norm_id(candidate)}"
+
+
+def build_realtime_archive_candidate(row, status, promoted_at):
+    first_seen = frame_iso(row.get("first"))
+    last_seen = frame_iso(row.get("last"))
+    candidate_id = realtime_archive_id(row)
+    report_id = clean(row.get("report_id"))
+
+    if status == "KNOWN_REPORT":
+        review_class = "KNOWN_REPORT"
+        notes = (
+            "Promoted automatically from the realtime hunter after 24 hours. "
+            "The live trajectory matched a recent Sungrazer report. "
+            "Human review is still recommended before treating the identity as definitive."
+        )
+    else:
+        review_class = "REALTIME_UNRESOLVED"
+        notes = (
+            "Promoted automatically from the realtime hunter after 24 hours. "
+            "No recent Sungrazer trajectory match was found when this alert was created."
+        )
+
+    return {
+        "id": candidate_id,
+        "title": f"Realtime candidate {candidate_id}",
+        "score": number(row.get("score")),
+        "review_class": review_class,
+        "event_id": candidate_id,
+        "speed": number(row.get("speed")),
+        "sun_distance": number(row.get("sunward")),
+        "rms": number(row.get("rms")),
+        "members": 1,
+        "family": "Unknown",
+        "source": "SOHO C3 realtime",
+        "instrument": "LASCO C3",
+        "first_seen": first_seen,
+        "last_seen": last_seen,
+        "frames": number(row.get("frames")),
+        "verified_frames": None,
+        "verified_at": promoted_at,
+        "video_variant": "realtime track",
+        "notes": notes,
+        "video": None,
+        "thumbnail": None,
+        "archived_from_realtime": True,
+        "realtime_status": status,
+        "known_object": report_id,
+        "promoted_at": promoted_at,
+    }
+
+
+def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
+    archive_path = data_dir / "realtime_archive.json"
+    archive = {"candidates": []}
+
+    if archive_path.exists():
+        try:
+            loaded = json.loads(archive_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict) and isinstance(loaded.get("candidates"), list):
+                archive = loaded
+        except Exception as exc:
+            print(f"[WARN] Could not parse {archive_path}: {exc}")
+
+    by_id = {
+        str(c.get("id")): c
+        for c in archive.get("candidates", [])
+        if isinstance(c, dict) and c.get("id")
+    }
+
+    if realtime_source is None:
+        return list(by_id.values())
+
+    source = Path(realtime_source).expanduser().resolve()
+    if not source.exists():
+        return list(by_id.values())
+
+    rows = []
+    for row in read_tsv_records(source / "alerts.tsv"):
+        rows.append((row, "UNMATCHED"))
+    for row in read_tsv_records(source / "known_matches.tsv"):
+        rows.append((row, "KNOWN_REPORT"))
+
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=age_hours)
+    promoted = 0
+
+    for row, status in rows:
+        last_seen_text = frame_iso(row.get("last"))
+        if not last_seen_text:
+            continue
+        try:
+            last_seen = datetime.fromisoformat(last_seen_text.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if last_seen > cutoff:
+            continue
+
+        promoted_at = now.isoformat().replace("+00:00", "Z")
+        candidate = build_realtime_archive_candidate(row, status, promoted_at)
+        existing = by_id.get(candidate["id"])
+
+        if existing:
+            # A later known-report match should enrich an earlier unresolved archive row.
+            if status == "KNOWN_REPORT":
+                existing["review_class"] = candidate["review_class"]
+                existing["realtime_status"] = status
+                existing["known_object"] = candidate.get("known_object")
+                existing["notes"] = candidate["notes"]
+            for field in ("score", "speed", "sun_distance", "rms", "frames"):
+                if existing.get(field) is None and candidate.get(field) is not None:
+                    existing[field] = candidate[field]
+            continue
+
+        by_id[candidate["id"]] = candidate
+        promoted += 1
+
+    candidates = sorted(
+        by_id.values(),
+        key=lambda c: str(c.get("last_seen") or ""),
+        reverse=True,
+    )
+    new_archive = {
+        "generated_at": now_iso(),
+        "promotion_age_hours": age_hours,
+        "candidates": candidates,
+    }
+
+    previous = None
+    if archive_path.exists():
+        try:
+            previous = json.loads(archive_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    if previous != new_archive:
+        archive_path.write_text(json.dumps(new_archive, indent=2), encoding="utf-8")
+
+    if promoted:
+        print(f"[OK] Promoted {promoted} realtime candidate(s) into the permanent archive.")
+    else:
+        print("[OK] No realtime candidates reached the archive age threshold this cycle.")
+
+    return candidates
+
+
 def publish_realtime_data(realtime_source, data_dir):
     output = data_dir / "realtime.json"
 
@@ -625,6 +799,12 @@ def main():
         default=None,
         help="Optional results/realtime directory from the realtime hunter.",
     )
+    parser.add_argument(
+        "--realtime-promote-hours",
+        type=float,
+        default=24.0,
+        help="Age after last observation before a realtime detection is added to the permanent candidate archive.",
+    )
     args = parser.parse_args()
 
     source = Path(args.source).expanduser().resolve()
@@ -675,6 +855,17 @@ def main():
             except (TypeError, ValueError):
                 pass
     candidates = list(deduped.values())
+
+    realtime_archive = promote_realtime_candidates(
+        args.realtime_source,
+        data_dir,
+        age_hours=args.realtime_promote_hours,
+    )
+    existing_ids = {str(c.get("id")) for c in candidates}
+    for archived in realtime_archive:
+        if str(archived.get("id")) not in existing_ids:
+            candidates.append(archived)
+            existing_ids.add(str(archived.get("id")))
 
     # Apply repository-backed human review overrides after deduplication so
     # known-object labels and permanent stars survive every dashboard publish.

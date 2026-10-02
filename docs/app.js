@@ -178,7 +178,9 @@ function candidateCard(c) {
         <div class="card-top">
           <div>
             <h3 class="card-title">${escapeHtml(c.event_id || c.id)}</h3>
-            <p class="card-subtitle">Verified ${escapeHtml(formatDate(c.verified_at))}</p>
+            <p class="card-subtitle">${c.archived_from_realtime
+              ? `Realtime archive · observed ${escapeHtml(formatDate(c.last_seen))}`
+              : `Verified ${escapeHtml(formatDate(c.verified_at))}`}</p>
           </div>
           <div class="confidence">
             ${scoreText(c.score)}
@@ -353,7 +355,7 @@ function openDialog(c) {
         <div><span>Track frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
         <div><span>Verified frames</span><strong>${escapeHtml(c.verified_frames ?? "—")}</strong></div>
         <div><span>Fit RMS</span><strong>${escapeHtml(metricText(c.rms))}</strong></div>
-        <div><span>Verified</span><strong>${escapeHtml(formatDate(c.verified_at))}</strong></div>
+        <div><span>${c.archived_from_realtime ? "Archived" : "Verified"}</span><strong>${escapeHtml(formatDate(c.verified_at))}</strong></div>
       </div>
 
       <p>
@@ -515,10 +517,11 @@ function renderRealtime(payload) {
 
 async function loadData() {
   try {
+    const cacheKey = Date.now();
     const [candidateResponse, statusResponse, realtimeResponse] = await Promise.all([
-      fetch("./data/candidates.json", { cache: "no-store" }),
-      fetch("./data/status.json", { cache: "no-store" }),
-      fetch("./data/realtime.json", { cache: "no-store" })
+      fetch(`./data/candidates.json?t=${cacheKey}`, { cache: "no-store" }),
+      fetch(`./data/status.json?t=${cacheKey}`, { cache: "no-store" }),
+      fetch(`./data/realtime.json?t=${cacheKey}`, { cache: "no-store" })
     ]);
 
     if (!candidateResponse.ok) throw new Error("Could not load candidate data");
