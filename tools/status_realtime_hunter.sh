@@ -1,26 +1,20 @@
 #!/usr/bin/env bash
 set -u
 PROJECT="${1:-$HOME/comethunting/comet_hunter_native_cuda_v7_archive}"
-
-echo "=== HUNTER TMUX ==="
-tmux ls 2>/dev/null | grep -E 'comet_hybrid|comet_realtime|comet_handoff|comet_archive' || echo "No comet hunter session found."
-
+echo "=== HUNTER MODE ==="
+cat "$PROJECT/results/realtime/mode.json" 2>/dev/null || echo '{"mode":"UNKNOWN"}'
+echo
+echo "=== TMUX ==="
+tmux ls 2>/dev/null | grep -E 'comet_realtime|comet_hybrid|comet_handoff|comet_archive' || echo "No comet hunter session found."
 echo
 echo "=== PROCESSES ==="
-pgrep -af 'hybrid_hunter.py|realtime_hunter.py|comet_hunter_archive|run_v10_incremental|run_archive_one_chunk|verify_event.sh' || true
-
+pgrep -af 'realtime_hunter.py|hybrid_hunter.py|comet_hunter_archive|run_v10_incremental|run_archive_one_chunk|verify_event.sh' || true
 echo
-echo "=== HYBRID STATE ==="
-cat "$PROJECT/results/realtime/hybrid_state.json" 2>/dev/null || echo "No hybrid state yet."
-
+echo "=== LATEST REALTIME LOG ==="
+tail -n 80 "$PROJECT/logs/realtime_hunter.log" 2>/dev/null || true
 echo
-echo "=== LATEST HYBRID LOG ==="
-tail -n 80 "$PROJECT/logs/hybrid_hunter.log" 2>/dev/null || true
-
+echo "=== LIVE REVIEW PACKAGES ==="
+find "$PROJECT/results/realtime/review" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | tail -n 20 || true
 echo
-echo "=== LATEST REALTIME ALERT ==="
-cat "$PROJECT/results/realtime/latest_alert.txt" 2>/dev/null || echo "No unmatched realtime alert yet."
-
-echo
-echo "=== HISTORICAL RESUME DATE ==="
-cat "$PROJECT/state/next_date_c3_512.txt" 2>/dev/null || echo "No historical resume state."
+echo "Old historical crawling: DISABLED"
+echo "New live detections: promoted into candidate archive after 24 hours"
