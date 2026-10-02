@@ -114,20 +114,25 @@ function markStorageKey(c) {
 }
 
 function getReview(c) {
+  const persisted = String(c.review_state || "").toUpperCase();
+  if (REVIEW_STATES.includes(persisted) && persisted !== "UNREVIEWED") return persisted;
+
   const value = localStorage.getItem(reviewStorageKey(c)) || "UNREVIEWED";
   return REVIEW_STATES.includes(value) ? value : "UNREVIEWED";
 }
 
 function setReview(c, value) {
+  if (c.review_locked) return;
   if (value === "UNREVIEWED") localStorage.removeItem(reviewStorageKey(c));
   else localStorage.setItem(reviewStorageKey(c), value);
 }
 
 function isMarked(c) {
-  return localStorage.getItem(markStorageKey(c)) === "1";
+  return c.starred === true || localStorage.getItem(markStorageKey(c)) === "1";
 }
 
 function setMarked(c, marked) {
+  if (c.star_locked) return;
   if (marked) localStorage.setItem(markStorageKey(c), "1");
   else localStorage.removeItem(markStorageKey(c));
 }
@@ -145,6 +150,7 @@ function candidateCard(c) {
 
   const freshBadge = isFresh(c) ? '<span class="badge badge-new">NEW</span>' : "";
   const marked = isMarked(c);
+  const permanentMark = c.starred === true && c.star_locked === true;
   const motion = motionClass(c);
 
   return `
@@ -153,8 +159,9 @@ function candidateCard(c) {
       <div class="preview">
         ${preview}
         <button class="mark-button ${marked ? "is-marked" : ""}" data-mark="${escapeHtml(c.id)}"
-          type="button" aria-label="${marked ? "Unmark" : "Mark"} ${escapeHtml(c.event_id || c.id)}"
-          title="${marked ? "Remove mark" : "Mark interesting"}">${marked ? "★" : "☆"}</button>
+          type="button" ${permanentMark ? "disabled" : ""}
+          aria-label="${permanentMark ? "Permanently starred" : marked ? "Unmark" : "Mark"} ${escapeHtml(c.event_id || c.id)}"
+          title="${permanentMark ? "Permanently starred in repository" : marked ? "Remove mark" : "Mark interesting"}">${marked ? "★" : "☆"}</button>
         <div class="preview-play" aria-hidden="true">▶</div>
         <div class="preview-overlay">
           <span class="badge ${badgeClass(c.review_class)}">${escapeHtml(prettyClass(c.review_class))}</span>
@@ -286,6 +293,7 @@ function reportText(c) {
     "Pipeline class: " + prettyClass(c.review_class),
     "Pipeline score: " + scoreText(c.score),
     "My review: " + prettyClass(getReview(c)),
+    "Known object: " + (c.known_object || "—"),
     "Marked: " + (isMarked(c) ? "yes" : "no"),
     "Trajectory: " + motionClass(c),
     "Speed: " + metricText(c.speed) + " px/h",
@@ -315,6 +323,10 @@ function openDialog(c) {
     `<option value="${value}" ${getReview(c) === value ? "selected" : ""}>${escapeHtml(prettyClass(value))}</option>`
   ).join("");
 
+  const persistenceNote = c.review_locked || c.star_locked
+    ? "Known-object status and star are saved in the repository."
+    : "Review labels and marks are saved in this browser.";
+
   $("#dialogBody").innerHTML = `
     <div class="dialog-content">
       <div class="eyebrow">CANDIDATE REVIEW</div>
@@ -323,16 +335,17 @@ function openDialog(c) {
 
       <div class="review-toolbar">
         <label>
-          <span>My review</span>
-          <select id="dialogReview">${reviewOptions}</select>
+          <span>${c.review_locked ? "Repository review" : "My review"}</span>
+          <select id="dialogReview" ${c.review_locked ? "disabled" : ""}>${reviewOptions}</select>
         </label>
-        <button id="dialogMark" type="button">${isMarked(c) ? "★ Marked" : "☆ Mark interesting"}</button>
+        <button id="dialogMark" type="button" ${c.star_locked ? "disabled" : ""}>${isMarked(c) ? "★ Marked" : "☆ Mark interesting"}</button>
         <button id="copyReport" type="button">Copy candidate report</button>
       </div>
-      <small class="local-note">Review labels and marks are saved in this browser.</small>
+      <small class="local-note">${escapeHtml(persistenceNote)}</small>
 
       <div class="dialog-info">
         <div><span>Review class</span><strong>${escapeHtml(prettyClass(c.review_class))}</strong></div>
+        ${c.known_object ? `<div><span>Known object</span><strong>${escapeHtml(c.known_object)}</strong></div>` : ""}
         <div><span>Pipeline score</span><strong>${scoreText(c.score)}</strong></div>
         <div><span>Trajectory</span><strong>${escapeHtml(motionClass(c))}</strong></div>
         <div><span>Radial component</span><strong>${escapeHtml(radialityText(c))}</strong></div>

@@ -551,6 +551,40 @@ def main():
                 pass
     candidates = list(deduped.values())
 
+    # Apply repository-backed human review overrides after deduplication so
+    # known-object labels and permanent stars survive every dashboard publish.
+    overrides_path = data_dir / "review_overrides.json"
+    review_overrides = {}
+    if overrides_path.exists():
+        try:
+            loaded = json.loads(overrides_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                review_overrides = {str(k).upper(): v for k, v in loaded.items()}
+        except Exception as exc:
+            print(f"[WARN] Could not parse {overrides_path}: {exc}")
+
+    override_fields = (
+        "review_state",
+        "review_locked",
+        "starred",
+        "star_locked",
+        "known_object",
+    )
+    applied_overrides = 0
+    for candidate in candidates:
+        event_key = str(candidate.get("event_id") or "").upper()
+        id_key = str(candidate.get("id") or "").upper()
+        override = review_overrides.get(event_key) or review_overrides.get(id_key)
+        if not isinstance(override, dict):
+            continue
+        for field in override_fields:
+            if field in override:
+                candidate[field] = override[field]
+        applied_overrides += 1
+
+    if review_overrides:
+        print(f"[INFO] Applied repository review overrides to {applied_overrides} candidate(s).")
+
     candidates_path = data_dir / "candidates.json"
     status_path = data_dir / "status.json"
 
