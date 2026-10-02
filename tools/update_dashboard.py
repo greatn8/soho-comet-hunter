@@ -771,6 +771,9 @@ def publish_realtime_data(realtime_source, data_dir):
             "source_updated_at": None,
             "last_frame": None,
             "latest_frame_image": None,
+            "hunter_heartbeat_at": None,
+            "hunter_status": None,
+            "hunter_new_frames": None,
             "alerts_total": 0,
             "known_matches_total": 0,
             "latest_alert": None,
@@ -790,6 +793,9 @@ def publish_realtime_data(realtime_source, data_dir):
             "source_updated_at": None,
             "last_frame": None,
             "latest_frame_image": None,
+            "hunter_heartbeat_at": None,
+            "hunter_status": None,
+            "hunter_new_frames": None,
             "alerts_total": 0,
             "known_matches_total": 0,
             "latest_alert": None,
@@ -806,6 +812,7 @@ def publish_realtime_data(realtime_source, data_dir):
     known_path = source / "known_matches.tsv"
     frame_path = source / "last_detector_frame.txt"
     alert_text_path = source / "latest_alert.txt"
+    heartbeat_path = source / "heartbeat.json"
 
     latest_candidates = []
     if candidates_path.exists():
@@ -846,6 +853,15 @@ def publish_realtime_data(realtime_source, data_dir):
                 f"{day[:4]}/{camera}/{day}/{last_frame}"
             )
 
+    heartbeat = {}
+    if heartbeat_path.exists():
+        try:
+            loaded = json.loads(heartbeat_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                heartbeat = loaded
+        except Exception as exc:
+            print(f"[WARN] Could not parse realtime heartbeat: {exc}")
+
     latest_alert = None
     if alert_text_path.exists():
         try:
@@ -854,7 +870,7 @@ def publish_realtime_data(realtime_source, data_dir):
             pass
 
     source_files = [
-        p for p in (candidates_path, alerts_path, known_path, frame_path, alert_text_path)
+        p for p in (candidates_path, alerts_path, known_path, frame_path, alert_text_path, heartbeat_path)
         if p.exists()
     ]
     newest = max(source_files, key=lambda p: p.stat().st_mtime) if source_files else None
@@ -864,6 +880,9 @@ def publish_realtime_data(realtime_source, data_dir):
         "source_updated_at": file_iso(newest) if newest else None,
         "last_frame": last_frame,
         "latest_frame_image": latest_frame_url,
+        "hunter_heartbeat_at": heartbeat.get("checked_at"),
+        "hunter_status": heartbeat.get("status"),
+        "hunter_new_frames": heartbeat.get("new_frames"),
         "alerts_total": len(alerts),
         "known_matches_total": len(known),
         "latest_alert": latest_alert,
