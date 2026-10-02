@@ -255,8 +255,22 @@ def run_detector(project,cache_dir,results_dir,args):
     except Exception as exc:
         log(f"WARN: could not save latest processed frame preview: {exc}")
 
-    candidates=[c for c in parse_candidates(proc.stdout) if comet_like(c)]
-    log(f"Realtime comet-like tracks: {len(candidates)}")
+    raw_candidates=parse_candidates(proc.stdout)
+    candidates=[c for c in raw_candidates if comet_like(c)]
+    stats={
+        "run_id":run_id,
+        "newest_frame":newest,
+        "frames_scanned":len(frames),
+        "raw_tracks_parsed":len(raw_candidates),
+        "raw_high":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="HIGH"),
+        "raw_medium":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="MEDIUM"),
+        "comet_like_tracks":len(candidates),
+        "compute_minutes":args.compute_minutes,
+        "max_candidates":args.max_candidates,
+        "updated_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),
+    }
+    (results_dir/"detector_stats.json").write_text(json.dumps(stats,indent=2)+"\n",encoding="utf-8")
+    log(f"Realtime detector parsed {len(raw_candidates)} moving track(s); {len(candidates)} survived comet-like filtering.")
     if not candidates:
         (results_dir/"latest_candidates.json").write_text("[]\n", encoding="utf-8")
         return
@@ -293,7 +307,7 @@ def run_detector(project,cache_dir,results_dir,args):
 
 def main():
     p=argparse.ArgumentParser(description="Realtime SOHO C3 CUDA comet hunter")
-    p.add_argument("--project",required=True); p.add_argument("--poll-seconds",type=int,default=905); p.add_argument("--window-hours",type=int,default=12); p.add_argument("--bootstrap-hours",type=int,default=12); p.add_argument("--compute-minutes",type=int,default=3); p.add_argument("--min-frames",type=int,default=5); p.add_argument("--max-candidates",type=int,default=300); p.add_argument("--gpu-wait-seconds",type=int,default=720); p.add_argument("--once",action="store_true")
+    p.add_argument("--project",required=True); p.add_argument("--poll-seconds",type=int,default=905); p.add_argument("--window-hours",type=int,default=12); p.add_argument("--bootstrap-hours",type=int,default=12); p.add_argument("--compute-minutes",type=int,default=8); p.add_argument("--min-frames",type=int,default=5); p.add_argument("--max-candidates",type=int,default=1000); p.add_argument("--gpu-wait-seconds",type=int,default=720); p.add_argument("--once",action="store_true")
     args=p.parse_args()
     if args.poll_seconds<900:p.error("--poll-seconds must be at least 900")
     project=Path(args.project).expanduser().resolve(); state_dir=project/"state"; results_dir=project/"results"/"realtime"; cache_dir=Path("/dev/shm")/f"comet_realtime_{os.environ.get('USER','user')}_c3_512"
