@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 SOURCE_DIR="${1:-results/v9_visual}"
+REALTIME_DIR="${REALTIME_DIR:-$HOME/comethunting/comet_hunter_native_cuda_v7_archive/results/realtime}"
 LOCK_DIR=".dashboard_publish.lockdir"
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -31,7 +32,10 @@ echo "============================================================"
 # permanently stuck behind origin/main.
 git pull --rebase --autostash origin main
 
-python3 tools/update_dashboard.py   --source "$SOURCE_DIR"   --results-root results
+python3 tools/update_dashboard.py \
+  --source "$SOURCE_DIR" \
+  --results-root results \
+  --realtime-source "$REALTIME_DIR"
 
 git add docs
 

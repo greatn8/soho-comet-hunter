@@ -67,6 +67,39 @@
       </article>
     </section>
 
+    <section id="realtimePanel" class="realtime-panel panel" aria-live="polite">
+      <div class="realtime-header">
+        <div>
+          <div class="eyebrow">LIVE / REALTIME</div>
+          <h2>Incoming C3 hunter</h2>
+          <p>Fresh LASCO C3 frames are checked by the CUDA detector and compared against recent Sungrazer reports.</p>
+        </div>
+        <div id="realtimeState" class="realtime-state waiting"><span></span> WAITING FOR DATA</div>
+      </div>
+
+      <div class="realtime-stats">
+        <div>
+          <span>Last frame processed</span>
+          <strong id="realtimeLastFrame">—</strong>
+        </div>
+        <div>
+          <span>Unmatched alerts</span>
+          <strong id="realtimeAlertCount">—</strong>
+        </div>
+        <div>
+          <span>Known report matches</span>
+          <strong id="realtimeKnownCount">—</strong>
+        </div>
+        <div>
+          <span>Live data updated</span>
+          <strong id="realtimeUpdated">—</strong>
+        </div>
+      </div>
+
+      <div id="realtimeAlertBox" class="realtime-alert hidden"></div>
+      <div id="realtimeCandidates" class="realtime-candidates"></div>
+    </section>
+
     <section class="controls panel">
       <label class="search">
         <span>Search</span>

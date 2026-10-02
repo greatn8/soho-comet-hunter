@@ -494,12 +494,137 @@ def build_candidate(folder, video, media_dir, copy_media, records, merged_candid
         "thumbnail": meta.get("thumbnail") or thumb_url,
     }
 
+
+def file_iso(path):
+    try:
+        return iso_from_mtime(path)
+    except Exception:
+        return None
+
+
+def read_tsv_records(path):
+    if not path.exists():
+        return []
+    try:
+        with path.open("r", encoding="utf-8", errors="replace", newline="") as f:
+            return list(csv.DictReader(f, delimiter="\t"))
+    except Exception as exc:
+        print(f"[WARN] Could not parse realtime TSV {path}: {exc}")
+        return []
+
+
+def publish_realtime_data(realtime_source, data_dir):
+    output = data_dir / "realtime.json"
+
+    if realtime_source is None:
+        payload = {
+            "available": False,
+            "source_updated_at": None,
+            "last_frame": None,
+            "alerts_total": 0,
+            "known_matches_total": 0,
+            "latest_alert": None,
+            "latest_candidates": [],
+            "recent_alerts": [],
+            "recent_known_matches": [],
+        }
+        if not output.exists() or json.loads(output.read_text(encoding="utf-8")) != payload:
+            output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print("[INFO] Realtime source not configured; published waiting state.")
+        return
+
+    source = Path(realtime_source).expanduser().resolve()
+    if not source.exists():
+        payload = {
+            "available": False,
+            "source_updated_at": None,
+            "last_frame": None,
+            "alerts_total": 0,
+            "known_matches_total": 0,
+            "latest_alert": None,
+            "latest_candidates": [],
+            "recent_alerts": [],
+            "recent_known_matches": [],
+        }
+        output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print(f"[INFO] Realtime source not present yet: {source}")
+        return
+
+    candidates_path = source / "latest_candidates.json"
+    alerts_path = source / "alerts.tsv"
+    known_path = source / "known_matches.tsv"
+    frame_path = source / "last_detector_frame.txt"
+    alert_text_path = source / "latest_alert.txt"
+
+    latest_candidates = []
+    if candidates_path.exists():
+        try:
+            loaded = json.loads(candidates_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                latest_candidates = loaded
+        except Exception as exc:
+            print(f"[WARN] Could not parse {candidates_path}: {exc}")
+
+    alerts = read_tsv_records(alerts_path)
+    known = read_tsv_records(known_path)
+
+    last_frame = None
+    if frame_path.exists():
+        try:
+            last_frame = frame_path.read_text(encoding="utf-8").strip() or None
+        except Exception:
+            pass
+
+    latest_alert = None
+    if alert_text_path.exists():
+        try:
+            latest_alert = alert_text_path.read_text(encoding="utf-8", errors="replace").strip() or None
+        except Exception:
+            pass
+
+    source_files = [
+        p for p in (candidates_path, alerts_path, known_path, frame_path, alert_text_path)
+        if p.exists()
+    ]
+    newest = max(source_files, key=lambda p: p.stat().st_mtime) if source_files else None
+
+    payload = {
+        "available": bool(source_files),
+        "source_updated_at": file_iso(newest) if newest else None,
+        "last_frame": last_frame,
+        "alerts_total": len(alerts),
+        "known_matches_total": len(known),
+        "latest_alert": latest_alert,
+        "latest_candidates": latest_candidates[:50],
+        "recent_alerts": alerts[-20:],
+        "recent_known_matches": known[-20:],
+    }
+
+    previous = None
+    if output.exists():
+        try:
+            previous = json.loads(output.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    if previous != payload:
+        output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print(f"[OK] Wrote realtime dashboard data: {output}")
+    else:
+        print("[OK] Realtime dashboard data unchanged.")
+
+
 def main():
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description="Update the comet dashboard from pipeline output.")
     parser.add_argument("--source", default=str(root / "results" / "visual"))
     parser.add_argument("--results-root", default=str(root / "results"))
     parser.add_argument("--no-copy-media", action="store_true")
+    parser.add_argument(
+        "--realtime-source",
+        default=None,
+        help="Optional results/realtime directory from the realtime hunter.",
+    )
     args = parser.parse_args()
 
     source = Path(args.source).expanduser().resolve()
@@ -618,6 +743,8 @@ def main():
     print(f"[OK] Matched review class for {classified}/{len(candidates)} candidates.")
     print(f"[OK] Wrote {data_dir / 'candidates.json'}")
     print(f"[OK] Wrote {data_dir / 'status.json'}")
+
+    publish_realtime_data(args.realtime_source, data_dir)
 
 if __name__ == "__main__":
     main()

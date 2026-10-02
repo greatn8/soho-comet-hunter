@@ -719,3 +719,184 @@ dialog::backdrop {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Realtime hunter control panel */
+.realtime-panel {
+  margin: 20px 0 24px;
+  padding: 22px;
+  border-color: rgba(103,232,249,.24);
+  background:
+    linear-gradient(145deg, rgba(9,26,40,.94), rgba(15,24,43,.88)),
+    var(--panel);
+}
+.realtime-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 22px;
+}
+.realtime-header h2 {
+  margin: 4px 0 4px;
+  font-size: 24px;
+}
+.realtime-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.realtime-state {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 11px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .07em;
+  background: rgba(5,9,17,.62);
+}
+.realtime-state span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 12px currentColor;
+}
+.realtime-state.live { color: #bff8dc; border-color: rgba(94,224,160,.28); }
+.realtime-state.live span { background: var(--good); animation: realtime-pulse 1.6s infinite; }
+.realtime-state.stale { color: #ffe6a5; border-color: rgba(255,209,102,.28); }
+.realtime-state.waiting { color: #b8c8df; }
+@keyframes realtime-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .45; transform: scale(.8); }
+}
+.realtime-stats {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.realtime-stats > div {
+  padding: 12px 13px;
+  border: 1px solid rgba(139,177,255,.12);
+  border-radius: 11px;
+  background: rgba(255,255,255,.025);
+}
+.realtime-stats span {
+  display: block;
+  color: #7187a7;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 5px;
+}
+.realtime-stats strong {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.realtime-alert {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,122,144,.35);
+  border-radius: 12px;
+  background: rgba(94,18,32,.28);
+}
+.realtime-alert > strong {
+  color: #ffd4dc;
+  font-size: 12px;
+}
+.realtime-alert pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 10px 0 0;
+  color: #d9e6f8;
+  font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.realtime-candidates {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.realtime-candidate {
+  padding: 13px;
+  border: 1px solid rgba(139,177,255,.13);
+  border-radius: 12px;
+  background: rgba(5,9,17,.44);
+}
+.realtime-candidate.live-unmatched { border-color: rgba(255,122,144,.36); }
+.realtime-candidate.live-known { border-color: rgba(167,139,250,.26); }
+.realtime-candidate-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.realtime-candidate-top > strong {
+  font-size: 12px;
+}
+.realtime-candidate-top > span {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.live-unmatched .realtime-candidate-top > span { color: #ffc1cb; }
+.live-known .realtime-candidate-top > span { color: #d3c6ff; }
+.realtime-candidate-meta {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 11px;
+}
+.realtime-candidate-meta span {
+  display: block;
+  color: #64799a;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.realtime-candidate-meta strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+}
+.realtime-track {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  color: #8fa4c4;
+  font: 9px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.realtime-track b { color: var(--accent); }
+.realtime-candidate > small {
+  display: block;
+  margin-top: 8px;
+  color: #879bbc;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+.realtime-empty {
+  grid-column: 1 / -1;
+  padding: 16px;
+  border: 1px dashed rgba(139,177,255,.15);
+  border-radius: 11px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 11px;
+}
+@media (max-width: 800px) {
+  .realtime-header { flex-direction: column; }
+  .realtime-stats { grid-template-columns: 1fr 1fr; }
+  .realtime-candidates { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .realtime-stats { grid-template-columns: 1fr; }
+  .realtime-candidate-meta { grid-template-columns: 1fr 1fr; }
+}

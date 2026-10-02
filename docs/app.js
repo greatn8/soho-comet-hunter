@@ -10,6 +10,7 @@ const REVIEW_STATES = [
 
 const state = {
   candidates: [],
+  realtime: null,
   query: "",
   reviewClass: "all",
   motion: "all",
@@ -399,18 +400,129 @@ function openDialog(c) {
   $("#candidateDialog").showModal();
 }
 
+
+function compactFrameName(value) {
+  const text = String(value || "");
+  return text.replace(/_c3_512\.jpg$/i, "");
+}
+
+function realtimeStatusClass(payload) {
+  if (!payload || !payload.available) return "waiting";
+  const updated = new Date(payload.source_updated_at || 0).getTime();
+  if (!Number.isFinite(updated) || updated <= 0) return "waiting";
+  const ageMinutes = (Date.now() - updated) / 60000;
+  return ageMinutes <= 45 ? "live" : "stale";
+}
+
+function realtimeCandidateCard(c) {
+  const status = String(c.status || "UNKNOWN").toUpperCase();
+  const statusClass = status === "UNMATCHED"
+    ? "live-unmatched"
+    : status === "KNOWN_REPORT"
+      ? "live-known"
+      : "live-seen";
+
+  return `
+    <article class="realtime-candidate ${statusClass}">
+      <div class="realtime-candidate-top">
+        <strong>${escapeHtml(c.candidate || "Candidate")}</strong>
+        <span>${escapeHtml(prettyClass(status))}</span>
+      </div>
+      <div class="realtime-candidate-meta">
+        <div><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
+        <div><span>Speed</span><strong>${escapeHtml(metricText(c.speed))} px/h</strong></div>
+        <div><span>Fit RMS</span><strong>${escapeHtml(metricText(c.rms))}</strong></div>
+        <div><span>Sunward</span><strong>${escapeHtml(metricText(c.sunward))} px/h</strong></div>
+      </div>
+      <div class="realtime-track">
+        <span>${escapeHtml(compactFrameName(c.first))}</span>
+        <b>→</b>
+        <span>${escapeHtml(compactFrameName(c.last))}</span>
+      </div>
+      ${c.report_id ? `<small>Matched report: ${escapeHtml(c.report_id)}</small>` : ""}
+    </article>
+  `;
+}
+
+function renderRealtime(payload) {
+  state.realtime = payload || null;
+
+  const stateEl = $("#realtimeState");
+  const lastFrameEl = $("#realtimeLastFrame");
+  const alertCountEl = $("#realtimeAlertCount");
+  const knownCountEl = $("#realtimeKnownCount");
+  const updatedEl = $("#realtimeUpdated");
+  const alertBox = $("#realtimeAlertBox");
+  const candidatesEl = $("#realtimeCandidates");
+
+  if (!stateEl || !lastFrameEl || !alertCountEl || !knownCountEl || !updatedEl || !alertBox || !candidatesEl) {
+    return;
+  }
+
+  if (!payload || !payload.available) {
+    stateEl.className = "realtime-state waiting";
+    stateEl.innerHTML = "<span></span> WAITING FOR LIVE DATA";
+    lastFrameEl.textContent = "—";
+    alertCountEl.textContent = "0";
+    knownCountEl.textContent = "0";
+    updatedEl.textContent = "—";
+    alertBox.classList.add("hidden");
+    candidatesEl.innerHTML = '<div class="realtime-empty">Realtime hunter has not published data yet.</div>';
+    return;
+  }
+
+  const cls = realtimeStatusClass(payload);
+  stateEl.className = "realtime-state " + cls;
+  stateEl.innerHTML = "<span></span> " + (cls === "live" ? "LIVE" : "STALE / CHECK HUNTER");
+
+  lastFrameEl.textContent = compactFrameName(payload.last_frame) || "—";
+  alertCountEl.textContent = String(payload.alerts_total ?? 0);
+  knownCountEl.textContent = String(payload.known_matches_total ?? 0);
+  updatedEl.textContent = formatDate(payload.source_updated_at);
+
+  const latestAlert = String(payload.latest_alert || "").trim();
+  if (latestAlert) {
+    alertBox.classList.remove("hidden");
+    alertBox.innerHTML =
+      '<strong>⚠ Unmatched realtime candidate requires review</strong>' +
+      '<pre>' + escapeHtml(latestAlert) + '</pre>';
+  } else {
+    alertBox.classList.add("hidden");
+    alertBox.innerHTML = "";
+  }
+
+  const rows = Array.isArray(payload.latest_candidates) ? payload.latest_candidates : [];
+  if (!rows.length) {
+    candidatesEl.innerHTML = '<div class="realtime-empty">No comet-like realtime tracks in the latest detector pass.</div>';
+    return;
+  }
+
+  const ordered = [...rows].sort((a, b) => {
+    const rank = { UNMATCHED: 0, KNOWN_REPORT: 1, SEEN_ALREADY: 2 };
+    return (rank[String(a.status || "").toUpperCase()] ?? 9) -
+      (rank[String(b.status || "").toUpperCase()] ?? 9);
+  });
+
+  candidatesEl.innerHTML = ordered.slice(0, 8).map(realtimeCandidateCard).join("");
+}
+
 async function loadData() {
   try {
-    const [candidateResponse, statusResponse] = await Promise.all([
+    const [candidateResponse, statusResponse, realtimeResponse] = await Promise.all([
       fetch("./data/candidates.json", { cache: "no-store" }),
-      fetch("./data/status.json", { cache: "no-store" })
+      fetch("./data/status.json", { cache: "no-store" }),
+      fetch("./data/realtime.json", { cache: "no-store" })
     ]);
 
     if (!candidateResponse.ok) throw new Error("Could not load candidate data");
 
     const payload = await candidateResponse.json();
     const status = statusResponse.ok ? await statusResponse.json() : {};
+    const realtime = realtimeResponse.ok
+      ? await realtimeResponse.json()
+      : { available: false };
     state.candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+    renderRealtime(realtime);
 
     $("#demoBanner").classList.toggle("hidden", !payload.demo);
     $("#candidateCount").textContent = state.candidates.length;
