@@ -417,7 +417,7 @@ function frameDisplay(value) {
 
 function realtimeStatusClass(payload) {
   if (!payload || !payload.available) return "waiting";
-  const updated = new Date(payload.source_updated_at || 0).getTime();
+  const updated = new Date(payload.hunter_heartbeat_at || payload.source_updated_at || 0).getTime();
   if (!Number.isFinite(updated) || updated <= 0) return "waiting";
   const ageMinutes = (Date.now() - updated) / 60000;
   return ageMinutes <= 45 ? "live" : "stale";
