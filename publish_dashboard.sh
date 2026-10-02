@@ -46,6 +46,19 @@ fi
 
 STAMP="$(date -u +'%Y-%m-%d %H:%M:%SZ')"
 git commit -m "Update comet dashboard $STAMP"
-git push origin main
 
-echo "Published: https://greatn8.github.io/soho-comet-hunter/"
+# Another publisher or a direct GitHub edit can land between the pull above
+# and this push. Retry with a rebase instead of leaving the watcher stuck.
+for attempt in 1 2 3; do
+  if git push origin main; then
+    echo "Published: https://greatn8.github.io/soho-comet-hunter/"
+    exit 0
+  fi
+
+  echo "Push raced with another update; rebasing and retrying (attempt $attempt/3)..."
+  git pull --rebase --autostash origin main
+  sleep 2
+done
+
+echo "Dashboard push failed after 3 attempts." >&2
+exit 1
