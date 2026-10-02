@@ -425,6 +425,18 @@ function realtimeStatusClass(payload) {
 
 function realtimeCandidateCard(c) {
   const status = String(c.status || "UNKNOWN").toUpperCase();
+  const media = c.review_video
+    ? `<div class="realtime-review-media">
+        <video controls muted loop playsinline preload="metadata" ${c.review_thumbnail ? `poster="${escapeHtml(c.review_thumbnail)}"` : ""}>
+          <source src="${escapeHtml(c.review_video)}" type="video/mp4">
+        </video>
+        <div class="realtime-review-links">
+          <a href="${escapeHtml(c.review_video)}" target="_blank" rel="noopener">Annotated zoom</a>
+          ${c.review_raw_video ? `<a href="${escapeHtml(c.review_raw_video)}" target="_blank" rel="noopener">Raw zoom</a>` : ""}
+          ${c.review_full_video ? `<a href="${escapeHtml(c.review_full_video)}" target="_blank" rel="noopener">Full frame</a>` : ""}
+        </div>
+      </div>`
+    : "";
   const statusClass = status === "UNMATCHED"
     ? "live-unmatched"
     : status === "KNOWN_REPORT"
@@ -437,6 +449,7 @@ function realtimeCandidateCard(c) {
         <strong>${escapeHtml(c.candidate || "Candidate")}</strong>
         <span>${escapeHtml(prettyClass(status))}</span>
       </div>
+      ${media}
       <div class="realtime-candidate-meta">
         <div><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
         <div><span>Speed</span><strong>${escapeHtml(metricText(c.speed))} px/h</strong></div>

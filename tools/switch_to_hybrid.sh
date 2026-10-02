@@ -22,6 +22,10 @@ if [[ ! -x ./comet_hunter_archive ]]; then
   echo "ERROR: missing $PROJECT/comet_hunter_archive" >&2
   exit 1
 fi
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  echo "ERROR: ffmpeg is required for live candidate review videos." >&2
+  exit 1
+fi
 if [[ ! -x ./run_archive_one_chunk.sh ]]; then
   echo "ERROR: missing $PROJECT/run_archive_one_chunk.sh" >&2
   exit 1

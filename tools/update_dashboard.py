@@ -544,6 +544,45 @@ def realtime_archive_id(row):
     return f"RT{stamp}_{norm_id(candidate)}"
 
 
+
+def find_realtime_review_id(source, row):
+    explicit = clean(row.get("review_id"))
+    if explicit:
+        return explicit
+    first = clean(row.get("first")); last = clean(row.get("last"))
+    root = source / "review"
+    if not root.exists():
+        return None
+    for meta_path in root.glob("*/review.json"):
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if first and last and meta.get("first") == first and meta.get("last") == last:
+            return clean(meta.get("review_id")) or meta_path.parent.name
+    return None
+
+def publish_realtime_review_assets(source, data_dir, row):
+    result = dict(row)
+    review_id = find_realtime_review_id(source, row)
+    if not review_id:
+        return result
+    folder = source / "review" / str(review_id)
+    if not (folder / "review.json").exists():
+        return result
+    target = data_dir.parent / "media" / "realtime_reviews" / review_id
+    target.mkdir(parents=True, exist_ok=True)
+    mapping = {"review_video":"zoom_annotated.mp4","review_raw_video":"zoom_raw.mp4","review_full_video":"full_annotated.mp4","review_thumbnail":"zoom_contact_sheet.jpg"}
+    result["review_id"] = review_id
+    for field, filename in mapping.items():
+        src = folder / filename
+        if not src.exists():
+            continue
+        copied = safe_copy(src, target / filename)
+        if copied:
+            result[field] = f"./media/realtime_reviews/{review_id}/{copied}"
+    return result
+
 def build_realtime_archive_candidate(row, status, promoted_at):
     first_seen = frame_iso(row.get("first"))
     last_seen = frame_iso(row.get("last"))
@@ -640,7 +679,13 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
             continue
 
         promoted_at = now.isoformat().replace("+00:00", "Z")
+        row = publish_realtime_review_assets(source, data_dir, row)
         candidate = build_realtime_archive_candidate(row, status, promoted_at)
+        candidate["review_id"] = row.get("review_id")
+        candidate["video"] = row.get("review_video")
+        candidate["thumbnail"] = row.get("review_thumbnail")
+        candidate["review_raw_video"] = row.get("review_raw_video")
+        candidate["review_full_video"] = row.get("review_full_video")
         existing = by_id.get(candidate["id"])
 
         if existing:
@@ -770,6 +815,8 @@ def publish_realtime_data(realtime_source, data_dir):
                 latest_candidates = loaded
         except Exception as exc:
             print(f"[WARN] Could not parse {candidates_path}: {exc}")
+
+    latest_candidates = [publish_realtime_review_assets(source, data_dir, row) for row in latest_candidates]
 
     alerts = read_tsv_records(alerts_path)
     known = read_tsv_records(known_path)

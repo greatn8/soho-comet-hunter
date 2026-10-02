@@ -8,6 +8,8 @@ from typing import Iterable
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
+from live_review import ensure_live_review
+
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SUNGRAZER_REPORTS="https://sungrazer.nrl.navy.mil/index.php/plain-text-reports?items_per_page=100&order=field_report_date&sort=desc"
 USER_AGENT="CometHunterRealtime/1.0 (SOHO comet-hunting research)"
@@ -238,7 +240,9 @@ def run_detector(project,cache_dir,results_dir,args):
 
     candidates=[c for c in parse_candidates(proc.stdout) if comet_like(c)]
     log(f"Realtime comet-like tracks: {len(candidates)}")
-    if not candidates:return
+    if not candidates:
+        (results_dir/"latest_candidates.json").write_text("[]\n", encoding="utf-8")
+        return
     try:
         reports=parse_reports(fetch_text(SUNGRAZER_REPORTS,90))
         log(f"Parsed {len(reports)} recent C3 Sungrazer reports.")
@@ -251,7 +255,14 @@ def run_detector(project,cache_dir,results_dir,args):
         sig=candidate_signature(c); dup=any(same_track(old,sig) for old in seen[-500:]); match=match_recent_report(c,reports) if reports else None
         status="KNOWN_REPORT" if match else ("SEEN_ALREADY" if dup else "UNMATCHED")
         rid=match["report_id"] if match else ""; err=f"{match['median_error']:.1f}" if match else ""
-        rows.append({"candidate":c["cid"],"status":status,"report_id":rid,"match_error_1024":err,"first":c["first"]["file"],"last":c["last"]["file"],"frames":c["frames"],"rms":c["rms"],"speed":c["speed"],"vx":c["vx"],"vy":c["vy"],"sunward":c["sunward"],"score":c["score"]})
+        review_id=""
+        try:
+            review=ensure_live_review(c,cache_dir,results_dir,status=status,report_id=rid)
+            review_id=str(review.get("review_id") or "")
+            if review_id: log(f"Live review media ready: {review_id}")
+        except Exception as exc:
+            log(f"WARN: live review media failed for {c['cid']}: {exc}")
+        rows.append({"candidate":c["cid"],"status":status,"report_id":rid,"match_error_1024":err,"first":c["first"]["file"],"last":c["last"]["file"],"frames":c["frames"],"rms":c["rms"],"speed":c["speed"],"vx":c["vx"],"vy":c["vy"],"sunward":c["sunward"],"score":c["score"],"review_id":review_id})
         if match:
             append_tsv(results_dir/"known_matches.tsv",["utc","candidate","first","last","report_id","median_error_1024"],[run_id,c["cid"],c["first"]["file"],c["last"]["file"],rid,err])
             log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024)."); continue
