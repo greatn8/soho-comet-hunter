@@ -515,6 +515,16 @@ function renderRealtime(payload) {
   candidatesEl.innerHTML = ordered.slice(0, 8).map(realtimeCandidateCard).join("");
 }
 
+async function refreshRealtime() {
+  try {
+    const response = await fetch(`./data/realtime.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) return;
+    renderRealtime(await response.json());
+  } catch (error) {
+    console.warn("Realtime refresh failed:", error);
+  }
+}
+
 async function loadData() {
   try {
     const cacheKey = Date.now();
@@ -583,3 +593,4 @@ $("#candidateDialog").addEventListener("click", e => {
 });
 
 loadData();
+setInterval(refreshRealtime, 60 * 1000);

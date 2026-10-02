@@ -687,6 +687,36 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
     return candidates
 
 
+def update_realtime_html_fallback(data_dir):
+    realtime_path = data_dir / "realtime.json"
+    index_path = data_dir.parent / "index.html"
+    if not realtime_path.exists() or not index_path.exists():
+        return
+
+    try:
+        payload = json.loads(realtime_path.read_text(encoding="utf-8"))
+    except Exception:
+        return
+
+    frame = clean(payload.get("last_frame"))
+    if frame:
+        frame = re.sub(r"_c3_512\\.jpg$", "", frame, flags=re.IGNORECASE)
+    else:
+        frame = "—"
+
+    text = index_path.read_text(encoding="utf-8")
+    updated = re.sub(
+        r'(<strong id="realtimeLastFrame"[^>]*>).*?(</strong>)',
+        lambda m: m.group(1) + frame + m.group(2),
+        text,
+        count=1,
+        flags=re.DOTALL,
+    )
+    if updated != text:
+        index_path.write_text(updated, encoding="utf-8")
+        print(f"[OK] Embedded latest realtime frame in dashboard HTML: {frame}")
+
+
 def publish_realtime_data(realtime_source, data_dir):
     output = data_dir / "realtime.json"
 
@@ -936,6 +966,7 @@ def main():
     print(f"[OK] Wrote {data_dir / 'status.json'}")
 
     publish_realtime_data(args.realtime_source, data_dir)
+    update_realtime_html_fallback(data_dir)
 
 if __name__ == "__main__":
     main()
