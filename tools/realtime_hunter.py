@@ -209,6 +209,23 @@ def append_tsv(path,header,row):
         if not exists:f.write("\t".join(header)+"\n")
         f.write("\t".join(str(x) for x in row)+"\n")
 
+def write_heartbeat(results_dir,status="ok",new_frames=0,error=""):
+    last_frame=""
+    try:
+        last_frame=(results_dir/"last_detector_frame.txt").read_text().strip()
+    except Exception:
+        pass
+    payload={
+        "checked_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),
+        "status":status,
+        "new_frames":int(new_frames),
+        "last_frame":last_frame or None,
+        "error":error or None,
+    }
+    tmp=results_dir/"heartbeat.json.tmp"
+    tmp.write_text(json.dumps(payload,indent=2),encoding="utf-8")
+    tmp.replace(results_dir/"heartbeat.json")
+
 def run_detector(project,cache_dir,results_dir,args):
     frames=prune_cache(cache_dir,args.window_hours)
     if len(frames)<args.min_frames:
@@ -289,7 +306,10 @@ def main():
             new=download_live_frames(cache_dir,state_dir,args.poll_seconds,args.bootstrap_hours)
             prune_cache(cache_dir,max(args.window_hours,args.bootstrap_hours))
             if new: run_detector(project,cache_dir,results_dir,args)
-        except Exception as exc: log(f"ERROR: realtime cycle failed: {exc}")
+            write_heartbeat(results_dir,status="ok",new_frames=len(new))
+        except Exception as exc:
+            write_heartbeat(results_dir,status="error",error=str(exc))
+            log(f"ERROR: realtime cycle failed: {exc}")
         if args.once:break
         sleep_for=max(5,args.poll_seconds-(time.time()-start)); log(f"Next realtime check in about {int(sleep_for)}s.")
         end=time.time()+sleep_for
