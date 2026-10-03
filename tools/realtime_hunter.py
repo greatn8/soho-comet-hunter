@@ -154,14 +154,29 @@ def comet_filter_reasons(c):
 def comet_like(c):
     return not comet_filter_reasons(c)
 
+def motion_family_size(c,candidates,velocity_radius=0.35):
+    return sum(
+        1
+        for other in candidates
+        if math.hypot(c["vx"]-other["vx"],c["vy"]-other["vy"])<=velocity_radius
+    )
+
+def annotate_motion_families(candidates,velocity_radius=0.35):
+    for c in candidates:
+        c["motion_family_size"]=motion_family_size(c,candidates,velocity_radius)
+    return candidates
+
 def live_candidate_rank(c):
     radial_fraction=(c["sunward"]/c["speed"]) if c["speed"]>0 else -1.0
+    family_size=max(1,int(c.get("motion_family_size",1)))
+    family_penalty=math.log2(family_size)*2.5
     return (
         min(c["frames"],20)*2.0
         + max(0.0,min(c["sunward"],12.0))*4.0
         + max(0.0,min(radial_fraction,1.5))*15.0
         - c["rms"]*12.0
         - c["cv"]*6.0
+        - family_penalty
     )
 
 def strip_html(block):
@@ -281,6 +296,7 @@ def run_detector(project,cache_dir,results_dir,args):
             rejection_counts[reason]=rejection_counts.get(reason,0)+1
 
     candidates=[c for c in raw_candidates if comet_like(c)]
+    annotate_motion_families(candidates)
     candidates=sorted(candidates,key=live_candidate_rank,reverse=True)
 
     stats={
@@ -291,6 +307,9 @@ def run_detector(project,cache_dir,results_dir,args):
         "raw_high":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="HIGH"),
         "raw_medium":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="MEDIUM"),
         "comet_like_tracks":len(candidates),
+        "motion_family_radius_px_per_hour":0.35,
+        "motion_family_crowded_tracks":sum(1 for c in candidates if c.get("motion_family_size",1)>1),
+        "motion_family_max_size":max((c.get("motion_family_size",1) for c in candidates),default=0),
         "rejection_counts":rejection_counts,
         "compute_minutes":args.compute_minutes,
         "max_candidates":args.max_candidates,
@@ -307,6 +326,10 @@ def run_detector(project,cache_dir,results_dir,args):
     }
     (results_dir/"detector_stats.json").write_text(json.dumps(stats,indent=2)+"\n",encoding="utf-8")
     log(f"Realtime detector parsed {len(raw_candidates)} moving track(s); {len(candidates)} survived comet-like filtering.")
+    if candidates:
+        crowded=sum(1 for c in candidates if c.get("motion_family_size",1)>1)
+        largest=max(c.get("motion_family_size",1) for c in candidates)
+        log(f"Motion-family diagnostics: radius=0.35 px/h, crowded_tracks={crowded}, largest_family={largest}.")
     if rejection_counts:
         detail=", ".join(f"{k}={v}" for k,v in sorted(rejection_counts.items(),key=lambda kv:(-kv[1],kv[0])))
         log(f"Realtime filter rejection counts (multi-label): {detail}")
@@ -326,20 +349,21 @@ def run_detector(project,cache_dir,results_dir,args):
         status="KNOWN_REPORT" if match else ("SEEN_ALREADY" if dup else "UNMATCHED")
         rid=match["report_id"] if match else ""; err=f"{match['median_error']:.1f}" if match else ""
         review_id=""
-        try:
-            review=ensure_live_review(c,cache_dir,results_dir,status=status,report_id=rid)
-            review_id=str(review.get("review_id") or "")
-            if review_id: log(f"Live review media ready: {review_id}")
-        except Exception as exc:
-            log(f"WARN: live review media failed for {c['cid']}: {exc}")
-        rows.append({"candidate":c["cid"],"status":status,"report_id":rid,"match_error_1024":err,"first":c["first"]["file"],"last":c["last"]["file"],"frames":c["frames"],"rms":c["rms"],"speed":c["speed"],"vx":c["vx"],"vy":c["vy"],"sunward":c["sunward"],"score":c["score"],"review_id":review_id})
+        if not dup:
+            try:
+                review=ensure_live_review(c,cache_dir,results_dir,status=status,report_id=rid)
+                review_id=str(review.get("review_id") or "")
+                if review_id: log(f"Live review media ready: {review_id}")
+            except Exception as exc:
+                log(f"WARN: live review media failed for {c['cid']}: {exc}")
+        rows.append({"candidate":c["cid"],"status":status,"report_id":rid,"match_error_1024":err,"first":c["first"]["file"],"last":c["last"]["file"],"frames":c["frames"],"rms":c["rms"],"speed":c["speed"],"vx":c["vx"],"vy":c["vy"],"sunward":c["sunward"],"score":c["score"],"motion_family_size":c.get("motion_family_size",1),"review_id":review_id})
         if match:
             append_tsv(results_dir/"known_matches.tsv",["utc","candidate","first","last","report_id","median_error_1024"],[run_id,c["cid"],c["first"]["file"],c["last"]["file"],rid,err])
             log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024)."); continue
         if dup: continue
         seen.append(sig)
         append_tsv(results_dir/"alerts.tsv",["utc","candidate","priority","frames","speed","vx","vy","rms","sunward","score","first","first_x","first_y","last","last_x","last_y","duplicate_check"],[run_id,c["cid"],c["priority"],c["frames"],c["speed"],c["vx"],c["vy"],c["rms"],c["sunward"],c["score"],c["first"]["file"],c["first"]["x"],c["first"]["y"],c["last"]["file"],c["last"]["x"],c["last"]["y"],"no_recent_match" if reports else "check_unavailable"])
-        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - NO MATCH IN RECENT SUNGRAZER REPORTS\n"+f"Candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect immediately before reporting.\n"+"!"*72
+        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - NO MATCH IN RECENT SUNGRAZER REPORTS\n"+f"Candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect immediately before reporting.\n"+"!"*72
         log(alert); (results_dir/"latest_alert.txt").write_text(alert+"\n",encoding="utf-8")
     seen_file.write_text(json.dumps(seen[-1000:],indent=2),encoding="utf-8")
     (results_dir/"latest_candidates.json").write_text(json.dumps(rows,indent=2),encoding="utf-8")
