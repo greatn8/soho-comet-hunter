@@ -186,6 +186,83 @@ def live_candidate_rank(c):
         - family_penalty
     )
 
+def endpoint_xy_512(c,when):
+    first=c["first"]; last=c["last"]
+    span=(last["time"]-first["time"]).total_seconds()
+    if abs(span)<1:
+        return first["x"],first["y"]
+    frac=(when-first["time"]).total_seconds()/span
+    return (
+        first["x"]+(last["x"]-first["x"])*frac,
+        first["y"]+(last["y"]-first["y"])*frac,
+    )
+
+def event_overlap_metrics(a,b,min_overlap_minutes=60.0,min_overlap_fraction=0.45):
+    start=max(a["first"]["time"],b["first"]["time"])
+    end=min(a["last"]["time"],b["last"]["time"])
+    overlap=(end-start).total_seconds()
+    if overlap<min_overlap_minutes*60.0:
+        return None
+
+    da=max(1.0,(a["last"]["time"]-a["first"]["time"]).total_seconds())
+    db=max(1.0,(b["last"]["time"]-b["first"]["time"]).total_seconds())
+    if overlap/min(da,db)<min_overlap_fraction:
+        return None
+
+    middle=start+(end-start)/2
+    times=(start,middle,end)
+    distances=[]
+    for when in times:
+        ax,ay=endpoint_xy_512(a,when)
+        bx,by=endpoint_xy_512(b,when)
+        distances.append(math.hypot(ax-bx,ay-by))
+    ordered=sorted(distances)
+    return {
+        "median_distance":ordered[len(ordered)//2],
+        "max_distance":max(distances),
+        "overlap_hours":overlap/3600.0,
+    }
+
+def same_event_hypothesis(a,b,max_median_distance=12.0,max_distance=20.0):
+    metrics=event_overlap_metrics(a,b)
+    if not metrics:
+        return False
+    return (
+        metrics["median_distance"]<=max_median_distance
+        and metrics["max_distance"]<=max_distance
+    )
+
+def group_event_hypotheses(candidates):
+    groups=[]
+    for c in candidates:
+        best=None
+        for group in groups:
+            rep=group["representative"]
+            metrics=event_overlap_metrics(rep,c)
+            if not metrics:
+                continue
+            if metrics["median_distance"]>12.0 or metrics["max_distance"]>20.0:
+                continue
+            key=(metrics["median_distance"],metrics["max_distance"])
+            if best is None or key<best[0]:
+                best=(key,group)
+        if best is None:
+            groups.append({"representative":c,"members":[c]})
+        else:
+            best[1]["members"].append(c)
+
+    for idx,group in enumerate(groups,1):
+        rep=group["representative"]
+        group_id=f"LEG{idx:03d}_{rep['cid']}"
+        member_ids=[m["cid"] for m in group["members"]]
+        for member in group["members"]:
+            member["event_group"]=group_id
+            member["event_members"]=len(group["members"])
+            member["event_representative"]=rep["cid"]
+            member["event_member_ids"]=member_ids
+            member["event_is_representative"]=(member is rep)
+    return groups
+
 def strip_html(block):
     block=re.sub(r"(?i)<br\s*/?>","\n",block)
     block=re.sub(r"(?i)</(?:p|div|li|tr|td|h\d)>","\n",block)
@@ -349,6 +426,8 @@ def run_detector(project,cache_dir,results_dir,args):
     candidates=[c for c in raw_candidates if comet_like(c)]
     annotate_motion_families(candidates)
     candidates=sorted(candidates,key=live_candidate_rank,reverse=True)
+    event_groups=group_event_hypotheses(candidates)
+    event_representatives=[g["representative"] for g in event_groups]
 
     stats={
         "run_id":run_id,
@@ -361,6 +440,16 @@ def run_detector(project,cache_dir,results_dir,args):
         "motion_family_radius_px_per_hour":0.35,
         "motion_family_crowded_tracks":sum(1 for c in candidates if c.get("motion_family_size",1)>1),
         "motion_family_max_size":max((c.get("motion_family_size",1) for c in candidates),default=0),
+        "event_groups":len(event_groups),
+        "event_grouped_tracks":sum(max(0,len(g["members"])-1) for g in event_groups),
+        "event_largest_group":max((len(g["members"]) for g in event_groups),default=0),
+        "event_grouping":{
+            "min_overlap_minutes":60.0,
+            "min_overlap_fraction":0.45,
+            "max_median_distance_px_512":12.0,
+            "max_distance_px_512":20.0,
+            "path_model":"first_to_last_endpoint_interpolation",
+        },
         "rejection_counts":rejection_counts,
         "compute_minutes":args.compute_minutes,
         "max_candidates":args.max_candidates,
@@ -381,12 +470,42 @@ def run_detector(project,cache_dir,results_dir,args):
         crowded=sum(1 for c in candidates if c.get("motion_family_size",1)>1)
         largest=max(c.get("motion_family_size",1) for c in candidates)
         log(f"Motion-family diagnostics: radius=0.35 px/h, crowded_tracks={crowded}, largest_family={largest}.")
+        grouped=sum(max(0,len(g["members"])-1) for g in event_groups)
+        largest_event=max((len(g["members"]) for g in event_groups),default=0)
+        log(f"Realtime event grouping: {len(candidates)} tracks -> {len(event_groups)} event group(s); grouped_members={grouped}, largest_event={largest_event}.")
     if rejection_counts:
         detail=", ".join(f"{k}={v}" for k,v in sorted(rejection_counts.items(),key=lambda kv:(-kv[1],kv[0])))
         log(f"Realtime filter rejection counts (multi-label): {detail}")
     if not candidates:
+        (results_dir/"latest_tracks.json").write_text("[]\n", encoding="utf-8")
         (results_dir/"latest_candidates.json").write_text("[]\n", encoding="utf-8")
         return
+
+    track_rows=[]
+    for c in candidates:
+        track_rows.append({
+            "candidate":c["cid"],
+            "priority":c["priority"],
+            "frames":c["frames"],
+            "rms":c["rms"],
+            "speed":c["speed"],
+            "vx":c["vx"],
+            "vy":c["vy"],
+            "sunward":c["sunward"],
+            "score":c["score"],
+            "motion_family_size":c.get("motion_family_size",1),
+            "event_group":c.get("event_group"),
+            "event_members":c.get("event_members",1),
+            "event_representative":c.get("event_representative",c["cid"]),
+            "event_is_representative":bool(c.get("event_is_representative",False)),
+            "first":c["first"]["file"],
+            "first_x":c["first"]["x"],
+            "first_y":c["first"]["y"],
+            "last":c["last"]["file"],
+            "last_x":c["last"]["x"],
+            "last_y":c["last"]["y"],
+        })
+    (results_dir/"latest_tracks.json").write_text(json.dumps(track_rows,indent=2),encoding="utf-8")
     try:
         reports=parse_reports(fetch_text(SUNGRAZER_REPORTS,90))
         log(f"Parsed {len(reports)} recent C3 Sungrazer reports.")
@@ -395,7 +514,7 @@ def run_detector(project,cache_dir,results_dir,args):
     seen_file=results_dir/"seen_tracks.json"; seen=load_json(seen_file,[])
     if not isinstance(seen,list):seen=[]
     rows=[]
-    for c in candidates:
+    for c in event_representatives:
         sig=candidate_signature(c); dup=any(same_track(old,sig) for old in seen[-500:]); match=match_recent_report(c,reports) if reports else None
         status="KNOWN_REPORT" if match else ("SEEN_ALREADY" if dup else "UNMATCHED")
         rid=match["report_id"] if match else ""; err=f"{match['median_error']:.1f}" if match else ""
@@ -412,7 +531,7 @@ def run_detector(project,cache_dir,results_dir,args):
                     log(f"Live review media ready: {review_id}")
             except Exception as exc:
                 log(f"WARN: live review media failed for {c['cid']}: {exc}")
-        rows.append({"candidate":c["cid"],"status":status,"report_id":rid,"match_error_1024":err,"first":c["first"]["file"],"last":c["last"]["file"],"frames":c["frames"],"rms":c["rms"],"speed":c["speed"],"vx":c["vx"],"vy":c["vy"],"sunward":c["sunward"],"score":c["score"],"motion_family_size":c.get("motion_family_size",1),"review_id":review_id})
+        rows.append({"candidate":c["cid"],"status":status,"report_id":rid,"match_error_1024":err,"first":c["first"]["file"],"last":c["last"]["file"],"frames":c["frames"],"rms":c["rms"],"speed":c["speed"],"vx":c["vx"],"vy":c["vy"],"sunward":c["sunward"],"score":c["score"],"motion_family_size":c.get("motion_family_size",1),"event_group":c.get("event_group"),"members":c.get("event_members",1),"member_ids":c.get("event_member_ids",[c["cid"]]),"review_id":review_id})
         if match:
             append_tsv(results_dir/"known_matches.tsv",["utc","candidate","first","last","report_id","median_error_1024"],[run_id,c["cid"],c["first"]["file"],c["last"]["file"],rid,err])
             log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024, {match.get('path_model','?')}, {match.get('report_size','?')}, {match.get('report_origin','?')})."); continue
@@ -420,9 +539,9 @@ def run_detector(project,cache_dir,results_dir,args):
         seen.append(sig)
         append_tsv(results_dir/"alerts.tsv",["utc","candidate","priority","frames","speed","vx","vy","rms","sunward","score","first","first_x","first_y","last","last_x","last_y","duplicate_check"],[run_id,c["cid"],c["priority"],c["frames"],c["speed"],c["vx"],c["vy"],c["rms"],c["sunward"],c["score"],c["first"]["file"],c["first"]["x"],c["first"]["y"],c["last"]["file"],c["last"]["x"],c["last"]["y"],"no_recent_match" if reports else "check_unavailable"])
         if str(c.get("priority","")).upper()!="HIGH":
-            log(f"Realtime review candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f} family={c.get('motion_family_size',1)}. Retained for review; not escalated to comet alert.")
+            log(f"Realtime review event: {c.get('event_group')} rep={c['cid']} members={c.get('event_members',1)} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f} family={c.get('motion_family_size',1)}. Retained for review; not escalated to comet alert.")
             continue
-        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - HIGH-PRIORITY UNMATCHED TRACK\n"+f"Candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
+        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - HIGH-PRIORITY UNMATCHED TRACK\n"+f"Candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Event group: {c.get('event_group')} members={c.get('event_members',1)}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
         log(alert); (results_dir/"latest_alert.txt").write_text(alert+"\n",encoding="utf-8")
     seen_file.write_text(json.dumps(seen[-1000:],indent=2),encoding="utf-8")
     (results_dir/"latest_candidates.json").write_text(json.dumps(rows,indent=2),encoding="utf-8")
