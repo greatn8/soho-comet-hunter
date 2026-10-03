@@ -75,13 +75,20 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours):
     if not list(cache_dir.glob("*_c3_512.jpg")) or now.hour<max(2,bootstrap_hours//2):
         days.append((now-dt.timedelta(days=1)).date())
     found={}
+    keep_after=now-dt.timedelta(hours=bootstrap_hours)
     log("SOHO realtime session: fetching explicit C3 directory listing(s).")
     for day in days:
         url=day_url(day)
         try:page=fetch_text(url)
         except Exception as exc:
             log(f"WARN: could not read {url}: {exc}"); continue
-        for name in explicit_images(page): found[name]=urljoin(url,name)
+        for name in explicit_images(page):
+            try:
+                if image_time(name)<keep_after:
+                    continue
+            except Exception:
+                continue
+            found[name]=urljoin(url,name)
     new=[]
     for name in sorted(found):
         target=cache_dir/name
