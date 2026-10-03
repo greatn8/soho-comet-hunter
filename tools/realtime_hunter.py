@@ -139,11 +139,30 @@ def parse_candidates(output):
         i+=1
     return out
 
+def comet_filter_reasons(c):
+    reasons=[]
+    if c["frames"]<5: reasons.append("too_few_frames")
+    if c["rms"]>1.2: reasons.append("rms_too_high")
+    if c["speed"]<0.25: reasons.append("too_slow")
+    if abs(c["vx"])>12 or abs(c["vy"])>12: reasons.append("velocity_too_high")
+    if c["cv"]>1.2: reasons.append("brightness_cv_too_high")
+    if c["sunward"]<1.0: reasons.append("weak_or_outward_motion")
+    radial_fraction=(c["sunward"]/c["speed"]) if c["speed"]>0 else -999.0
+    if radial_fraction<0.35: reasons.append("weak_sunward_fraction")
+    return reasons
+
 def comet_like(c):
-    if c["frames"]<5 or c["rms"]>1.2 or c["speed"]<0.25:return False
-    if abs(c["vx"])>12 or abs(c["vy"])>12:return False
-    if c["priority"].upper()=="HIGH": return c["cv"]<=1.2
-    return c["frames"]>=7 and c["rms"]<=0.8 and c["cv"]<=0.8
+    return not comet_filter_reasons(c)
+
+def live_candidate_rank(c):
+    radial_fraction=(c["sunward"]/c["speed"]) if c["speed"]>0 else -1.0
+    return (
+        min(c["frames"],20)*2.0
+        + max(0.0,min(c["sunward"],12.0))*4.0
+        + max(0.0,min(radial_fraction,1.5))*15.0
+        - c["rms"]*12.0
+        - c["cv"]*6.0
+    )
 
 def strip_html(block):
     block=re.sub(r"(?i)<br\s*/?>","\n",block)
@@ -256,7 +275,14 @@ def run_detector(project,cache_dir,results_dir,args):
         log(f"WARN: could not save latest processed frame preview: {exc}")
 
     raw_candidates=parse_candidates(proc.stdout)
+    rejection_counts={}
+    for c in raw_candidates:
+        for reason in comet_filter_reasons(c):
+            rejection_counts[reason]=rejection_counts.get(reason,0)+1
+
     candidates=[c for c in raw_candidates if comet_like(c)]
+    candidates=sorted(candidates,key=live_candidate_rank,reverse=True)
+
     stats={
         "run_id":run_id,
         "newest_frame":newest,
@@ -265,12 +291,25 @@ def run_detector(project,cache_dir,results_dir,args):
         "raw_high":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="HIGH"),
         "raw_medium":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="MEDIUM"),
         "comet_like_tracks":len(candidates),
+        "rejection_counts":rejection_counts,
         "compute_minutes":args.compute_minutes,
         "max_candidates":args.max_candidates,
+        "filter":{
+            "min_frames":5,
+            "max_rms":1.2,
+            "min_speed":0.25,
+            "max_abs_v":12.0,
+            "max_brightness_cv":1.2,
+            "min_sunward":1.0,
+            "min_sunward_fraction":0.35,
+        },
         "updated_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),
     }
     (results_dir/"detector_stats.json").write_text(json.dumps(stats,indent=2)+"\n",encoding="utf-8")
     log(f"Realtime detector parsed {len(raw_candidates)} moving track(s); {len(candidates)} survived comet-like filtering.")
+    if rejection_counts:
+        detail=", ".join(f"{k}={v}" for k,v in sorted(rejection_counts.items(),key=lambda kv:(-kv[1],kv[0])))
+        log(f"Realtime filter rejection counts (multi-label): {detail}")
     if not candidates:
         (results_dir/"latest_candidates.json").write_text("[]\n", encoding="utf-8")
         return
