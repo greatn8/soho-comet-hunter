@@ -205,29 +205,73 @@ def parse_reports(page):
         seen.add(rid); end=matches[idx+1].start() if idx+1<len(matches) else len(page)
         text=strip_html(page[m.start():end]); dm=DATE_RE.search(text)
         if not dm or not re.search(r"\bC3\b",text,re.I): continue
-        pts=[]
+
+        size_match=re.search(r"\b(512|1024)\s*[xX]\s*\1\b",text,re.I)
+        image_size=int(size_match.group(1)) if size_match else None
+        origin=None
+        if re.search(r"\bLower\s*[- ]?Left\b",text,re.I): origin="lower_left"
+        elif re.search(r"\bUpper\s*[- ]?Left\b",text,re.I): origin="upper_left"
+
+        pts=[]; previous_when=None
         for pm in REPORT_POINT_RE.finditer(text):
             try:when=report_time(dm.group(1),pm.group("t"))
             except Exception:continue
+            if previous_when and when<previous_when-dt.timedelta(hours=12):
+                when+=dt.timedelta(days=1)
+            previous_when=when
             pts.append((when,float(pm.group("x")),float(pm.group("y"))))
-        if len(pts)>=2: reports.append({"id":rid,"points":pts})
+        if len(pts)>=2:
+            reports.append({"id":rid,"points":pts,"image_size":image_size,"origin":origin})
     return reports
 
-def candidate_xy_1024(c,when):
-    first=c["first"]; hours=(when-first["time"]).total_seconds()/3600
+def candidate_xy_1024(c,when,model="velocity"):
+    first=c["first"]; last=c["last"]
+    if model=="endpoints":
+        span=(last["time"]-first["time"]).total_seconds()
+        if abs(span)<1:return 2*first["x"],2*first["y"]
+        frac=(when-first["time"]).total_seconds()/span
+        return 2*(first["x"]+(last["x"]-first["x"])*frac),2*(first["y"]+(last["y"]-first["y"])*frac)
+    hours=(when-first["time"]).total_seconds()/3600
     return 2*(first["x"]+c["vx"]*hours),2*(first["y"]+c["vy"]*hours)
+
+def report_transforms_1024(r):
+    if r.get("image_size") in (512,1024):
+        sizes=[int(r["image_size"])]
+    else:
+        max_coord=max((max(x,y) for _,x,y in r.get("points",[])),default=0)
+        sizes=[1024] if max_coord>512 else [512,1024]
+    origins=[r["origin"]] if r.get("origin") in ("upper_left","lower_left") else ["upper_left","lower_left"]
+    return [(size,origin) for size in sizes for origin in origins]
+
+def report_xy_1024(x,y,size,origin):
+    scale=1024.0/float(size)
+    yy=(float(size)-y) if origin=="lower_left" else y
+    return x*scale,yy*scale
 
 def match_recent_report(c,reports,max_error=25):
     best=None
+    first_t=c["first"]["time"]; last_t=c["last"]["time"]; pad=dt.timedelta(hours=6)
     for r in reports:
-        errs=[]
-        for when,x,y in r["points"]:
-            if abs((when-c["first"]["time"]).total_seconds())/3600>48: continue
-            px,py=candidate_xy_1024(c,when); errs.append(math.hypot(px-x,py-y))
-        if len(errs)<2: continue
-        errs.sort(); med=errs[len(errs)//2]; worst=max(errs)
-        if med<=max_error and worst<=max_error*1.8 and (best is None or med<best["median_error"]):
-            best={"report_id":r["id"],"median_error":med,"max_error":worst,"points":len(errs)}
+        for model in ("endpoints","velocity"):
+            for size,origin in report_transforms_1024(r):
+                errs=[]
+                for when,x,y in r["points"]:
+                    if when<first_t-pad or when>last_t+pad: continue
+                    px,py=candidate_xy_1024(c,when,model=model)
+                    rx,ry=report_xy_1024(x,y,size,origin)
+                    errs.append(math.hypot(px-rx,py-ry))
+                if len(errs)<2: continue
+                errs.sort(); med=errs[len(errs)//2]; worst=max(errs)
+                if med<=max_error and worst<=max_error*1.8 and (best is None or med<best["median_error"]):
+                    best={
+                        "report_id":r["id"],
+                        "median_error":med,
+                        "max_error":worst,
+                        "points":len(errs),
+                        "path_model":model,
+                        "report_size":size,
+                        "report_origin":origin,
+                    }
     return best
 
 def candidate_signature(c):
@@ -360,17 +404,25 @@ def run_detector(project,cache_dir,results_dir,args):
             try:
                 review=ensure_live_review(c,cache_dir,results_dir,status=status,report_id=rid)
                 review_id=str(review.get("review_id") or "")
-                if review_id: log(f"Live review media ready: {review_id}")
+                reused_candidate=str(review.get("candidate") or "")
+                if reused_candidate and reused_candidate!=c["cid"] and not match:
+                    dup=True; status="SEEN_ALREADY"
+                    log(f"Reused live review {review_id} for {c['cid']}; suppressing duplicate alert.")
+                elif review_id:
+                    log(f"Live review media ready: {review_id}")
             except Exception as exc:
                 log(f"WARN: live review media failed for {c['cid']}: {exc}")
         rows.append({"candidate":c["cid"],"status":status,"report_id":rid,"match_error_1024":err,"first":c["first"]["file"],"last":c["last"]["file"],"frames":c["frames"],"rms":c["rms"],"speed":c["speed"],"vx":c["vx"],"vy":c["vy"],"sunward":c["sunward"],"score":c["score"],"motion_family_size":c.get("motion_family_size",1),"review_id":review_id})
         if match:
             append_tsv(results_dir/"known_matches.tsv",["utc","candidate","first","last","report_id","median_error_1024"],[run_id,c["cid"],c["first"]["file"],c["last"]["file"],rid,err])
-            log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024)."); continue
+            log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024, {match.get('path_model','?')}, {match.get('report_size','?')}, {match.get('report_origin','?')})."); continue
         if dup: continue
         seen.append(sig)
         append_tsv(results_dir/"alerts.tsv",["utc","candidate","priority","frames","speed","vx","vy","rms","sunward","score","first","first_x","first_y","last","last_x","last_y","duplicate_check"],[run_id,c["cid"],c["priority"],c["frames"],c["speed"],c["vx"],c["vy"],c["rms"],c["sunward"],c["score"],c["first"]["file"],c["first"]["x"],c["first"]["y"],c["last"]["file"],c["last"]["x"],c["last"]["y"],"no_recent_match" if reports else "check_unavailable"])
-        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - NO MATCH IN RECENT SUNGRAZER REPORTS\n"+f"Candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect immediately before reporting.\n"+"!"*72
+        if str(c.get("priority","")).upper()!="HIGH":
+            log(f"Realtime review candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f} family={c.get('motion_family_size',1)}. Retained for review; not escalated to comet alert.")
+            continue
+        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - HIGH-PRIORITY UNMATCHED TRACK\n"+f"Candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
         log(alert); (results_dir/"latest_alert.txt").write_text(alert+"\n",encoding="utf-8")
     seen_file.write_text(json.dumps(seen[-1000:],indent=2),encoding="utf-8")
     (results_dir/"latest_candidates.json").write_text(json.dumps(rows,indent=2),encoding="utf-8")
