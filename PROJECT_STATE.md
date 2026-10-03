@@ -115,3 +115,16 @@ GitHub is the project source of truth for dashboard/publisher code.
 Changes should be made as small coherent commits. After a GitHub-side code change, the Bourbaki checkout must be updated before the running process uses it. Runtime changes to `realtime_hunter.py` require a safe restart of the `comet_realtime` process after pulling the commit.
 
 The assistant may make and commit agreed project changes directly to GitHub rather than asking for manual copy/paste edits.
+
+## 2026-10-03 realtime post-processing patch
+
+Commit `a30b7adf0aa8381af7580e87ea3e709e22e5ac75` updates `tools/realtime_hunter.py` conservatively:
+
+- annotates surviving candidates with a velocity-space motion-family size using a 0.35 px/h radius;
+- records crowded-track count and largest family in `detector_stats.json`;
+- logs motion-family diagnostics each detector run;
+- applies only a modest logarithmic family-crowding penalty to candidate ranking;
+- includes motion-family size in realtime alert text and `latest_candidates.json`;
+- skips `ensure_live_review()` for candidates already identified by `same_track()` as duplicates.
+
+No candidate is hard-rejected solely because it belongs to a crowded velocity family. The next live runs should be used to measure family-size distributions before stronger suppression is considered.
