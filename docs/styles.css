@@ -975,3 +975,49 @@ dialog::backdrop {
 .realtime-review-links{display:flex;gap:8px;flex-wrap:wrap;padding:8px 9px;border-top:1px solid rgba(139,177,255,.10)}
 .realtime-review-links a{color:var(--accent);font-size:9px;font-weight:800;text-decoration:none}
 .realtime-review-links a:hover{text-decoration:underline}
+
+
+/* Keep realtime review cards inside the page and show compact clickable previews. */
+.realtime-panel,
+.realtime-candidates,
+.realtime-candidate,
+.realtime-review-media,
+.realtime-review-media a {
+  min-width: 0;
+  max-width: 100%;
+}
+.realtime-candidates {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.realtime-candidate {
+  overflow: hidden;
+}
+.realtime-review-media > a:first-child {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.realtime-review-media img {
+  display: block;
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  object-position: center;
+  background: #000;
+}
+.realtime-track {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.realtime-track span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1000px) {
+  .realtime-candidates { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .realtime-review-media img { height: 180px; }
+}
