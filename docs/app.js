@@ -509,7 +509,11 @@ function renderRealtime(payload) {
   stateEl.className = "realtime-state " + cls;
   stateEl.innerHTML = "<span></span> " + (cls === "live" ? "LIVE" : "STALE / CHECK HUNTER");
 
-  lastFrameEl.innerHTML = frameDisplay(payload.last_frame);
+  lastFrameEl.innerHTML =
+    frameDisplay(payload.last_frame) +
+    (Number(payload.hunter_new_frames ?? 0) === 0
+      ? '<small>No newer SOHO C3 frame at last check</small>'
+      : `<small>${escapeHtml(payload.hunter_new_frames)} new SOHO frame(s) this check</small>`);
   alertCountEl.textContent = String(
     payload.current_unmatched_total ??
     (Array.isArray(payload.latest_candidates)
@@ -522,7 +526,7 @@ function renderRealtime(payload) {
       ? payload.latest_candidates.filter(c => String(c.status || "").toUpperCase() === "KNOWN_REPORT").length
       : 0)
   );
-  updatedEl.textContent = formatDate(payload.source_updated_at);
+  updatedEl.textContent = formatDate(payload.hunter_heartbeat_at || payload.source_updated_at);
 
   if (payload.latest_frame_image) {
     frameImage.src = payload.latest_frame_image;
