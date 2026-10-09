@@ -586,7 +586,7 @@ def run_detector(project,cache_dir,results_dir,args):
     gray_cache={}
     verified_representatives=[]
     rejected_representatives=[]
-    for c in verified_representatives:
+    for c in event_representatives:
         pixel=verify_track_pixels(c,frames,gray_cache=gray_cache)
         review_class,historical_like=classify_for_review(c,pixel)
         c["pixel_verification"]=pixel
@@ -714,7 +714,7 @@ def run_detector(project,cache_dir,results_dir,args):
     seen_file=results_dir/"seen_tracks.json"; seen=load_json(seen_file,[])
     if not isinstance(seen,list):seen=[]
     rows=[]
-    for c in event_representatives:
+    for c in verified_representatives:
         sig=candidate_signature(c); dup=any(same_track(old,sig) for old in seen[-500:]); match=match_recent_report(c,reports) if reports else None
         status="KNOWN_REPORT" if match else ("SEEN_ALREADY" if dup else "UNMATCHED")
         rid=match["report_id"] if match else ""; err=f"{match['median_error']:.1f}" if match else ""
