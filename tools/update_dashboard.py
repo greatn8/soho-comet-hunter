@@ -877,6 +877,27 @@ def publish_realtime_data(realtime_source, data_dir):
         except Exception:
             pass
 
+    current_unmatched_total = sum(
+        1 for row in latest_candidates
+        if str(row.get("status") or "").upper() == "UNMATCHED"
+    )
+    current_known_total = sum(
+        1 for row in latest_candidates
+        if str(row.get("status") or "").upper() == "KNOWN_REPORT"
+    )
+
+    # Do not keep displaying an old red alert after its candidate has fallen
+    # out of the latest detector pass.
+    if latest_alert:
+        alert_match = re.search(r"(?m)^Candidate:\s*(C\d+)\b", latest_alert, re.IGNORECASE)
+        current_ids = {
+            str(row.get("candidate") or "").upper()
+            for row in latest_candidates
+            if str(row.get("status") or "").upper() == "UNMATCHED"
+        }
+        if not alert_match or alert_match.group(1).upper() not in current_ids:
+            latest_alert = None
+
     source_files = [
         p for p in (candidates_path, alerts_path, known_path, frame_path, alert_text_path, heartbeat_path)
         if p.exists()
@@ -891,7 +912,10 @@ def publish_realtime_data(realtime_source, data_dir):
         "hunter_heartbeat_at": heartbeat.get("checked_at"),
         "hunter_status": heartbeat.get("status"),
         "hunter_new_frames": heartbeat.get("new_frames"),
+        "current_unmatched_total": current_unmatched_total,
+        "current_known_total": current_known_total,
         "alerts_total": len(alerts),
+        "alerts_lifetime_total": len(alerts),
         "known_matches_total": len(known),
         "latest_alert": latest_alert,
         "latest_candidates": latest_candidates[:50],
