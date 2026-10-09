@@ -425,8 +425,9 @@ function realtimeStatusClass(payload) {
 
 function realtimeCandidateCard(c) {
   const status = String(c.status || "UNKNOWN").toUpperCase();
-  const media = c.review_video
-    ? `<div class="realtime-review-media">
+  let media = "";
+  if (c.review_video) {
+    media = `<div class="realtime-review-media">
         <video controls muted loop playsinline preload="metadata" ${c.review_thumbnail ? `poster="${escapeHtml(c.review_thumbnail)}"` : ""}>
           <source src="${escapeHtml(c.review_video)}" type="video/mp4">
         </video>
@@ -435,8 +436,17 @@ function realtimeCandidateCard(c) {
           ${c.review_raw_video ? `<a href="${escapeHtml(c.review_raw_video)}" target="_blank" rel="noopener">Raw zoom</a>` : ""}
           ${c.review_full_video ? `<a href="${escapeHtml(c.review_full_video)}" target="_blank" rel="noopener">Full frame</a>` : ""}
         </div>
-      </div>`
-    : "";
+      </div>`;
+  } else if (c.review_thumbnail) {
+    media = `<div class="realtime-review-media">
+        <a href="${escapeHtml(c.review_thumbnail)}" target="_blank" rel="noopener">
+          <img src="${escapeHtml(c.review_thumbnail)}" alt="Realtime candidate contact sheet for ${escapeHtml(c.candidate || "candidate")}" loading="lazy">
+        </a>
+        <div class="realtime-review-links">
+          <a href="${escapeHtml(c.review_thumbnail)}" target="_blank" rel="noopener">Open review image</a>
+        </div>
+      </div>`;
+  }
   const statusClass = status === "UNMATCHED"
     ? "live-unmatched"
     : status === "KNOWN_REPORT"
