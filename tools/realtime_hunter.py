@@ -14,6 +14,7 @@ SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SUNGRAZER_REPORTS="https://sungrazer.nrl.navy.mil/index.php/plain-text-reports?items_per_page=100&order=field_report_date&sort=desc"
 USER_AGENT="CometHunterRealtime/1.0 (SOHO comet-hunting research)"
 IMAGE_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3_512\.jpg)",re.I)
+DAY_DIR_RE=re.compile(r"(?P<day>20\d{6})/",re.I)
 CANDIDATE_RE=re.compile(r"^(?P<cid>C\d+) \[(?P<priority>HIGH|MEDIUM)\].*?frames=(?P<frames>\d+).*?speed=(?P<speed>-?[0-9.]+) px/h.*?vx=(?P<vx>-?[0-9.]+).*?vy=(?P<vy>-?[0-9.]+).*?RMS=(?P<rms>-?[0-9.]+).*?brightnessCV=(?P<cv>-?[0-9.]+).*?sunward=(?P<sunward>-?[0-9.]+) px/h.*?score=(?P<score>-?[0-9.]+)",re.I)
 POINT_RE=re.compile(r"(?P<file>20\d{6}_\d{4}_c3_512\.jpg)\s+\((?P<x>-?[0-9.]+),\s*(?P<y>-?[0-9.]+)\)")
 REPORT_ID_RE=re.compile(r"report_[a-z0-9]+_\d{14}",re.I)
@@ -47,8 +48,43 @@ def day_url(day):
     key=day.strftime("%Y%m%d")
     return f"{SOHO_BASE}/{day:%Y}/c3/{key}/"
 
+def year_c3_url(year):
+    return f"{SOHO_BASE}/{int(year)}/c3/"
+
 def explicit_images(index_html):
     return sorted(set(m.group("name") for m in IMAGE_RE.finditer(index_html)))
+
+def discover_available_days(now,lookback_days=14):
+    cutoff=(now-dt.timedelta(days=lookback_days)).date()
+    years=sorted({now.year,cutoff.year},reverse=True)
+    found=set()
+    for year in years:
+        url=year_c3_url(year)
+        try:
+            page=fetch_text(url)
+        except Exception as exc:
+            log(f"WARN: could not read C3 year index {url}: {exc}")
+            continue
+        for m in DAY_DIR_RE.finditer(page):
+            token=m.group("day")
+            try:
+                day=dt.datetime.strptime(token,"%Y%m%d").date()
+            except ValueError:
+                continue
+            if cutoff<=day<=now.date():
+                found.add(day)
+    return sorted(found)
+
+def latest_cached_time(cache_dir):
+    latest=None
+    for p in cache_dir.glob("*_c3_512.jpg"):
+        try:
+            when=image_time(p.name)
+        except Exception:
+            continue
+        if latest is None or when>latest:
+            latest=when
+    return latest
 
 def soho_gate_wait(state_dir,minimum_seconds):
     gate_file=state_dir/"realtime_soho_gate.lock"
@@ -71,43 +107,88 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours):
     soho_gate_wait(state_dir,poll_seconds)
     if STOP:return []
     now=dt.datetime.now(dt.timezone.utc)
-    days=[now.date()]
-    if not list(cache_dir.glob("*_c3_512.jpg")) or now.hour<max(2,bootstrap_hours//2):
-        days.append((now-dt.timedelta(days=1)).date())
+
+    log("SOHO realtime session: discovering latest published C3 day.")
+    available_days=discover_available_days(now,lookback_days=14)
+    if not available_days:
+        log("WARN: no recent C3 day directories found in the SOHO year index.")
+        return []
+
+    latest_day=available_days[-1]
+    lag=(now-dt.datetime.combine(latest_day,dt.time(0,0),tzinfo=dt.timezone.utc)).total_seconds()/86400.0
+    log(f"Latest published C3 day: {latest_day:%Y%m%d} (archive lag about {lag:.1f} day(s) by date).")
+
+    # Read the newest published day plus preceding available days. Two days
+    # normally cover a 12 hour detector window across midnight; three gives
+    # margin for partial/late SOHO publication without scanning many folders.
+    days=available_days[-3:]
     found={}
-    keep_after=now-dt.timedelta(hours=bootstrap_hours)
-    log("SOHO realtime session: fetching explicit C3 directory listing(s).")
+    log(f"SOHO realtime session: fetching {len(days)} recent C3 directory listing(s).")
     for day in days:
         url=day_url(day)
-        try:page=fetch_text(url)
+        try:
+            page=fetch_text(url)
         except Exception as exc:
-            log(f"WARN: could not read {url}: {exc}"); continue
+            log(f"WARN: could not read {url}: {exc}")
+            continue
         for name in explicit_images(page):
             try:
-                if image_time(name)<keep_after:
-                    continue
+                when=image_time(name)
             except Exception:
                 continue
-            found[name]=urljoin(url,name)
+            found[name]=(when,urljoin(url,name))
+
+    if not found:
+        log("No C3 images found in the latest published SOHO directories.")
+        return []
+
+    latest_available=max(when for when,_ in found.values())
+    keep_after=latest_available-dt.timedelta(hours=bootstrap_hours)
+    selected={
+        name:url
+        for name,(when,url) in found.items()
+        if when>=keep_after
+    }
+    log(
+        f"Latest available C3 frame is {latest_available:%Y-%m-%d %H:%MZ}; "
+        f"using rolling {bootstrap_hours}h window from {keep_after:%Y-%m-%d %H:%MZ}."
+    )
+
     new=[]
-    for name in sorted(found):
+    for name in sorted(selected):
         target=cache_dir/name
-        if target.exists() and target.stat().st_size>10000: continue
+        if target.exists() and target.stat().st_size>10000:
+            continue
         try:
-            data=fetch_bytes(found[name])
-            if len(data)<10000: raise ValueError(f"response too small ({len(data)} bytes)")
-            tmp=target.with_suffix(".part"); tmp.write_bytes(data); tmp.replace(target); new.append(target)
-        except Exception as exc: log(f"WARN: failed {name}: {exc}")
+            data=fetch_bytes(selected[name])
+            if len(data)<10000:
+                raise ValueError(f"response too small ({len(data)} bytes)")
+            tmp=target.with_suffix(".part")
+            tmp.write_bytes(data)
+            tmp.replace(target)
+            new.append(target)
+        except Exception as exc:
+            log(f"WARN: failed {name}: {exc}")
+
     log(f"Downloaded {len(new)} new C3 frame(s)." if new else "No new C3 frames in this SOHO session.")
     return new
 
 def prune_cache(cache_dir,hours):
-    now=dt.datetime.now(dt.timezone.utc); keep_after=now-dt.timedelta(hours=hours); kept=[]
-    for p in sorted(cache_dir.glob("*_c3_512.jpg")):
-        try:when=image_time(p.name)
-        except Exception:continue
-        if when<keep_after:p.unlink(missing_ok=True)
-        else:kept.append(p)
+    files=sorted(cache_dir.glob("*_c3_512.jpg"))
+    newest=latest_cached_time(cache_dir)
+    if newest is None:
+        return []
+    keep_after=newest-dt.timedelta(hours=hours)
+    kept=[]
+    for p in files:
+        try:
+            when=image_time(p.name)
+        except Exception:
+            continue
+        if when<keep_after:
+            p.unlink(missing_ok=True)
+        else:
+            kept.append(p)
     return kept
 
 def gpu_busy(project):
