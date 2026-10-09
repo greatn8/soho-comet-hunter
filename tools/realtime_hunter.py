@@ -12,6 +12,7 @@ from live_review import ensure_live_review
 from pixel_verify import classify_for_review, verify_track_pixels
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
+SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs"
 SUNGRAZER_REPORTS="https://sungrazer.nrl.navy.mil/index.php/plain-text-reports?items_per_page=100&order=field_report_date&sort=desc"
 USER_AGENT="CometHunterRealtime/1.0 (SOHO comet-hunting research)"
 IMAGE_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3_512\.jpg)",re.I)
@@ -52,8 +53,14 @@ def day_url(day):
 def year_c3_url(year):
     return f"{SOHO_BASE}/{int(year)}/c3/"
 
+def nrt_year_url(year):
+    return f"{SOHO_NRT_GIF_BASE}/{int(year)}/"
+
 def explicit_images(index_html):
     return sorted(set(m.group("name") for m in IMAGE_RE.finditer(index_html)))
+
+def explicit_nrt_gifs(index_html):
+    return sorted(set(m.group("name") for m in NRT_GIF_RE.finditer(index_html)))
 
 def discover_available_days(now,lookback_days=14):
     cutoff=(now-dt.timedelta(days=lookback_days)).date()
@@ -75,6 +82,54 @@ def discover_available_days(now,lookback_days=14):
             if cutoff<=day<=now.date():
                 found.add(day)
     return sorted(found)
+
+def discover_completed_frames(now,lookback_days=14):
+    available_days=discover_available_days(now,lookback_days=lookback_days)
+    if not available_days:
+        return {}
+
+    found={}
+    for day in available_days[-3:]:
+        url=day_url(day)
+        try:
+            page=fetch_text(url)
+        except Exception as exc:
+            log(f"WARN: could not read completed C3 directory {url}: {exc}")
+            continue
+        for name in explicit_images(page):
+            try:
+                when=image_time(name)
+            except Exception:
+                continue
+            found[name]={"time":when,"url":urljoin(url,name),"source":"completed"}
+    return found
+
+def discover_nrt_frames(now,lookback_days=7):
+    cutoff=now-dt.timedelta(days=lookback_days)
+    years=sorted({now.year,cutoff.year},reverse=True)
+    found={}
+    for year in years:
+        url=nrt_year_url(year)
+        try:
+            page=fetch_text(url)
+        except Exception as exc:
+            log(f"WARN: could not read near-realtime C3 index {url}: {exc}")
+            continue
+        for gif_name in explicit_nrt_gifs(page):
+            try:
+                when=image_time(gif_name)
+            except Exception:
+                continue
+            if when<cutoff or when>now+dt.timedelta(hours=2):
+                continue
+            target_name=gif_name[:-4]+"_512.jpg"
+            found[target_name]={
+                "time":when,
+                "url":urljoin(url,gif_name),
+                "source":"near_realtime",
+                "remote_name":gif_name,
+            }
+    return found
 
 def latest_cached_time(cache_dir):
     latest=None
@@ -104,55 +159,90 @@ def soho_gate_wait(state_dir,minimum_seconds):
         stamp_file.write_text(str(int(time.time())))
         fcntl.flock(lock.fileno(),fcntl.LOCK_UN)
 
+def write_nrt_jpeg(data,target):
+    tmp=target.with_name(target.name+".tmp.jpg")
+    proc=subprocess.run(
+        [
+            "ffmpeg","-hide_banner","-loglevel","error","-y",
+            "-i","pipe:0","-vf","scale=512:512:flags=lanczos",
+            "-frames:v","1","-q:v","2",str(tmp),
+        ],
+        input=data,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if proc.returncode!=0 or not tmp.exists() or tmp.stat().st_size<10000:
+        tmp.unlink(missing_ok=True)
+        detail=proc.stderr.decode("utf-8","replace").strip()
+        raise RuntimeError(detail or "ffmpeg could not convert realtime GIF")
+    tmp.replace(target)
+
 def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours):
     soho_gate_wait(state_dir,poll_seconds)
     if STOP:return []
     now=dt.datetime.now(dt.timezone.utc)
 
-    log("SOHO realtime session: discovering latest published C3 day.")
-    available_days=discover_available_days(now,lookback_days=14)
-    if not available_days:
-        log("WARN: no recent C3 day directories found in the SOHO year index.")
+    # Discovery-first policy: inspect the official near-real-time quicklook
+    # feed and the slower reprocessed archive in the same gated SOHO session.
+    log("SOHO realtime session: checking near-real-time C3 feed and completed archive.")
+    nrt=discover_nrt_frames(now,lookback_days=7)
+    completed=discover_completed_frames(now,lookback_days=14)
+
+    latest_nrt=max((v["time"] for v in nrt.values()),default=None)
+    latest_completed=max((v["time"] for v in completed.values()),default=None)
+
+    if latest_nrt:
+        log(f"Latest near-real-time C3 frame: {latest_nrt:%Y-%m-%d %H:%MZ}.")
+    else:
+        log("WARN: no recent near-real-time C3 frames found.")
+    if latest_completed:
+        log(f"Latest completed/reprocessed C3 frame: {latest_completed:%Y-%m-%d %H:%MZ}.")
+    else:
+        log("WARN: no recent completed C3 frames found.")
+
+    # Prefer whichever official source is actually newest. On equal timestamps,
+    # use the completed image because it is the science-quality product.
+    if latest_nrt and (not latest_completed or latest_nrt>latest_completed):
+        source_name="near_realtime"
+        found=nrt
+        latest_available=latest_nrt
+    elif latest_completed:
+        source_name="completed"
+        found=completed
+        latest_available=latest_completed
+    elif latest_nrt:
+        source_name="near_realtime"
+        found=nrt
+        latest_available=latest_nrt
+    else:
+        log("No usable C3 images found in either official source.")
         return []
 
-    latest_day=available_days[-1]
-    lag=(now-dt.datetime.combine(latest_day,dt.time(0,0),tzinfo=dt.timezone.utc)).total_seconds()/86400.0
-    log(f"Latest published C3 day: {latest_day:%Y%m%d} (archive lag about {lag:.1f} day(s) by date).")
-
-    # Read the newest published day plus preceding available days. Two days
-    # normally cover a 12 hour detector window across midnight; three gives
-    # margin for partial/late SOHO publication without scanning many folders.
-    days=available_days[-3:]
-    found={}
-    log(f"SOHO realtime session: fetching {len(days)} recent C3 directory listing(s).")
-    for day in days:
-        url=day_url(day)
-        try:
-            page=fetch_text(url)
-        except Exception as exc:
-            log(f"WARN: could not read {url}: {exc}")
-            continue
-        for name in explicit_images(page):
-            try:
-                when=image_time(name)
-            except Exception:
-                continue
-            found[name]=(when,urljoin(url,name))
-
-    if not found:
-        log("No C3 images found in the latest published SOHO directories.")
-        return []
-
-    latest_available=max(when for when,_ in found.values())
     keep_after=latest_available-dt.timedelta(hours=bootstrap_hours)
     selected={
-        name:url
-        for name,(when,url) in found.items()
-        if when>=keep_after
+        name:meta for name,meta in found.items()
+        if meta["time"]>=keep_after
     }
+
+    source_status={
+        "checked_at":now.isoformat().replace("+00:00","Z"),
+        "active_source":source_name,
+        "active_latest_frame":latest_available.isoformat().replace("+00:00","Z"),
+        "near_realtime_latest":latest_nrt.isoformat().replace("+00:00","Z") if latest_nrt else None,
+        "completed_latest":latest_completed.isoformat().replace("+00:00","Z") if latest_completed else None,
+        "completed_lag_minutes":(
+            round((latest_nrt-latest_completed).total_seconds()/60.0,1)
+            if latest_nrt and latest_completed and latest_nrt>=latest_completed else 0.0
+        ),
+        "preliminary_input":source_name=="near_realtime",
+    }
+    (state_dir/"realtime_input_source.json").write_text(
+        json.dumps(source_status,indent=2)+"\n",encoding="utf-8"
+    )
+
     log(
-        f"Latest available C3 frame is {latest_available:%Y-%m-%d %H:%MZ}; "
-        f"using rolling {bootstrap_hours}h window from {keep_after:%Y-%m-%d %H:%MZ}."
+        f"Active C3 source: {source_name}; using rolling {bootstrap_hours}h "
+        f"window from {keep_after:%Y-%m-%d %H:%MZ}."
     )
 
     new=[]
@@ -161,17 +251,25 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours):
         if target.exists() and target.stat().st_size>10000:
             continue
         try:
-            data=fetch_bytes(selected[name])
+            meta=selected[name]
+            data=fetch_bytes(meta["url"])
             if len(data)<10000:
                 raise ValueError(f"response too small ({len(data)} bytes)")
-            tmp=target.with_suffix(".part")
-            tmp.write_bytes(data)
-            tmp.replace(target)
+            if meta["source"]=="near_realtime":
+                write_nrt_jpeg(data,target)
+            else:
+                tmp=target.with_suffix(".part")
+                tmp.write_bytes(data)
+                tmp.replace(target)
             new.append(target)
         except Exception as exc:
-            log(f"WARN: failed {name}: {exc}")
+            log(f"WARN: failed {name} from {source_name}: {exc}")
 
-    log(f"Downloaded {len(new)} new C3 frame(s)." if new else "No new C3 frames in this SOHO session.")
+    log(
+        f"Downloaded {len(new)} new C3 frame(s) from {source_name}."
+        if new else
+        f"No new C3 frames from active source {source_name} in this SOHO session."
+    )
     return new
 
 def prune_cache(cache_dir,hours):
