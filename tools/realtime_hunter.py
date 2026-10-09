@@ -177,7 +177,7 @@ def write_nrt_jpeg(data,target):
         raise RuntimeError(detail or "ffmpeg could not convert realtime GIF")
     tmp.replace(target)
 
-def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours):
+def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,results_dir=None):
     soho_gate_wait(state_dir,poll_seconds)
     if STOP:return []
     now=dt.datetime.now(dt.timezone.utc)
@@ -239,6 +239,10 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours):
     (state_dir/"realtime_input_source.json").write_text(
         json.dumps(source_status,indent=2)+"\n",encoding="utf-8"
     )
+    if results_dir is not None:
+        (Path(results_dir)/"input_source.json").write_text(
+            json.dumps(source_status,indent=2)+"\n",encoding="utf-8"
+        )
 
     log(
         f"Active C3 source: {source_name}; using rolling {bootstrap_hours}h "
@@ -900,7 +904,7 @@ def main():
     while not STOP:
         start=time.time()
         try:
-            new=download_live_frames(cache_dir,state_dir,args.poll_seconds,args.bootstrap_hours)
+            new=download_live_frames(cache_dir,state_dir,args.poll_seconds,args.bootstrap_hours,results_dir=results_dir)
             prune_cache(cache_dir,max(args.window_hours,args.bootstrap_hours))
             if new:
                 run_detector(project,cache_dir,results_dir,args)
