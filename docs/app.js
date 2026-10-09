@@ -17,7 +17,8 @@ const state = {
   instrument: "all",
   myReview: "all",
   markedOnly: false,
-  sort: "verified"
+  sort: "verified",
+  liveReviewVisible: 8
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -551,19 +552,38 @@ function renderRealtime(payload) {
     alertBox.innerHTML = "";
   }
 
-  const rows = Array.isArray(payload.latest_candidates) ? payload.latest_candidates : [];
-  if (!rows.length) {
-    candidatesEl.innerHTML = '<div class="realtime-empty">No comet-like realtime tracks in the latest detector pass.</div>';
+  const currentRows = Array.isArray(payload.latest_candidates) ? payload.latest_candidates : [];
+  const reviewRows = Array.isArray(payload.review_candidates) && payload.review_candidates.length
+    ? payload.review_candidates
+    : currentRows;
+
+  if (!reviewRows.length) {
+    candidatesEl.innerHTML = '<div class="realtime-empty">No retained realtime review candidates yet.</div>';
     return;
   }
 
-  const ordered = [...rows].sort((a, b) => {
+  const ordered = [...reviewRows].sort((a, b) => {
     const rank = { UNMATCHED: 0, KNOWN_REPORT: 1, SEEN_ALREADY: 2 };
     return (rank[String(a.status || "").toUpperCase()] ?? 9) -
       (rank[String(b.status || "").toUpperCase()] ?? 9);
   });
 
-  candidatesEl.innerHTML = ordered.slice(0, 8).map(realtimeCandidateCard).join("");
+  const visible = Math.min(state.liveReviewVisible || 8, ordered.length);
+  const more = visible < ordered.length
+    ? `<div class="realtime-review-more"><button type="button" id="showMoreRealtimeReviews">Show more reviews (${ordered.length - visible} remaining)</button></div>`
+    : "";
+
+  candidatesEl.innerHTML =
+    ordered.slice(0, visible).map(realtimeCandidateCard).join("") +
+    more;
+
+  const moreButton = $("#showMoreRealtimeReviews");
+  if (moreButton) {
+    moreButton.addEventListener("click", () => {
+      state.liveReviewVisible = Math.min((state.liveReviewVisible || 8) + 8, ordered.length);
+      renderRealtime(payload);
+    });
+  }
 }
 
 async function refreshRealtime() {
