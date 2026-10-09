@@ -830,6 +830,7 @@ def publish_realtime_data(realtime_source, data_dir):
     frame_path = source / "last_detector_frame.txt"
     alert_text_path = source / "latest_alert.txt"
     heartbeat_path = source / "heartbeat.json"
+    input_source_path = source / "input_source.json"
 
     latest_candidates = []
     if candidates_path.exists():
@@ -939,6 +940,25 @@ def publish_realtime_data(realtime_source, data_dir):
         except Exception as exc:
             print(f"[WARN] Could not parse realtime heartbeat: {exc}")
 
+    input_source = {}
+    if input_source_path.exists():
+        try:
+            loaded = json.loads(input_source_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                input_source = loaded
+        except Exception as exc:
+            print(f"[WARN] Could not parse realtime input source: {exc}")
+
+    # When the hunter is consuming SOHO near-realtime quicklook imagery, show
+    # that same quicklook frame on the dashboard rather than pointing at a
+    # completed/reprocessed JPEG that may not exist yet.
+    if last_frame and input_source.get("active_source") == "near_realtime":
+        gif_name = re.sub(r"_512\.jpg$", ".gif", last_frame, flags=re.IGNORECASE)
+        latest_frame_url = (
+            f"https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
+            f"{last_frame[:4]}/{gif_name}"
+        )
+
     latest_alert = None
     if alert_text_path.exists():
         try:
@@ -968,7 +988,7 @@ def publish_realtime_data(realtime_source, data_dir):
             latest_alert = None
 
     source_files = [
-        p for p in (candidates_path, alerts_path, known_path, frame_path, alert_text_path, heartbeat_path)
+        p for p in (candidates_path, alerts_path, known_path, frame_path, alert_text_path, heartbeat_path, input_source_path)
         if p.exists()
     ]
     newest = max(source_files, key=lambda p: p.stat().st_mtime) if source_files else None
@@ -981,6 +1001,11 @@ def publish_realtime_data(realtime_source, data_dir):
         "hunter_heartbeat_at": heartbeat.get("checked_at"),
         "hunter_status": heartbeat.get("status"),
         "hunter_new_frames": heartbeat.get("new_frames"),
+        "active_input_source": input_source.get("active_source"),
+        "input_preliminary": input_source.get("preliminary_input"),
+        "near_realtime_latest": input_source.get("near_realtime_latest"),
+        "completed_latest": input_source.get("completed_latest"),
+        "completed_lag_minutes": input_source.get("completed_lag_minutes"),
         "current_unmatched_total": current_unmatched_total,
         "current_known_total": current_known_total,
         "alerts_total": len(alerts),
