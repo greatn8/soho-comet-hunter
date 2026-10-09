@@ -62,7 +62,10 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
         if first_t<=t<=last_t: frames.append((p,t))
     if len(frames)<2: raise RuntimeError(f"Only {len(frames)} cached frames in track interval")
     rid=review_id(c); out=root/rid; tmp=out/".frames"
-    dirs={n:tmp/n for n in ("full_raw","full_annotated","zoom_raw","zoom_annotated")}
+    # Keep only the two zoom videos needed for scientific review. Full-frame
+    # videos are reproducible from the original SOHO frames and previously
+    # doubled storage for every realtime hypothesis.
+    dirs={n:tmp/n for n in ("zoom_raw","zoom_annotated")}
     for d in dirs.values(): d.mkdir(parents=True,exist_ok=True)
     crop=160; scale=640; manifest=[]
     try:
@@ -72,21 +75,17 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
             left=max(0,min(512-crop,int(round(x-crop/2)))); top=max(0,min(512-crop,int(round(y-crop/2))))
             bx=max(0,min(494,int(round(x-9)))); by=max(0,min(494,int(round(y-9))))
             zx=max(0,min(scale-36,int(round((x-left)*scale/crop-18)))); zy=max(0,min(scale-36,int(round((y-top)*scale/crop-18))))
-            target=dirs["full_raw"]/f"frame_{i:04d}.jpg"
-            try: target.symlink_to(src)
-            except FileExistsError: pass
-            ff(["-i",str(src),"-vf",f"drawbox=x={bx}:y={by}:w=18:h=18:color=yellow@0.95:t=2","-q:v","2",str(dirs["full_annotated"]/f"frame_{i:04d}.jpg")])
             zf=f"crop={crop}:{crop}:{left}:{top},scale={scale}:{scale}:flags=lanczos"
             ff(["-i",str(src),"-vf",zf,"-q:v","2",str(dirs["zoom_raw"]/f"frame_{i:04d}.jpg")])
             ff(["-i",str(src),"-vf",zf+f",drawbox=x={zx}:y={zy}:w=36:h=36:color=yellow@0.95:t=3","-q:v","2",str(dirs["zoom_annotated"]/f"frame_{i:04d}.jpg")])
             manifest.append([src.name,iso(t),f"{x:.3f}",f"{y:.3f}",left,top])
-        encode_seq(dirs["full_raw"],out/"full_raw.mp4"); encode_seq(dirs["full_annotated"],out/"full_annotated.mp4"); encode_seq(dirs["zoom_raw"],out/"zoom_raw.mp4"); encode_seq(dirs["zoom_annotated"],out/"zoom_annotated.mp4")
+        encode_seq(dirs["zoom_raw"],out/"zoom_raw.mp4"); encode_seq(dirs["zoom_annotated"],out/"zoom_annotated.mp4")
         ff(["-framerate","1","-start_number","0","-i",str(dirs["zoom_annotated"]/"frame_%04d.jpg"),"-vf","scale=240:240,tile=4x3:nb_frames=12:padding=2:margin=2","-frames:v","1",str(out/"zoom_contact_sheet.jpg")],required=False)
         with (out/"manifest.tsv").open("w") as f:
             f.write("filename\tutc\tx512\ty512\tcrop_left\tcrop_top\n")
             for row in manifest: f.write("\t".join(map(str,row))+"\n")
         created=iso(dt.datetime.now(dt.timezone.utc))
-        meta={"review_id":rid,"candidate":c["cid"],"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":512,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":"full_annotated.mp4","thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
+        meta={"review_id":rid,"candidate":c["cid"],"priority":c.get("priority"),"event_group":c.get("event_group"),"event_members":c.get("event_members",1),"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":512,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":None,"thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
         (out/"review.json").write_text(json.dumps(meta,indent=2))
         return meta
     finally:
