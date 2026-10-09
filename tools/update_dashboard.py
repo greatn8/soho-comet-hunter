@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
 import shutil
 from datetime import datetime, timedelta, timezone
@@ -18,6 +19,12 @@ VIDEO_PREFERENCE = (
 )
 IMAGE_PATTERNS = ("*.png", "*.jpg", "*.jpeg", "*.webp")
 MAX_MEDIA_MB = 50
+LIVE_MEDIA_STAGE = Path(os.environ.get("COMET_LIVE_MEDIA_STAGE", "/dev/shm/soho_comet_dashboard_live_media"))
+LIVE_MEDIA_BASE = os.environ.get(
+    "COMET_LIVE_MEDIA_BASE",
+    "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media",
+).rstrip("/")
+LIVE_MEDIA_LIMIT = 8
 
 FIELD_ALIASES = {
     "score": ("score", "review_score", "rank_score", "ranking_score", "event_score", "total_score"),
@@ -563,8 +570,10 @@ def find_realtime_review_id(source, row):
     return None
 
 def publish_realtime_review_assets(source, data_dir, row):
-    # Keep one lightweight JPEG on the dashboard for human review.
-    # Realtime MP4 evidence remains local on Bourbaki under bounded retention.
+    # Publish exactly one stitched annotated zoom video plus its lightweight
+    # poster image for live human review. These files are staged in /dev/shm
+    # and pushed to a force-replaced live-media branch, so old clips do not
+    # accumulate in the main dashboard Git history.
     result = dict(row)
     review_id = find_realtime_review_id(source, row)
     for field in ("review_video","review_raw_video","review_full_video","review_thumbnail"):
@@ -574,21 +583,19 @@ def publish_realtime_review_assets(source, data_dir, row):
 
     result["review_id"] = review_id
     folder = source / "review" / str(review_id)
+    video = folder / "zoom_annotated.mp4"
     thumb = folder / "zoom_contact_sheet.jpg"
-    if thumb.exists():
-        preview_dir = data_dir.parent / "media" / "realtime_previews"
-        preview_dir.mkdir(parents=True, exist_ok=True)
-        target = preview_dir / f"{review_id}.jpg"
-        shutil.copy2(thumb, target)
-        result["review_thumbnail"] = f"./media/realtime_previews/{review_id}.jpg"
+    target_dir = LIVE_MEDIA_STAGE / str(review_id)
+    target_dir.mkdir(parents=True, exist_ok=True)
 
-        previews = sorted(
-            preview_dir.glob("*.jpg"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
-        for stale in previews[200:]:
-            stale.unlink(missing_ok=True)
+    if video.exists():
+        shutil.copy2(video, target_dir / "zoom_annotated.mp4")
+        result["review_video"] = f"{LIVE_MEDIA_BASE}/{review_id}/zoom_annotated.mp4"
+
+    if thumb.exists():
+        shutil.copy2(thumb, target_dir / "zoom_contact_sheet.jpg")
+        result["review_thumbnail"] = f"{LIVE_MEDIA_BASE}/{review_id}/zoom_contact_sheet.jpg"
+
     return result
 
 def build_realtime_archive_candidate(row, status, promoted_at):
@@ -687,13 +694,15 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
             continue
 
         promoted_at = now.isoformat().replace("+00:00", "Z")
-        row = publish_realtime_review_assets(source, data_dir, row)
+        review_id = find_realtime_review_id(source, row)
         candidate = build_realtime_archive_candidate(row, status, promoted_at)
-        candidate["review_id"] = row.get("review_id")
-        candidate["video"] = row.get("review_video")
-        candidate["thumbnail"] = row.get("review_thumbnail")
-        candidate["review_raw_video"] = row.get("review_raw_video")
-        candidate["review_full_video"] = row.get("review_full_video")
+        candidate["review_id"] = review_id
+        # Realtime live-media clips are intentionally ephemeral and are not
+        # attached to the permanent candidate archive.
+        candidate["video"] = None
+        candidate["thumbnail"] = None
+        candidate["review_raw_video"] = None
+        candidate["review_full_video"] = None
         existing = by_id.get(candidate["id"])
 
         if existing:
@@ -831,7 +840,17 @@ def publish_realtime_data(realtime_source, data_dir):
         except Exception as exc:
             print(f"[WARN] Could not parse {candidates_path}: {exc}")
 
-    latest_candidates = [publish_realtime_review_assets(source, data_dir, row) for row in latest_candidates]
+    # Rebuild the ephemeral live-media staging area from only the candidates
+    # actually shown on the live dashboard. This puts a hard cap on media.
+    shutil.rmtree(LIVE_MEDIA_STAGE, ignore_errors=True)
+    LIVE_MEDIA_STAGE.mkdir(parents=True, exist_ok=True)
+    published_live = [
+        publish_realtime_review_assets(source, data_dir, row)
+        for row in latest_candidates[:LIVE_MEDIA_LIMIT]
+    ]
+    latest_candidates = published_live + [
+        dict(row) for row in latest_candidates[LIVE_MEDIA_LIMIT:]
+    ]
 
     alerts = read_tsv_records(alerts_path)
     known = read_tsv_records(known_path)
