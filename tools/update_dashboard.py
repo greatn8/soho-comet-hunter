@@ -581,6 +581,14 @@ def publish_realtime_review_assets(source, data_dir, row):
         target = preview_dir / f"{review_id}.jpg"
         shutil.copy2(thumb, target)
         result["review_thumbnail"] = f"./media/realtime_previews/{review_id}.jpg"
+
+        previews = sorted(
+            preview_dir.glob("*.jpg"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for stale in previews[200:]:
+            stale.unlink(missing_ok=True)
     return result
 
 def build_realtime_archive_candidate(row, status, promoted_at):
