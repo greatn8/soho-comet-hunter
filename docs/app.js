@@ -479,6 +479,7 @@ function renderRealtime(payload) {
   const alertCountEl = $("#realtimeAlertCount");
   const knownCountEl = $("#realtimeKnownCount");
   const updatedEl = $("#realtimeUpdated");
+  const sourceNoteEl = $("#realtimeSourceNote");
   const frameWrap = $("#realtimeFrameWrap");
   const frameImage = $("#realtimeFrameImage");
   const frameCaption = $("#realtimeFrameCaption");
@@ -486,7 +487,7 @@ function renderRealtime(payload) {
   const candidatesEl = $("#realtimeCandidates");
 
   if (!stateEl || !lastFrameEl || !alertCountEl || !knownCountEl || !updatedEl ||
-      !frameWrap || !frameImage || !frameCaption || !alertBox || !candidatesEl) {
+      !frameWrap || !frameImage || !frameCaption || !alertBox || !candidatesEl || !sourceNoteEl) {
     return;
   }
 
@@ -497,6 +498,7 @@ function renderRealtime(payload) {
     alertCountEl.textContent = "0";
     knownCountEl.textContent = "0";
     updatedEl.textContent = "—";
+    sourceNoteEl.textContent = "Input source: —";
     frameWrap.classList.add("hidden");
     frameImage.removeAttribute("src");
     frameCaption.textContent = "—";
@@ -527,6 +529,25 @@ function renderRealtime(payload) {
       : 0)
   );
   updatedEl.textContent = formatDate(payload.hunter_heartbeat_at || payload.source_updated_at);
+
+  const activeSource = String(payload.active_input_source || "").toLowerCase();
+  if (activeSource === "near_realtime") {
+    const lag = Number(payload.completed_lag_minutes);
+    sourceNoteEl.innerHTML =
+      '<strong>Input source: NEAR REALTIME</strong>' +
+      '<span>Preliminary SOHO quicklook frames used for discovery' +
+      (Number.isFinite(lag) && lag > 0 ? ` · completed archive lag ~${Math.round(lag)} min` : "") +
+      '</span>';
+    sourceNoteEl.className = "realtime-source-note preliminary";
+  } else if (activeSource === "completed") {
+    sourceNoteEl.innerHTML =
+      '<strong>Input source: COMPLETED / REPROCESSED</strong>' +
+      '<span>Science-quality SOHO archive frames</span>';
+    sourceNoteEl.className = "realtime-source-note completed";
+  } else {
+    sourceNoteEl.textContent = "Input source: awaiting source status";
+    sourceNoteEl.className = "realtime-source-note";
+  }
 
   if (payload.latest_frame_image) {
     frameImage.src = payload.latest_frame_image;
