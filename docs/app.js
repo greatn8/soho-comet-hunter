@@ -461,13 +461,7 @@ function realtimeCandidateCard(c) {
         <span>${escapeHtml(prettyClass(status))}</span>
       </div>
       ${media}
-      <div class="realtime-candidate-meta">
-        <div><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>
-        <div><span>Speed</span><strong>${escapeHtml(metricText(c.speed))} px/h</strong></div>
-        <div><span>Fit RMS</span><strong>${escapeHtml(metricText(c.rms))}</strong></div>
-        <div><span>Sunward</span><strong>${escapeHtml(metricText(c.sunward))} px/h</strong></div>
-      </div>
-      <div class="realtime-track">
+      <div class="realtime-candidate-meta">\n        <div><span>Review class</span><strong>${escapeHtml(prettyClass(c.review_class || "UNCLASSIFIED"))}</strong></div>\n        <div><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>\n        <div><span>Speed</span><strong>${escapeHtml(metricText(c.speed))} px/h</strong></div>\n        <div><span>Fit RMS</span><strong>${escapeHtml(metricText(c.rms))}</strong></div>\n        <div><span>Sunward</span><strong>${escapeHtml(metricText(c.sunward))} px/h</strong></div>\n        <div><span>Pixel hits</span><strong>${escapeHtml((c.pixel_verification?.hits ?? "—") + "/" + (c.pixel_verification?.samples ?? "—"))}</strong></div>\n        <div><span>Peak SNR</span><strong>${escapeHtml(metricText(c.pixel_verification?.peak_snr))}</strong></div>\n        <div><span>Pixel status</span><strong>${escapeHtml(c.pixel_verification?.status || "—")}</strong></div>\n      </div>\n      <div class="realtime-track">
         <span>${escapeHtml(compactFrameName(c.first))}</span>
         <b>→</b>
         <span>${escapeHtml(compactFrameName(c.last))}</span>
