@@ -563,24 +563,16 @@ def find_realtime_review_id(source, row):
     return None
 
 def publish_realtime_review_assets(source, data_dir, row):
+    # Realtime review binaries stay on Bourbaki under bounded retention.
+    # Publishing changing MP4/JPEG evidence into Git caused multi-gigabyte
+    # repository growth. The dashboard publishes metadata only for realtime
+    # candidates; verified historical event media remains handled separately.
     result = dict(row)
     review_id = find_realtime_review_id(source, row)
-    if not review_id:
-        return result
-    folder = source / "review" / str(review_id)
-    if not (folder / "review.json").exists():
-        return result
-    target = data_dir.parent / "media" / "realtime_reviews" / review_id
-    target.mkdir(parents=True, exist_ok=True)
-    mapping = {"review_video":"zoom_annotated.mp4","review_raw_video":"zoom_raw.mp4","review_full_video":"full_annotated.mp4","review_thumbnail":"zoom_contact_sheet.jpg"}
-    result["review_id"] = review_id
-    for field, filename in mapping.items():
-        src = folder / filename
-        if not src.exists():
-            continue
-        copied = safe_copy(src, target / filename)
-        if copied:
-            result[field] = f"./media/realtime_reviews/{review_id}/{copied}"
+    if review_id:
+        result["review_id"] = review_id
+    for field in ("review_video","review_raw_video","review_full_video","review_thumbnail"):
+        result.pop(field,None)
     return result
 
 def build_realtime_archive_candidate(row, status, promoted_at):
