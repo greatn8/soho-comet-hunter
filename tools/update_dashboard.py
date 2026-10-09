@@ -24,7 +24,7 @@ LIVE_MEDIA_BASE = os.environ.get(
     "COMET_LIVE_MEDIA_BASE",
     "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media",
 ).rstrip("/")
-LIVE_MEDIA_LIMIT = 8
+LIVE_MEDIA_LIMIT = 100
 
 FIELD_ALIASES = {
     "score": ("score", "review_score", "rank_score", "ranking_score", "event_score", "total_score"),
@@ -840,16 +840,66 @@ def publish_realtime_data(realtime_source, data_dir):
         except Exception as exc:
             print(f"[WARN] Could not parse {candidates_path}: {exc}")
 
-    # Rebuild the ephemeral live-media staging area from only the candidates
-    # actually shown on the live dashboard. This puts a hard cap on media.
+    # Preserve a bounded review history across frequent dashboard publishes.
+    # Current candidates are inserted first, followed by older review rows from
+    # the previous dashboard payload. Only the newest 100 unique reviews are
+    # retained, so a candidate remains available long enough for human review.
+    previous_payload = {}
+    if output.exists():
+        try:
+            loaded = json.loads(output.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                previous_payload = loaded
+        except Exception:
+            previous_payload = {}
+
+    history_seed = list(latest_candidates)
+    old_history = previous_payload.get("review_candidates")
+    if not isinstance(old_history, list):
+        old_history = previous_payload.get("latest_candidates")
+    if isinstance(old_history, list):
+        history_seed.extend(old_history)
+
+    review_history = []
+    seen_reviews = set()
+    for row in history_seed:
+        if not isinstance(row, dict):
+            continue
+        review_id = clean(row.get("review_id")) or find_realtime_review_id(source, row)
+        key = review_id or "|".join(
+            str(row.get(k) or "") for k in ("candidate","first","last")
+        )
+        if not key or key in seen_reviews:
+            continue
+        seen_reviews.add(key)
+        item = dict(row)
+        if review_id:
+            item["review_id"] = review_id
+        review_history.append(item)
+        if len(review_history) >= LIVE_MEDIA_LIMIT:
+            break
+
+    # Rebuild the ephemeral live-media staging area from the bounded history.
+    # The live-media branch is force-replaced each publish, so it can never
+    # grow beyond these retained review clips.
     shutil.rmtree(LIVE_MEDIA_STAGE, ignore_errors=True)
     LIVE_MEDIA_STAGE.mkdir(parents=True, exist_ok=True)
-    published_live = [
+    review_candidates = [
         publish_realtime_review_assets(source, data_dir, row)
-        for row in latest_candidates[:LIVE_MEDIA_LIMIT]
+        for row in review_history
     ]
-    latest_candidates = published_live + [
-        dict(row) for row in latest_candidates[LIVE_MEDIA_LIMIT:]
+
+    by_review = {
+        str(row.get("review_id")): row
+        for row in review_candidates
+        if row.get("review_id")
+    }
+    latest_candidates = [
+        by_review.get(
+            str(clean(row.get("review_id")) or find_realtime_review_id(source, row)),
+            dict(row),
+        )
+        for row in latest_candidates
     ]
 
     alerts = read_tsv_records(alerts_path)
@@ -938,6 +988,8 @@ def publish_realtime_data(realtime_source, data_dir):
         "known_matches_total": len(known),
         "latest_alert": latest_alert,
         "latest_candidates": latest_candidates[:50],
+        "review_candidates": review_candidates,
+        "review_retention_limit": LIVE_MEDIA_LIMIT,
         "recent_alerts": alerts[-20:],
         "recent_known_matches": known[-20:],
     }
