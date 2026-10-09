@@ -191,6 +191,76 @@ def prune_cache(cache_dir,hours):
             kept.append(p)
     return kept
 
+def prune_realtime_reviews(results_dir,max_transient=100,max_age_days=14):
+    root=Path(results_dir)/"review"
+    if not root.exists():
+        return {"removed_dirs":0,"removed_bytes":0,"removed_redundant_bytes":0}
+
+    removed_dirs=0
+    removed_bytes=0
+    removed_redundant_bytes=0
+    transient=[]
+
+    for folder in root.iterdir():
+        if not folder.is_dir():
+            continue
+
+        # Older review packages contained full-frame videos in addition to the
+        # zoom products. They are reproducible from SOHO source imagery and are
+        # not needed for realtime review, so remove them even from retained
+        # packages.
+        for name in ("full_raw.mp4","full_annotated.mp4"):
+            p=folder/name
+            if p.exists():
+                try:
+                    removed_redundant_bytes+=p.stat().st_size
+                    p.unlink()
+                except OSError:
+                    pass
+
+        meta={}
+        try:
+            meta=json.loads((folder/"review.json").read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+        status=str(meta.get("status") or "").upper()
+        priority=str(meta.get("priority") or "").upper()
+        important=(status=="KNOWN_REPORT" or priority=="HIGH")
+        if important:
+            continue
+
+        try:
+            stamp=(folder/"review.json").stat().st_mtime
+        except OSError:
+            stamp=folder.stat().st_mtime
+        transient.append((stamp,folder))
+
+    # Retain only a bounded set of transient MEDIUM/duplicate reviews. Keep the
+    # newest max_transient and anything newer than max_age_days only if it fits
+    # within that cap. HIGH and KNOWN_REPORT evidence is preserved.
+    transient.sort(key=lambda x:x[0],reverse=True)
+    cutoff=time.time()-max_age_days*86400
+    keep=set(folder for stamp,folder in transient[:max_transient] if stamp>=cutoff)
+
+    for stamp,folder in transient:
+        if folder in keep:
+            continue
+        try:
+            size=sum(p.stat().st_size for p in folder.rglob("*") if p.is_file())
+        except OSError:
+            size=0
+        shutil.rmtree(folder,ignore_errors=True)
+        if not folder.exists():
+            removed_dirs+=1
+            removed_bytes+=size
+
+    return {
+        "removed_dirs":removed_dirs,
+        "removed_bytes":removed_bytes,
+        "removed_redundant_bytes":removed_redundant_bytes,
+    }
+
 def gpu_busy(project):
     try:out=subprocess.check_output(["pgrep","-af","comet_hunter_archive"],text=True)
     except subprocess.CalledProcessError:return False
@@ -636,12 +706,21 @@ def main():
     for d in (state_dir,results_dir,cache_dir):d.mkdir(parents=True,exist_ok=True)
     signal.signal(signal.SIGINT,on_signal); signal.signal(signal.SIGTERM,on_signal)
     log("Realtime hunter starting."); log(f"Project: {project}"); log(f"Rolling cache: {cache_dir}"); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
+    cleanup=prune_realtime_reviews(results_dir)
+    reclaimed=cleanup["removed_bytes"]+cleanup["removed_redundant_bytes"]
+    if cleanup["removed_dirs"] or reclaimed:
+        log(f"Realtime review retention cleanup: removed {cleanup['removed_dirs']} stale review package(s), reclaimed {reclaimed/(1024*1024):.1f} MiB.")
     while not STOP:
         start=time.time()
         try:
             new=download_live_frames(cache_dir,state_dir,args.poll_seconds,args.bootstrap_hours)
             prune_cache(cache_dir,max(args.window_hours,args.bootstrap_hours))
-            if new: run_detector(project,cache_dir,results_dir,args)
+            if new:
+                run_detector(project,cache_dir,results_dir,args)
+                cleanup=prune_realtime_reviews(results_dir)
+                reclaimed=cleanup["removed_bytes"]+cleanup["removed_redundant_bytes"]
+                if cleanup["removed_dirs"] or reclaimed:
+                    log(f"Realtime review retention cleanup: removed {cleanup['removed_dirs']} stale review package(s), reclaimed {reclaimed/(1024*1024):.1f} MiB.")
             write_heartbeat(results_dir,status="ok",new_frames=len(new))
         except Exception as exc:
             write_heartbeat(results_dir,status="error",error=str(exc))
