@@ -759,9 +759,13 @@ def run_detector(project,cache_dir,results_dir,args):
             log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024, {match.get('path_model','?')}, {match.get('report_size','?')}, {match.get('report_origin','?')})."); continue
         if dup: continue
         seen.append(sig)
-        append_tsv(results_dir/"alerts.tsv",["utc","candidate","priority","frames","speed","vx","vy","rms","sunward","score","first","first_x","first_y","last","last_x","last_y","duplicate_check"],[run_id,c["cid"],c["priority"],c["frames"],c["speed"],c["vx"],c["vy"],c["rms"],c["sunward"],c["score"],c["first"]["file"],c["first"]["x"],c["first"]["y"],c["last"]["file"],c["last"]["x"],c["last"]["y"],"no_recent_match" if reports else "check_unavailable"])
         if c.get("review_class")!="STRONG_REVIEW" or str(c.get("priority","")).upper()!="HIGH":
             pixel=c.get("pixel_verification",{})
+            append_tsv(
+                results_dir/"review_events.tsv",
+                ["utc","candidate","raw_priority","review_class","frames","rms","speed","sunward","pixel_hits","pixel_samples","pixel_peak_snr","event_group","first","last"],
+                [run_id,c["cid"],c["priority"],c.get("review_class"),c["frames"],c["rms"],c["speed"],c["sunward"],pixel.get("hits",0),pixel.get("samples",0),pixel.get("peak_snr",0),c.get("event_group"),c["first"]["file"],c["last"]["file"]]
+            )
             log(
                 f"Realtime review event: {c.get('event_group')} rep={c['cid']} "
                 f"members={c.get('event_members',1)} raw_class={c['priority']} "
@@ -771,6 +775,11 @@ def run_detector(project,cache_dir,results_dir,args):
                 "Retained for review; not escalated to comet alert."
             )
             continue
+        append_tsv(
+            results_dir/"alerts.tsv",
+            ["utc","candidate","priority","frames","speed","vx","vy","rms","sunward","score","first","first_x","first_y","last","last_x","last_y","duplicate_check"],
+            [run_id,c["cid"],c["priority"],c["frames"],c["speed"],c["vx"],c["vy"],c["rms"],c["sunward"],c["score"],c["first"]["file"],c["first"]["x"],c["first"]["y"],c["last"]["file"],c["last"]["x"],c["last"]["y"],"no_recent_match" if reports else "check_unavailable"]
+        )
         pixel=c.get("pixel_verification",{})
         alert="\n"+"!"*72+"\nREALTIME COMET ALERT - PIXEL-VERIFIED HIGH-PRIORITY EVENT\n"+f"Candidate: {c['cid']} raw_class={c['priority']} review_class={c.get('review_class')} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Pixel evidence: hits={pixel.get('hits',0)}/{pixel.get('samples',0)} hit_fraction={pixel.get('hit_fraction',0):.2f} peak_snr={pixel.get('peak_snr',0):.2f} longest_run={pixel.get('longest_hit_run',0)}\n"+f"Event group: {c.get('event_group')} members={c.get('event_members',1)}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
         log(alert); (results_dir/"latest_alert.txt").write_text(alert+"\n",encoding="utf-8")
