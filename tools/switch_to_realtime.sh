@@ -7,8 +7,26 @@ LOG="$PROJECT/logs/realtime_hunter.log"
 HUNTER="$DASH_REPO/tools/realtime_hunter.py"
 cd "$PROJECT"
 mkdir -p logs state results/realtime
-if ! command -v nvidia-smi >/dev/null 2>&1; then echo "ERROR: run this on bourbaki, not turing." >&2; exit 1; fi
-if ! nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | grep -q 'A100'; then echo "ERROR: A100 not detected." >&2; exit 1; fi
+if [[ "$(hostname -s)" != "bourbaki" ]]; then
+  echo "ERROR: run this on bourbaki, not turing." >&2
+  exit 1
+fi
+
+gpu_ok=0
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | grep -q 'A100'; then
+  gpu_ok=1
+else
+  # NVML/nvidia-smi can fail after a driver package update even while CUDA is
+  # still usable. Fall back to the kernel's GPU model information.
+  if grep -Rhs '^Model:.*A100' /proc/driver/nvidia/gpus/*/information 2>/dev/null | grep -q 'A100'; then
+    gpu_ok=1
+    echo "WARN: nvidia-smi/NVML is unavailable, but the A100 is present; continuing with CUDA."
+  fi
+fi
+if [[ "$gpu_ok" -ne 1 ]]; then
+  echo "ERROR: A100 not detected." >&2
+  exit 1
+fi
 if [[ ! -x ./comet_hunter_archive ]]; then echo "ERROR: missing $PROJECT/comet_hunter_archive" >&2; exit 1; fi
 if ! command -v ffmpeg >/dev/null 2>&1; then echo "ERROR: ffmpeg is required for live review videos." >&2; exit 1; fi
 if [[ ! -f "$HUNTER" ]]; then echo "ERROR: $HUNTER not found. Pull dashboard repo first." >&2; exit 1; fi
