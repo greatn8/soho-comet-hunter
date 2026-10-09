@@ -37,7 +37,11 @@ python3 tools/update_dashboard.py \
   --results-root results \
   --realtime-source "$REALTIME_DIR"
 
-git add docs
+# Realtime review videos are transient local evidence. Older publisher
+# versions copied them into docs/Git and caused unbounded repository growth.
+rm -rf docs/media/realtime_reviews
+
+git add -A docs
 
 if git diff --cached --quiet; then
   echo "No dashboard changes to publish."
