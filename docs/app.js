@@ -515,8 +515,18 @@ function renderRealtime(payload) {
   stateEl.innerHTML = "<span></span> " + (cls === "live" ? "LIVE" : "STALE / CHECK HUNTER");
 
   lastFrameEl.innerHTML = frameDisplay(payload.last_frame);
-  alertCountEl.textContent = String(payload.alerts_total ?? 0);
-  knownCountEl.textContent = String(payload.known_matches_total ?? 0);
+  alertCountEl.textContent = String(
+    payload.current_unmatched_total ??
+    (Array.isArray(payload.latest_candidates)
+      ? payload.latest_candidates.filter(c => String(c.status || "").toUpperCase() === "UNMATCHED").length
+      : 0)
+  );
+  knownCountEl.textContent = String(
+    payload.current_known_total ??
+    (Array.isArray(payload.latest_candidates)
+      ? payload.latest_candidates.filter(c => String(c.status || "").toUpperCase() === "KNOWN_REPORT").length
+      : 0)
+  );
   updatedEl.textContent = formatDate(payload.source_updated_at);
 
   if (payload.latest_frame_image) {
