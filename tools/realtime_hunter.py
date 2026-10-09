@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from live_review import ensure_live_review
+from pixel_verify import classify_for_review, verify_track_pixels
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SUNGRAZER_REPORTS="https://sungrazer.nrl.navy.mil/index.php/plain-text-reports?items_per_page=100&order=field_report_date&sort=desc"
@@ -580,6 +581,22 @@ def run_detector(project,cache_dir,results_dir,args):
     event_groups=group_event_hypotheses(candidates)
     event_representatives=[g["representative"] for g in event_groups]
 
+    # Historical-style second-stage verification: inspect the actual pixels
+    # along each grouped event trajectory before it reaches review/alerting.
+    gray_cache={}
+    verified_representatives=[]
+    rejected_representatives=[]
+    for c in verified_representatives:
+        pixel=verify_track_pixels(c,frames,gray_cache=gray_cache)
+        review_class,historical_like=classify_for_review(c,pixel)
+        c["pixel_verification"]=pixel
+        c["review_class"]=review_class
+        c["historical_recovery_profile"]=historical_like
+        if review_class=="VISUAL_REJECT":
+            rejected_representatives.append(c)
+        else:
+            verified_representatives.append(c)
+
     stats={
         "run_id":run_id,
         "newest_frame":newest,
@@ -594,6 +611,10 @@ def run_detector(project,cache_dir,results_dir,args):
         "event_groups":len(event_groups),
         "event_grouped_tracks":sum(max(0,len(g["members"])-1) for g in event_groups),
         "event_largest_group":max((len(g["members"]) for g in event_groups),default=0),
+        "pixel_verified_events":len(verified_representatives),
+        "pixel_rejected_events":len(rejected_representatives),
+        "pixel_strong_events":sum(1 for c in verified_representatives if c.get("review_class")=="STRONG_REVIEW"),
+        "pixel_secondary_events":sum(1 for c in verified_representatives if c.get("review_class")=="SECONDARY"),
         "event_grouping":{
             "min_overlap_minutes":60.0,
             "min_overlap_fraction":0.45,
@@ -624,6 +645,10 @@ def run_detector(project,cache_dir,results_dir,args):
         grouped=sum(max(0,len(g["members"])-1) for g in event_groups)
         largest_event=max((len(g["members"]) for g in event_groups),default=0)
         log(f"Realtime event grouping: {len(candidates)} tracks -> {len(event_groups)} event group(s); grouped_members={grouped}, largest_event={largest_event}.")
+        log(
+            f"Pixel verification: {len(verified_representatives)} review event(s), "
+            f"{len(rejected_representatives)} visually unsupported event(s)."
+        )
     if rejection_counts:
         detail=", ".join(f"{k}={v}" for k,v in sorted(rejection_counts.items(),key=lambda kv:(-kv[1],kv[0])))
         log(f"Realtime filter rejection counts (multi-label): {detail}")
@@ -657,6 +682,30 @@ def run_detector(project,cache_dir,results_dir,args):
             "last_y":c["last"]["y"],
         })
     (results_dir/"latest_tracks.json").write_text(json.dumps(track_rows,indent=2),encoding="utf-8")
+
+    rejected_rows=[]
+    for c in rejected_representatives:
+        rejected_rows.append({
+            "candidate":c["cid"],
+            "priority":c["priority"],
+            "review_class":c.get("review_class"),
+            "historical_recovery_profile":c.get("historical_recovery_profile",False),
+            "pixel_verification":c.get("pixel_verification",{}),
+            "event_group":c.get("event_group"),
+            "members":c.get("event_members",1),
+            "member_ids":c.get("event_member_ids",[c["cid"]]),
+            "frames":c["frames"],
+            "rms":c["rms"],
+            "speed":c["speed"],
+            "vx":c["vx"],
+            "vy":c["vy"],
+            "sunward":c["sunward"],
+            "first":c["first"]["file"],
+            "last":c["last"]["file"],
+        })
+    (results_dir/"latest_visual_rejects.json").write_text(
+        json.dumps(rejected_rows,indent=2),encoding="utf-8"
+    )
     try:
         reports=parse_reports(fetch_text(SUNGRAZER_REPORTS,90))
         log(f"Parsed {len(reports)} recent C3 Sungrazer reports.")
@@ -682,17 +731,48 @@ def run_detector(project,cache_dir,results_dir,args):
                     log(f"Live review media ready: {review_id}")
             except Exception as exc:
                 log(f"WARN: live review media failed for {c['cid']}: {exc}")
-        rows.append({"candidate":c["cid"],"status":status,"report_id":rid,"match_error_1024":err,"first":c["first"]["file"],"last":c["last"]["file"],"frames":c["frames"],"rms":c["rms"],"speed":c["speed"],"vx":c["vx"],"vy":c["vy"],"sunward":c["sunward"],"score":c["score"],"motion_family_size":c.get("motion_family_size",1),"event_group":c.get("event_group"),"members":c.get("event_members",1),"member_ids":c.get("event_member_ids",[c["cid"]]),"review_id":review_id})
+        rows.append({
+            "candidate":c["cid"],
+            "status":status,
+            "report_id":rid,
+            "match_error_1024":err,
+            "review_class":c.get("review_class"),
+            "historical_recovery_profile":c.get("historical_recovery_profile",False),
+            "pixel_verification":c.get("pixel_verification",{}),
+            "first":c["first"]["file"],
+            "last":c["last"]["file"],
+            "frames":c["frames"],
+            "rms":c["rms"],
+            "speed":c["speed"],
+            "vx":c["vx"],
+            "vy":c["vy"],
+            "sunward":c["sunward"],
+            "score":c["score"],
+            "motion_family_size":c.get("motion_family_size",1),
+            "event_group":c.get("event_group"),
+            "members":c.get("event_members",1),
+            "member_ids":c.get("event_member_ids",[c["cid"]]),
+            "review_id":review_id,
+        })
         if match:
             append_tsv(results_dir/"known_matches.tsv",["utc","candidate","first","last","report_id","median_error_1024"],[run_id,c["cid"],c["first"]["file"],c["last"]["file"],rid,err])
             log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024, {match.get('path_model','?')}, {match.get('report_size','?')}, {match.get('report_origin','?')})."); continue
         if dup: continue
         seen.append(sig)
         append_tsv(results_dir/"alerts.tsv",["utc","candidate","priority","frames","speed","vx","vy","rms","sunward","score","first","first_x","first_y","last","last_x","last_y","duplicate_check"],[run_id,c["cid"],c["priority"],c["frames"],c["speed"],c["vx"],c["vy"],c["rms"],c["sunward"],c["score"],c["first"]["file"],c["first"]["x"],c["first"]["y"],c["last"]["file"],c["last"]["x"],c["last"]["y"],"no_recent_match" if reports else "check_unavailable"])
-        if str(c.get("priority","")).upper()!="HIGH":
-            log(f"Realtime review event: {c.get('event_group')} rep={c['cid']} members={c.get('event_members',1)} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f} family={c.get('motion_family_size',1)}. Retained for review; not escalated to comet alert.")
+        if c.get("review_class")!="STRONG_REVIEW" or str(c.get("priority","")).upper()!="HIGH":
+            pixel=c.get("pixel_verification",{})
+            log(
+                f"Realtime review event: {c.get('event_group')} rep={c['cid']} "
+                f"members={c.get('event_members',1)} raw_class={c['priority']} "
+                f"review_class={c.get('review_class')} frames={c['frames']} "
+                f"RMS={c['rms']:.2f} pixel_hits={pixel.get('hits',0)}/{pixel.get('samples',0)} "
+                f"pixel_peak_snr={pixel.get('peak_snr',0)}. "
+                "Retained for review; not escalated to comet alert."
+            )
             continue
-        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - HIGH-PRIORITY UNMATCHED TRACK\n"+f"Candidate: {c['cid']} class={c['priority']} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Event group: {c.get('event_group')} members={c.get('event_members',1)}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
+        pixel=c.get("pixel_verification",{})
+        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - PIXEL-VERIFIED HIGH-PRIORITY EVENT\n"+f"Candidate: {c['cid']} raw_class={c['priority']} review_class={c.get('review_class')} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Pixel evidence: hits={pixel.get('hits',0)}/{pixel.get('samples',0)} hit_fraction={pixel.get('hit_fraction',0):.2f} peak_snr={pixel.get('peak_snr',0):.2f} longest_run={pixel.get('longest_hit_run',0)}\n"+f"Event group: {c.get('event_group')} members={c.get('event_members',1)}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
         log(alert); (results_dir/"latest_alert.txt").write_text(alert+"\n",encoding="utf-8")
     seen_file.write_text(json.dumps(seen[-1000:],indent=2),encoding="utf-8")
     (results_dir/"latest_candidates.json").write_text(json.dumps(rows,indent=2),encoding="utf-8")
