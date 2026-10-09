@@ -32,14 +32,38 @@ echo "============================================================"
 # permanently stuck behind origin/main.
 git pull --rebase --autostash origin main
 
+LIVE_MEDIA_STAGE="${COMET_LIVE_MEDIA_STAGE:-/dev/shm/soho_comet_dashboard_live_media}"
+export COMET_LIVE_MEDIA_STAGE="$LIVE_MEDIA_STAGE"
+
 python3 tools/update_dashboard.py \
   --source "$SOURCE_DIR" \
   --results-root results \
   --realtime-source "$REALTIME_DIR"
 
-# Realtime review videos are transient local evidence. Older publisher
-# versions copied them into docs/Git and caused unbounded repository growth.
-rm -rf docs/media/realtime_reviews
+# Publish the current stitched review clips on an ephemeral branch. The branch
+# is rebuilt from scratch on every cycle in /dev/shm, so old video blobs do
+# not accumulate in the main checkout or its Git history.
+if [[ -d "$LIVE_MEDIA_STAGE" ]] && find "$LIVE_MEDIA_STAGE" -type f -print -quit | grep -q .; then
+  LIVE_PUSH_DIR="$(mktemp -d /dev/shm/comet-live-media-push.XXXXXX)"
+  cleanup_live_push() { rm -rf "$LIVE_PUSH_DIR"; }
+  trap 'cleanup_live_push; cleanup_lock' EXIT INT TERM
+
+  REMOTE_URL="$(git remote get-url origin)"
+  git -C "$LIVE_PUSH_DIR" init -q
+  git -C "$LIVE_PUSH_DIR" config user.name "Comet Dashboard Publisher"
+  git -C "$LIVE_PUSH_DIR" config user.email "comet-dashboard@local"
+  git -C "$LIVE_PUSH_DIR" remote add origin "$REMOTE_URL"
+  cp -a "$LIVE_MEDIA_STAGE"/. "$LIVE_PUSH_DIR"/
+  git -C "$LIVE_PUSH_DIR" add -A
+  git -C "$LIVE_PUSH_DIR" commit -qm "Replace live comet review media"
+  git -C "$LIVE_PUSH_DIR" branch -M live-media
+  git -C "$LIVE_PUSH_DIR" push --force origin live-media
+  rm -rf "$LIVE_PUSH_DIR"
+  trap cleanup_lock EXIT INT TERM
+fi
+
+# Remove obsolete dashboard copies created by older publishers.
+rm -rf docs/media/realtime_reviews docs/media/realtime_previews
 
 git add -A docs
 
