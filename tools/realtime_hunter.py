@@ -660,8 +660,6 @@ def run_detector(project,cache_dir,results_dir,args):
     log_path.write_text(proc.stdout,encoding="utf-8")
     if proc.returncode!=0:
         log(f"WARN: CUDA detector exited {proc.returncode}; see {log_path}"); return
-    last_run.write_text(newest)
-
     latest_frame = results_dir / "latest_frame.jpg"
     try:
         tmp_frame = results_dir / "latest_frame.jpg.part"
@@ -689,8 +687,29 @@ def run_detector(project,cache_dir,results_dir,args):
     verified_representatives=[]
     rejected_representatives=[]
     for c in event_representatives:
-        pixel=verify_track_pixels(c,frames,gray_cache=gray_cache)
-        review_class,historical_like=classify_for_review(c,pixel)
+        try:
+            pixel=verify_track_pixels(c,frames,gray_cache=gray_cache)
+            review_class,historical_like=classify_for_review(c,pixel)
+        except Exception as exc:
+            # Discovery must fail open: a verifier problem must never erase a
+            # CUDA event or abort the whole realtime pass.
+            log(f"WARN: pixel verification failed for {c['cid']}: {exc}; retaining for human review.")
+            pixel={
+                "status":"UNAVAILABLE",
+                "samples":0,
+                "hits":0,
+                "hit_fraction":0.0,
+                "median_snr":0.0,
+                "peak_snr":0.0,
+                "median_contrast":0.0,
+                "median_compactness":0.0,
+                "longest_hit_run":0,
+                "evidence_score":0.0,
+                "error":str(exc),
+            }
+            review_class="SECONDARY"
+            historical_like=False
+
         c["pixel_verification"]=pixel
         c["review_class"]=review_class
         c["historical_recovery_profile"]=historical_like
@@ -887,6 +906,9 @@ def run_detector(project,cache_dir,results_dir,args):
         log(alert); (results_dir/"latest_alert.txt").write_text(alert+"\n",encoding="utf-8")
     seen_file.write_text(json.dumps(seen[-1000:],indent=2),encoding="utf-8")
     (results_dir/"latest_candidates.json").write_text(json.dumps(rows,indent=2),encoding="utf-8")
+    # Mark the newest frame complete only after the full detector, verifier,
+    # duplicate check, review generation and result writes have succeeded.
+    last_run.write_text(newest)
 
 def main():
     p=argparse.ArgumentParser(description="Realtime SOHO C3 CUDA comet hunter")
