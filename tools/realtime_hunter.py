@@ -12,7 +12,7 @@ from live_review import ensure_live_review
 from pixel_verify import classify_for_review, verify_track_pixels
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
-SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs"
+SOHO_NRT_GIF_BASE="https://lasco-www.nrl.navy.mil/javagif/gifs_small/"
 SUNGRAZER_REPORTS="https://sungrazer.nrl.navy.mil/index.php/plain-text-reports?items_per_page=100&order=field_report_date&sort=desc"
 USER_AGENT="CometHunterRealtime/1.0 (SOHO comet-hunting research)"
 IMAGE_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3_512\.jpg)",re.I)
@@ -53,9 +53,6 @@ def day_url(day):
 
 def year_c3_url(year):
     return f"{SOHO_BASE}/{int(year)}/c3/"
-
-def nrt_year_url(year):
-    return f"{SOHO_NRT_GIF_BASE}/{int(year)}/"
 
 def explicit_images(index_html):
     return sorted(set(m.group("name") for m in IMAGE_RE.finditer(index_html)))
@@ -107,29 +104,28 @@ def discover_completed_frames(now,lookback_days=14):
 
 def discover_nrt_frames(now,lookback_days=7):
     cutoff=now-dt.timedelta(days=lookback_days)
-    years=sorted({now.year,cutoff.year},reverse=True)
     found={}
-    for year in years:
-        url=nrt_year_url(year)
+    url=SOHO_NRT_GIF_BASE
+    try:
+        page=fetch_text(url)
+    except Exception as exc:
+        log(f"WARN: could not read NRL near-realtime C3 index {url}: {exc}")
+        return found
+
+    for gif_name in explicit_nrt_gifs(page):
         try:
-            page=fetch_text(url)
-        except Exception as exc:
-            log(f"WARN: could not read near-realtime C3 index {url}: {exc}")
+            when=image_time(gif_name)
+        except Exception:
             continue
-        for gif_name in explicit_nrt_gifs(page):
-            try:
-                when=image_time(gif_name)
-            except Exception:
-                continue
-            if when<cutoff or when>now+dt.timedelta(hours=2):
-                continue
-            target_name=gif_name[:-4]+"_512.jpg"
-            found[target_name]={
-                "time":when,
-                "url":urljoin(url,gif_name),
-                "source":"near_realtime",
-                "remote_name":gif_name,
-            }
+        if when<cutoff or when>now+dt.timedelta(hours=2):
+            continue
+        target_name=gif_name[:-4]+"_512.jpg"
+        found[target_name]={
+            "time":when,
+            "url":urljoin(url,gif_name),
+            "source":"near_realtime",
+            "remote_name":gif_name,
+        }
     return found
 
 def latest_cached_time(cache_dir):
@@ -719,6 +715,16 @@ def run_detector(project,cache_dir,results_dir,args):
         else:
             verified_representatives.append(c)
 
+    # Discovery-first safety net: the pixel verifier has not yet been
+    # benchmarked against all historical known-comet recoveries. Retain the
+    # highest-ranked visually weak event hypotheses for human review instead
+    # of allowing an uncalibrated verifier to hide every marginal candidate.
+    low_support_review_limit=8
+    low_support_review=rejected_representatives[:low_support_review_limit]
+    review_representatives=verified_representatives+low_support_review
+    for c in low_support_review:
+        c["review_class"]="LOW_SUPPORT"
+
     stats={
         "run_id":run_id,
         "newest_frame":newest,
@@ -737,6 +743,7 @@ def run_detector(project,cache_dir,results_dir,args):
         "pixel_rejected_events":len(rejected_representatives),
         "pixel_strong_events":sum(1 for c in verified_representatives if c.get("review_class")=="STRONG_REVIEW"),
         "pixel_secondary_events":sum(1 for c in verified_representatives if c.get("review_class")=="SECONDARY"),
+        "low_support_review_events":len(low_support_review),
         "event_grouping":{
             "min_overlap_minutes":60.0,
             "min_overlap_fraction":0.45,
@@ -768,8 +775,9 @@ def run_detector(project,cache_dir,results_dir,args):
         largest_event=max((len(g["members"]) for g in event_groups),default=0)
         log(f"Realtime event grouping: {len(candidates)} tracks -> {len(event_groups)} event group(s); grouped_members={grouped}, largest_event={largest_event}.")
         log(
-            f"Pixel verification: {len(verified_representatives)} review event(s), "
-            f"{len(rejected_representatives)} visually unsupported event(s)."
+            f"Pixel verification: {len(verified_representatives)} supported review event(s), "
+            f"{len(rejected_representatives)} low-support event(s); "
+            f"retaining top {len(low_support_review)} low-support event(s) for human review."
         )
     if rejection_counts:
         detail=", ".join(f"{k}={v}" for k,v in sorted(rejection_counts.items(),key=lambda kv:(-kv[1],kv[0])))
@@ -836,7 +844,7 @@ def run_detector(project,cache_dir,results_dir,args):
     seen_file=results_dir/"seen_tracks.json"; seen=load_json(seen_file,[])
     if not isinstance(seen,list):seen=[]
     rows=[]
-    for c in verified_representatives:
+    for c in review_representatives:
         sig=candidate_signature(c); dup=any(same_track(old,sig) for old in seen[-500:]); match=match_recent_report(c,reports) if reports else None
         status="KNOWN_REPORT" if match else ("SEEN_ALREADY" if dup else "UNMATCHED")
         rid=match["report_id"] if match else ""; err=f"{match['median_error']:.1f}" if match else ""
