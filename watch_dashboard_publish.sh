@@ -12,6 +12,10 @@ echo "Dashboard publisher started. Interval: ${INTERVAL}s" | tee -a "$LOG"
 
 while true; do
   echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] publish check" | tee -a "$LOG"
-  bash ./publish_dashboard.sh results/v9_visual >> "$LOG" 2>&1 ||     echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] publish cycle failed; will retry" | tee -a "$LOG"
+  GIT_CONFIG_COUNT=1 \
+  GIT_CONFIG_KEY_0=credential.helper \
+  GIT_CONFIG_VALUE_0=store \
+  bash ./publish_dashboard.sh results/v9_visual >> "$LOG" 2>&1 || \
+    echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] publish cycle failed; will retry" | tee -a "$LOG"
   sleep "$INTERVAL"
 done
