@@ -956,7 +956,7 @@ def publish_realtime_data(realtime_source, data_dir):
         gif_name = re.sub(r"_512\.jpg$", ".gif", last_frame, flags=re.IGNORECASE)
         latest_frame_url = (
             f"https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
-            f"{last_frame[:4]}/{gif_name}"
+            f"{gif_name}"
         )
 
     latest_alert = None
