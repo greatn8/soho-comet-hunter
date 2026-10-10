@@ -3,6 +3,7 @@ set -euo pipefail
 PROJECT="${1:-$HOME/comethunting/comet_hunter_native_cuda_v7_archive}"
 DASH_REPO="${DASH_REPO:-$HOME/comethunting/soho-comet-hunter-publish}"
 SESSION="comet_realtime"
+DASH_SESSION="comet_dashboard_publish"
 LOG="$PROJECT/logs/realtime_hunter.log"
 HUNTER="$DASH_REPO/tools/realtime_hunter.py"
 cd "$PROJECT"
@@ -46,8 +47,17 @@ cat > "$PROJECT/results/realtime/mode.json" <<'EOF'
 EOF
 
 tmux new-session -d -s "$SESSION" "bash -lc 'cd "$PROJECT" && exec python3 "$HUNTER" --project "$PROJECT" >> "$LOG" 2>&1'"
+
+# Keep the public dashboard publisher tied to the realtime hunter lifecycle.
+# Restart any older watcher so it picks up the current credential and
+# publishing logic rather than continuing a stale loop body.
+pkill -TERM -f 'watch_dashboard_publish.sh' 2>/dev/null || true
+tmux kill-session -t "$DASH_SESSION" 2>/dev/null || true
+tmux new-session -d -s "$DASH_SESSION" "bash -lc 'cd "$DASH_REPO" && exec bash ./watch_dashboard_publish.sh 900'"
+
 sleep 1
 echo "Realtime-only hunter started."
+echo "Dashboard publisher started in tmux session: $DASH_SESSION"
 echo "Historical archive crawling is OFF."
 echo "New live candidates are promoted into the candidate archive after 24 hours."
 echo "Watch: tail -f $LOG"
