@@ -6,14 +6,14 @@ cd "$ROOT"
 
 SOURCE_DIR="${1:-results/v9_visual}"
 REALTIME_DIR="${REALTIME_DIR:-$HOME/comethunting/comet_hunter_native_cuda_v7_archive/results/realtime}"
-LOCK_DIR=".dashboard_publish.lockdir"
-
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+LOCK_FILE=".dashboard_publish.lock"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
   echo "Dashboard publisher is already running; skipping this cycle."
   exit 0
 fi
 cleanup_lock() {
-  rmdir "$LOCK_DIR" 2>/dev/null || true
+  flock -u 9 2>/dev/null || true
 }
 trap cleanup_lock EXIT INT TERM
 
