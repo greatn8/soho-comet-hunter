@@ -12,7 +12,7 @@ from live_review import ensure_live_review
 from pixel_verify import classify_for_review, verify_track_pixels
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
-SOHO_NRT_GIF_BASE="https://lasco-www.nrl.navy.mil/javagif/gifs_small/"
+SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
 SUNGRAZER_REPORTS="https://sungrazer.nrl.navy.mil/index.php/plain-text-reports?items_per_page=100&order=field_report_date&sort=desc"
 USER_AGENT="CometHunterRealtime/1.0 (SOHO comet-hunting research)"
 IMAGE_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3_512\.jpg)",re.I)
