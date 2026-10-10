@@ -16,7 +16,7 @@ SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs"
 SUNGRAZER_REPORTS="https://sungrazer.nrl.navy.mil/index.php/plain-text-reports?items_per_page=100&order=field_report_date&sort=desc"
 USER_AGENT="CometHunterRealtime/1.0 (SOHO comet-hunting research)"
 IMAGE_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3_512\.jpg)",re.I)
-NRT_GIF_RE=re.compile(r"(?P<name>20\\d{6}_\\d{4}_c3\\.gif)",re.I)
+NRT_GIF_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3\.gif)",re.I)
 DAY_DIR_RE=re.compile(r"(?P<day>20\d{6})/",re.I)
 CANDIDATE_RE=re.compile(r"^(?P<cid>C\d+) \[(?P<priority>HIGH|MEDIUM)\].*?frames=(?P<frames>\d+).*?speed=(?P<speed>-?[0-9.]+) px/h.*?vx=(?P<vx>-?[0-9.]+).*?vy=(?P<vy>-?[0-9.]+).*?RMS=(?P<rms>-?[0-9.]+).*?brightnessCV=(?P<cv>-?[0-9.]+).*?sunward=(?P<sunward>-?[0-9.]+) px/h.*?score=(?P<score>-?[0-9.]+)",re.I)
 POINT_RE=re.compile(r"(?P<file>20\d{6}_\d{4}_c3_512\.jpg)\s+\((?P<x>-?[0-9.]+),\s*(?P<y>-?[0-9.]+)\)")
