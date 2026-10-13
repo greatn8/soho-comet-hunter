@@ -87,7 +87,7 @@ def discover_completed_frames(now,lookback_days=14):
         return {}
 
     found={}
-    for day in available_days[-3:]:
+    for day in available_days:
         url=day_url(day)
         try:
             page=fetch_text(url)
@@ -197,23 +197,25 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
     else:
         log("WARN: no recent completed C3 frames found.")
 
-    # Prefer whichever official source is actually newest. On equal timestamps,
-    # use the completed image because it is the science-quality product.
-    if latest_nrt and (not latest_completed or latest_nrt>latest_completed):
-        source_name="near_realtime"
-        found=nrt
-        latest_available=latest_nrt
-    elif latest_completed:
-        source_name="completed"
-        found=completed
-        latest_available=latest_completed
-    elif latest_nrt:
-        source_name="near_realtime"
-        found=nrt
-        latest_available=latest_nrt
-    else:
+    # Historical-parity realtime mode: keep the long rolling context that
+    # produced the successful archive recoveries. Completed/reprocessed frames
+    # form the science-quality base; only timestamps not yet present there are
+    # filled from the official near-realtime feed.
+    if not latest_completed and not latest_nrt:
         log("No usable C3 images found in either official source.")
         return []
+
+    latest_available=max(x for x in (latest_completed,latest_nrt) if x is not None)
+    source_name=(
+        "near_realtime"
+        if latest_nrt and (not latest_completed or latest_nrt>latest_completed)
+        else "completed"
+    )
+
+    found=dict(completed)
+    for name,meta in nrt.items():
+        if name not in found:
+            found[name]=meta
 
     keep_after=latest_available-dt.timedelta(hours=bootstrap_hours)
     selected={
@@ -242,8 +244,9 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
         )
 
     log(
-        f"Active C3 source: {source_name}; using rolling {bootstrap_hours}h "
-        f"window from {keep_after:%Y-%m-%d %H:%MZ}."
+        f"Active C3 source: {source_name}; historical-parity rolling "
+        f"{bootstrap_hours}h window from {keep_after:%Y-%m-%d %H:%MZ} "
+        f"({len(selected)} indexed frame(s), Completed base + newer realtime fill)."
     )
 
     new=[]
@@ -983,13 +986,13 @@ def run_detector(project,cache_dir,results_dir,args):
 
 def main():
     p=argparse.ArgumentParser(description="Realtime SOHO C3 CUDA comet hunter")
-    p.add_argument("--project",required=True); p.add_argument("--poll-seconds",type=int,default=905); p.add_argument("--window-hours",type=int,default=12); p.add_argument("--bootstrap-hours",type=int,default=12); p.add_argument("--compute-minutes",type=int,default=8); p.add_argument("--min-frames",type=int,default=5); p.add_argument("--max-candidates",type=int,default=1000); p.add_argument("--gpu-wait-seconds",type=int,default=720); p.add_argument("--once",action="store_true")
+    p.add_argument("--project",required=True); p.add_argument("--poll-seconds",type=int,default=905); p.add_argument("--window-hours",type=int,default=336); p.add_argument("--bootstrap-hours",type=int,default=336); p.add_argument("--compute-minutes",type=int,default=8); p.add_argument("--min-frames",type=int,default=5); p.add_argument("--max-candidates",type=int,default=100); p.add_argument("--gpu-wait-seconds",type=int,default=720); p.add_argument("--once",action="store_true")
     args=p.parse_args()
     if args.poll_seconds<900:p.error("--poll-seconds must be at least 900")
     project=Path(args.project).expanduser().resolve(); state_dir=project/"state"; results_dir=project/"results"/"realtime"; cache_dir=Path("/dev/shm")/f"comet_realtime_{os.environ.get('USER','user')}_c3_512"
     for d in (state_dir,results_dir,cache_dir):d.mkdir(parents=True,exist_ok=True)
     signal.signal(signal.SIGINT,on_signal); signal.signal(signal.SIGTERM,on_signal)
-    log("Realtime hunter starting."); log(f"Project: {project}"); log(f"Rolling cache: {cache_dir}"); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
+    log("Realtime hunter starting."); log(f"Project: {project}"); log(f"Rolling cache: {cache_dir}"); log(f"Historical-parity CUDA mode: window={args.window_hours}h budget={args.compute_minutes}m max_candidates={args.max_candidates}."); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
     cleanup=prune_realtime_reviews(results_dir)
     reclaimed=cleanup["removed_bytes"]+cleanup["removed_redundant_bytes"]
     if cleanup["removed_dirs"] or reclaimed:
