@@ -424,6 +424,41 @@ def annotate_motion_families(candidates,velocity_radius=0.35):
         c["motion_family_size"]=motion_family_size(c,candidates,velocity_radius)
     return candidates
 
+def candidate_quadrant(c,center_x=256.0,center_y=256.0):
+    """Quadrant of the candidate midpoint in image coordinates."""
+    try:
+        x=(float(c["first"]["x"])+float(c["last"]["x"]))/2.0
+        y=(float(c["first"]["y"])+float(c["last"]["y"]))/2.0
+    except Exception:
+        return "UNKNOWN"
+    if x<center_x and y<center_y:return "UPPER_LEFT"
+    if x>=center_x and y<center_y:return "UPPER_RIGHT"
+    if x<center_x and y>=center_y:return "LOWER_LEFT"
+    return "LOWER_RIGHT"
+
+def quadrant_counts(candidates):
+    out={"UPPER_LEFT":0,"UPPER_RIGHT":0,"LOWER_LEFT":0,"LOWER_RIGHT":0,"UNKNOWN":0}
+    for c in candidates:
+        q=candidate_quadrant(c)
+        out[q]=out.get(q,0)+1
+    return out
+
+def velocity_sign_counts(candidates):
+    out={"PLUS_PLUS":0,"PLUS_MINUS":0,"MINUS_PLUS":0,"MINUS_MINUS":0,"ZERO_AXIS":0}
+    for c in candidates:
+        vx=float(c.get("vx",0.0)); vy=float(c.get("vy",0.0))
+        if vx==0 or vy==0:
+            out["ZERO_AXIS"]+=1
+        elif vx>0 and vy>0:
+            out["PLUS_PLUS"]+=1
+        elif vx>0 and vy<0:
+            out["PLUS_MINUS"]+=1
+        elif vx<0 and vy>0:
+            out["MINUS_PLUS"]+=1
+        else:
+            out["MINUS_MINUS"]+=1
+    return out
+
 def live_candidate_rank(c):
     radial_fraction=(c["sunward"]/c["speed"]) if c["speed"]>0 else -1.0
     family_size=max(1,int(c.get("motion_family_size",1)))
@@ -739,6 +774,20 @@ def run_detector(project,cache_dir,results_dir,args):
         "event_groups":len(event_groups),
         "event_grouped_tracks":sum(max(0,len(g["members"])-1) for g in event_groups),
         "event_largest_group":max((len(g["members"]) for g in event_groups),default=0),
+        "quadrants":{
+            "raw_tracks":quadrant_counts(raw_candidates),
+            "comet_like_tracks":quadrant_counts(candidates),
+            "event_representatives":quadrant_counts(event_representatives),
+            "pixel_supported":quadrant_counts(verified_representatives),
+            "low_support":quadrant_counts(rejected_representatives),
+        },
+        "velocity_signs":{
+            "raw_tracks":velocity_sign_counts(raw_candidates),
+            "comet_like_tracks":velocity_sign_counts(candidates),
+            "event_representatives":velocity_sign_counts(event_representatives),
+            "pixel_supported":velocity_sign_counts(verified_representatives),
+            "low_support":velocity_sign_counts(rejected_representatives),
+        },
         "pixel_verified_events":len(verified_representatives),
         "pixel_rejected_events":len(rejected_representatives),
         "pixel_strong_events":sum(1 for c in verified_representatives if c.get("review_class")=="STRONG_REVIEW"),
@@ -778,6 +827,19 @@ def run_detector(project,cache_dir,results_dir,args):
             f"Pixel verification: {len(verified_representatives)} supported review event(s), "
             f"{len(rejected_representatives)} low-support event(s); "
             f"retaining top {len(low_support_review)} low-support event(s) for human review."
+        )
+        log(
+            "Quadrant diagnostics: "
+            f"raw={quadrant_counts(raw_candidates)} "
+            f"filtered={quadrant_counts(candidates)} "
+            f"events={quadrant_counts(event_representatives)} "
+            f"supported={quadrant_counts(verified_representatives)}."
+        )
+        log(
+            "Velocity-sign diagnostics: "
+            f"raw={velocity_sign_counts(raw_candidates)} "
+            f"filtered={velocity_sign_counts(candidates)} "
+            f"events={velocity_sign_counts(event_representatives)}."
         )
     if rejection_counts:
         detail=", ".join(f"{k}={v}" for k,v in sorted(rejection_counts.items(),key=lambda kv:(-kv[1],kv[0])))
