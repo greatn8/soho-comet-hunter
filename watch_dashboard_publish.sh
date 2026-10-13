@@ -15,7 +15,15 @@ while true; do
   GIT_CONFIG_COUNT=1 \
   GIT_CONFIG_KEY_0=credential.helper \
   GIT_CONFIG_VALUE_0=store \
-  bash ./publish_dashboard.sh results/v9_visual >> "$LOG" 2>&1 || \
-    echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] publish cycle failed; will retry" | tee -a "$LOG"
+  timeout --signal=TERM --kill-after=30s 720s \
+    bash ./publish_dashboard.sh results/v9_visual >> "$LOG" 2>&1
+  rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    if [[ "$rc" -eq 124 || "$rc" -eq 137 ]]; then
+      echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] publish cycle timed out; killed and will retry" | tee -a "$LOG"
+    else
+      echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] publish cycle failed rc=$rc; will retry" | tee -a "$LOG"
+    fi
+  fi
   sleep "$INTERVAL"
 done
