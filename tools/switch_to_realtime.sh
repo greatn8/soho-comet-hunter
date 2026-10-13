@@ -51,7 +51,13 @@ tmux new-session -d -s "$SESSION" "bash -lc 'cd "$PROJECT" && exec python3 "$HUN
 # Keep the public dashboard publisher tied to the realtime hunter lifecycle.
 # Restart any older watcher so it picks up the current credential and
 # publishing logic rather than continuing a stale loop body.
+# Kill both the watcher and any orphaned publisher child. A child can outlive
+# its watcher if the watcher is terminated during a Git/network operation and
+# can otherwise keep the publisher flock held indefinitely.
 pkill -TERM -f 'watch_dashboard_publish.sh' 2>/dev/null || true
+pkill -TERM -f 'publish_dashboard.sh' 2>/dev/null || true
+sleep 2
+pkill -KILL -f 'publish_dashboard.sh' 2>/dev/null || true
 tmux kill-session -t "$DASH_SESSION" 2>/dev/null || true
 tmux new-session -d -s "$DASH_SESSION" "bash -lc 'cd "$DASH_REPO" && exec bash ./watch_dashboard_publish.sh 900'"
 
