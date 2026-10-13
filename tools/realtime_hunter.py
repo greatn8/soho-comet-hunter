@@ -250,10 +250,20 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
     )
 
     new=[]
-    for name in sorted(selected):
+    needed=[
+        name for name in sorted(selected)
+        if not ((cache_dir/name).exists() and (cache_dir/name).stat().st_size>10000)
+    ]
+    if results_dir is not None and needed:
+        write_heartbeat(
+            Path(results_dir),
+            status="bootstrapping",
+            phase="Building 14-day rolling C3 cache",
+            progress={"needed":len(needed),"downloaded":0,"indexed":len(selected)},
+        )
+
+    for download_index,name in enumerate(needed,1):
         target=cache_dir/name
-        if target.exists() and target.stat().st_size>10000:
-            continue
         try:
             meta=selected[name]
             data=fetch_bytes(meta["url"])
@@ -268,6 +278,20 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
             new.append(target)
         except Exception as exc:
             log(f"WARN: failed {name} from {source_name}: {exc}")
+
+        if results_dir is not None and (download_index==len(needed) or download_index%25==0):
+            write_heartbeat(
+                Path(results_dir),
+                status="bootstrapping",
+                new_frames=len(new),
+                phase="Building 14-day rolling C3 cache",
+                progress={
+                    "needed":len(needed),
+                    "downloaded":download_index,
+                    "successful":len(new),
+                    "indexed":len(selected),
+                },
+            )
 
     log(
         f"Downloaded {len(new)} new C3 frame(s) from {source_name}."
@@ -660,7 +684,7 @@ def append_tsv(path,header,row):
         if not exists:f.write("\t".join(header)+"\n")
         f.write("\t".join(str(x) for x in row)+"\n")
 
-def write_heartbeat(results_dir,status="ok",new_frames=0,error=""):
+def write_heartbeat(results_dir,status="ok",new_frames=0,error="",phase="",progress=None):
     last_frame=""
     try:
         last_frame=(results_dir/"last_detector_frame.txt").read_text().strip()
@@ -669,6 +693,8 @@ def write_heartbeat(results_dir,status="ok",new_frames=0,error=""):
     payload={
         "checked_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),
         "status":status,
+        "phase":phase or None,
+        "progress":progress if isinstance(progress,dict) else None,
         "new_frames":int(new_frames),
         "last_frame":last_frame or None,
         "error":error or None,
@@ -1000,9 +1026,16 @@ def main():
     while not STOP:
         start=time.time()
         try:
+            write_heartbeat(results_dir,status="checking",phase="Checking official SOHO C3 sources")
             new=download_live_frames(cache_dir,state_dir,args.poll_seconds,args.bootstrap_hours,results_dir=results_dir)
             prune_cache(cache_dir,max(args.window_hours,args.bootstrap_hours))
             if new:
+                write_heartbeat(
+                    results_dir,
+                    status="running",
+                    new_frames=len(new),
+                    phase="Running historical-parity CUDA detector",
+                )
                 run_detector(project,cache_dir,results_dir,args)
                 cleanup=prune_realtime_reviews(results_dir)
                 reclaimed=cleanup["removed_bytes"]+cleanup["removed_redundant_bytes"]
