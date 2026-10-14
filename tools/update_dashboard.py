@@ -1000,6 +1000,8 @@ def publish_realtime_data(realtime_source, data_dir):
         "latest_frame_image": latest_frame_url,
         "hunter_heartbeat_at": heartbeat.get("checked_at"),
         "hunter_status": heartbeat.get("status"),
+        "hunter_phase": heartbeat.get("phase"),
+        "hunter_progress": heartbeat.get("progress"),
         "hunter_new_frames": heartbeat.get("new_frames"),
         "active_input_source": input_source.get("active_source"),
         "input_preliminary": input_source.get("preliminary_input"),
@@ -1065,7 +1067,11 @@ def main():
 
     folders = discover_candidate_folders(source)
     if not folders:
-        raise SystemExit(f"[ERROR] No candidate MP4 files found under: {source}")
+        print(
+            f"[WARN] No historical candidate MP4 files found under: {source}. "
+            "Preserving the existing historical dashboard archive and continuing "
+            "with realtime publication."
+        )
 
     records = load_metadata_records(results_root)
     merged_candidates = load_merged_candidates(results_root)
@@ -1077,6 +1083,31 @@ def main():
         build_candidate(folder, video, media_dir, not args.no_copy_media, records, merged_candidates, event_classes, events_by_id)
         for folder, video in folders
     ]
+
+    # Historical review media is intentionally allowed to be absent. The live
+    # publisher must never stop just because old MP4s were pruned from disk.
+    # Reuse the last committed archive records and continue updating realtime.
+    if not folders:
+        existing_candidates_path = data_dir / "candidates.json"
+        if existing_candidates_path.exists():
+            try:
+                existing_payload = json.loads(
+                    existing_candidates_path.read_text(encoding="utf-8")
+                )
+                existing_candidates = existing_payload.get("candidates")
+                if isinstance(existing_candidates, list):
+                    candidates = [
+                        dict(row) for row in existing_candidates
+                        if isinstance(row, dict)
+                    ]
+                    print(
+                        f"[OK] Preserved {len(candidates)} existing dashboard "
+                        "candidate record(s) without local historical MP4 media."
+                    )
+            except Exception as exc:
+                print(
+                    f"[WARN] Could not preserve existing dashboard candidates: {exc}"
+                )
 
     # Old Gxxxx folders can be earlier visualisations of the same physical event.
     # Publish one card per event and prefer a stable EV... folder when available.
