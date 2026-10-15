@@ -336,7 +336,7 @@ def prune_realtime_reviews(results_dir,max_transient=100,max_age_days=14):
         # zoom products. They are reproducible from SOHO source imagery and are
         # not needed for realtime review, so remove them even from retained
         # packages.
-        for name in ("full_raw.mp4","full_annotated.mp4"):
+        for name in ("full_raw.mp4",):
             p=folder/name
             if p.exists():
                 try:
@@ -420,7 +420,25 @@ def parse_candidates(output):
             point={"file":pm.group("file"),"x":float(pm.group("x")),"y":float(pm.group("y")),"time":image_time(pm.group("file"))}
             if "first:" in lines[j]: item["first"]=point
             elif "last" in lines[j]: item["last"]=point
-        if item["first"] and item["last"]: out.append(item)
+        if item["first"] and item["last"]:
+            # CUDA endpoint labels are not guaranteed to be chronological.
+            # Correct the metadata before pixel checks, matching or video review.
+            item["endpoint_order_corrected"]=False
+            if item["first"]["time"]>item["last"]["time"]:
+                item["first"],item["last"]=item["last"],item["first"]
+                item["endpoint_order_corrected"]=True
+            span=(item["last"]["time"]-item["first"]["time"]).total_seconds()/3600.0
+            item["trajectory_warning"]=""
+            if span<=0:
+                item["trajectory_warning"]="ENDPOINTS_SAME_TIMESTAMP"
+            else:
+                displacement_error=math.hypot(
+                    item["last"]["x"]-item["first"]["x"]-item["vx"]*span,
+                    item["last"]["y"]-item["first"]["y"]-item["vy"]*span,
+                )
+                if displacement_error>max(12.0,span*1.5):
+                    item["trajectory_warning"]="ENDPOINT_VELOCITY_MISMATCH"
+            out.append(item)
         i+=1
     return out
 
@@ -703,12 +721,12 @@ def write_heartbeat(results_dir,status="ok",new_frames=0,error="",phase="",progr
     tmp.write_text(json.dumps(payload,indent=2),encoding="utf-8")
     tmp.replace(results_dir/"heartbeat.json")
 
-def run_detector(project,cache_dir,results_dir,args):
+def run_detector(project,cache_dir,results_dir,args,force=False):
     frames=prune_cache(cache_dir,args.window_hours)
     if len(frames)<args.min_frames:
         log(f"Only {len(frames)} recent frame(s); waiting for at least {args.min_frames}."); return
     newest=frames[-1].name; last_run=results_dir/"last_detector_frame.txt"
-    if last_run.exists() and last_run.read_text().strip()==newest:
+    if not force and last_run.exists() and last_run.read_text().strip()==newest:
         log("Detector already processed newest frame."); return
     if not wait_for_gpu(project,args.gpu_wait_seconds):
         log("WARN: GPU remained busy; retry next cycle."); return
@@ -771,6 +789,14 @@ def run_detector(project,cache_dir,results_dir,args):
             review_class="SECONDARY"
             historical_like=False
 
+        # Do not award strong/secondary pixel support to incoherent endpoints.
+        # Still retain the candidate for explicit human review.
+        if c.get("trajectory_warning"):
+            pixel=dict(pixel)
+            pixel["status"]="UNAVAILABLE"
+            pixel["reason"]=c["trajectory_warning"]
+            review_class="VISUAL_REJECT"
+            historical_like=False
         c["pixel_verification"]=pixel
         c["review_class"]=review_class
         c["historical_recovery_profile"]=historical_like
@@ -935,23 +961,31 @@ def run_detector(project,cache_dir,results_dir,args):
     seen_file=results_dir/"seen_tracks.json"; seen=load_json(seen_file,[])
     if not isinstance(seen,list):seen=[]
     rows=[]
+    newest_time=image_time(newest)
     for c in review_representatives:
-        sig=candidate_signature(c); dup=any(same_track(old,sig) for old in seen[-500:]); match=match_recent_report(c,reports) if reports else None
+        # A 14-day detection window is for science quality, not a live alert
+        # about an object that was last observed many days ago.
+        edge_age_hours=(newest_time-c["last"]["time"]).total_seconds()/3600.0
+        edge_relevant=(-1.0<=edge_age_hours<=36.0)
+        sig=candidate_signature(c); dup=any(same_track(old,sig) for old in seen[-500:]); match=match_recent_report(c,reports) if reports and not c.get("trajectory_warning") else None
         status="KNOWN_REPORT" if match else ("SEEN_ALREADY" if dup else "UNMATCHED")
         rid=match["report_id"] if match else ""; err=f"{match['median_error']:.1f}" if match else ""
         review_id=""
-        if not dup:
-            try:
-                review=ensure_live_review(c,cache_dir,results_dir,status=status,report_id=rid)
-                review_id=str(review.get("review_id") or "")
-                reused_candidate=str(review.get("candidate") or "")
-                if reused_candidate and reused_candidate!=c["cid"] and not match:
-                    dup=True; status="SEEN_ALREADY"
-                    log(f"Reused live review {review_id} for {c['cid']}; suppressing duplicate alert.")
-                elif review_id:
-                    log(f"Live review media ready: {review_id}")
-            except Exception as exc:
-                log(f"WARN: live review media failed for {c['cid']}: {exc}")
+        review_error=""
+        # Even previously-seen events need a visible review clip. The review
+        # generator reuses an existing matching package instead of reencoding.
+        try:
+            review=ensure_live_review(c,cache_dir,results_dir,status=status,report_id=rid)
+            review_id=str(review.get("review_id") or "")
+            reused_candidate=str(review.get("candidate") or "")
+            if reused_candidate and reused_candidate!=c["cid"] and not match:
+                dup=True; status="SEEN_ALREADY"
+                log(f"Reused live review {review_id} for {c['cid']}; suppressing duplicate alert.")
+            elif review_id:
+                log(f"Live review media ready: {review_id}")
+        except Exception as exc:
+            review_error=str(exc)
+            log(f"WARN: live review media failed for {c['cid']}: {exc}")
         rows.append({
             "candidate":c["cid"],
             "status":status,
@@ -974,12 +1008,20 @@ def run_detector(project,cache_dir,results_dir,args):
             "members":c.get("event_members",1),
             "member_ids":c.get("event_member_ids",[c["cid"]]),
             "review_id":review_id,
+            "review_error":review_error,
+            "trajectory_warning":c.get("trajectory_warning",""),
+            "endpoint_order_corrected":c.get("endpoint_order_corrected",False),
+            "edge_relevant":edge_relevant,
+            "hours_behind_latest":round(edge_age_hours,2),
         })
         if match:
             append_tsv(results_dir/"known_matches.tsv",["utc","candidate","first","last","report_id","median_error_1024"],[run_id,c["cid"],c["first"]["file"],c["last"]["file"],rid,err])
             log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024, {match.get('path_model','?')}, {match.get('report_size','?')}, {match.get('report_origin','?')})."); continue
         if dup: continue
         seen.append(sig)
+        if not edge_relevant:
+            log(f"Historical-window review only: {c['cid']} is {edge_age_hours:.1f}h behind newest C3 frame; no realtime alert.")
+            continue
         if c.get("review_class")!="STRONG_REVIEW" or str(c.get("priority","")).upper()!="HIGH":
             pixel=c.get("pixel_verification",{})
             append_tsv(
@@ -1013,6 +1055,7 @@ def run_detector(project,cache_dir,results_dir,args):
 def main():
     p=argparse.ArgumentParser(description="Realtime SOHO C3 CUDA comet hunter")
     p.add_argument("--project",required=True); p.add_argument("--poll-seconds",type=int,default=905); p.add_argument("--window-hours",type=int,default=336); p.add_argument("--bootstrap-hours",type=int,default=336); p.add_argument("--compute-minutes",type=int,default=8); p.add_argument("--min-frames",type=int,default=5); p.add_argument("--max-candidates",type=int,default=100); p.add_argument("--gpu-wait-seconds",type=int,default=720); p.add_argument("--once",action="store_true")
+    p.add_argument("--reprocess-cache-once",action="store_true",help="Rerun cached CUDA frames without any SOHO requests; then exit.")
     args=p.parse_args()
     if args.poll_seconds<900:p.error("--poll-seconds must be at least 900")
     project=Path(args.project).expanduser().resolve(); state_dir=project/"state"; results_dir=project/"results"/"realtime"; cache_dir=Path("/dev/shm")/f"comet_realtime_{os.environ.get('USER','user')}_c3_512"
@@ -1023,6 +1066,12 @@ def main():
     reclaimed=cleanup["removed_bytes"]+cleanup["removed_redundant_bytes"]
     if cleanup["removed_dirs"] or reclaimed:
         log(f"Realtime review retention cleanup: removed {cleanup['removed_dirs']} stale review package(s), reclaimed {reclaimed/(1024*1024):.1f} MiB.")
+    if args.reprocess_cache_once:
+        write_heartbeat(results_dir,status="running",phase="Rechecking cached SOHO frames")
+        run_detector(project,cache_dir,results_dir,args,force=True)
+        write_heartbeat(results_dir,status="ok",new_frames=0)
+        log("Cached-frame reprocessing complete.")
+        return 0
     while not STOP:
         start=time.time()
         try:

@@ -585,6 +585,8 @@ def publish_realtime_review_assets(source, data_dir, row):
     folder = source / "review" / str(review_id)
     video = folder / "zoom_annotated.mp4"
     thumb = folder / "zoom_contact_sheet.jpg"
+    raw_video = folder / "zoom_raw.mp4"
+    full_video = folder / "full_annotated.mp4"
     target_dir = LIVE_MEDIA_STAGE / str(review_id)
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -592,10 +594,17 @@ def publish_realtime_review_assets(source, data_dir, row):
         shutil.copy2(video, target_dir / "zoom_annotated.mp4")
         result["review_video"] = f"{LIVE_MEDIA_BASE}/{review_id}/zoom_annotated.mp4"
 
+    if raw_video.exists():
+        shutil.copy2(raw_video, target_dir / "zoom_raw.mp4")
+        result["review_raw_video"] = f"{LIVE_MEDIA_BASE}/{review_id}/zoom_raw.mp4"
+    if full_video.exists():
+        shutil.copy2(full_video, target_dir / "full_annotated.mp4")
+        result["review_full_video"] = f"{LIVE_MEDIA_BASE}/{review_id}/full_annotated.mp4"
     if thumb.exists():
         shutil.copy2(thumb, target_dir / "zoom_contact_sheet.jpg")
         result["review_thumbnail"] = f"{LIVE_MEDIA_BASE}/{review_id}/zoom_contact_sheet.jpg"
 
+    result["media_status"] = "AVAILABLE" if result.get("review_video") else "MISSING"
     return result
 
 def build_realtime_archive_candidate(row, status, promoted_at):
