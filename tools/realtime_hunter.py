@@ -336,7 +336,7 @@ def prune_realtime_reviews(results_dir,max_transient=100,max_age_days=14):
         # zoom products. They are reproducible from SOHO source imagery and are
         # not needed for realtime review, so remove them even from retained
         # packages.
-        for name in ("full_raw.mp4","full_annotated.mp4"):
+        for name in ("full_raw.mp4",):
             p=folder/name
             if p.exists():
                 try:
