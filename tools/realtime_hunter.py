@@ -961,7 +961,12 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     seen_file=results_dir/"seen_tracks.json"; seen=load_json(seen_file,[])
     if not isinstance(seen,list):seen=[]
     rows=[]
+    newest_time=image_time(newest)
     for c in review_representatives:
+        # A 14-day detection window is for science quality, not a live alert
+        # about an object that was last observed many days ago.
+        edge_age_hours=(newest_time-c["last"]["time"]).total_seconds()/3600.0
+        edge_relevant=(-1.0<=edge_age_hours<=36.0)
         sig=candidate_signature(c); dup=any(same_track(old,sig) for old in seen[-500:]); match=match_recent_report(c,reports) if reports and not c.get("trajectory_warning") else None
         status="KNOWN_REPORT" if match else ("SEEN_ALREADY" if dup else "UNMATCHED")
         rid=match["report_id"] if match else ""; err=f"{match['median_error']:.1f}" if match else ""
@@ -1006,12 +1011,17 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "review_error":review_error,
             "trajectory_warning":c.get("trajectory_warning",""),
             "endpoint_order_corrected":c.get("endpoint_order_corrected",False),
+            "edge_relevant":edge_relevant,
+            "hours_behind_latest":round(edge_age_hours,2),
         })
         if match:
             append_tsv(results_dir/"known_matches.tsv",["utc","candidate","first","last","report_id","median_error_1024"],[run_id,c["cid"],c["first"]["file"],c["last"]["file"],rid,err])
             log(f"Known-report match: {c['cid']} -> {rid} ({err}px @1024, {match.get('path_model','?')}, {match.get('report_size','?')}, {match.get('report_origin','?')})."); continue
         if dup: continue
         seen.append(sig)
+        if not edge_relevant:
+            log(f"Historical-window review only: {c['cid']} is {edge_age_hours:.1f}h behind newest C3 frame; no realtime alert.")
+            continue
         if c.get("review_class")!="STRONG_REVIEW" or str(c.get("priority","")).upper()!="HIGH":
             pixel=c.get("pixel_verification",{})
             append_tsv(
