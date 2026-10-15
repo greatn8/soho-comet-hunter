@@ -49,23 +49,34 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
     ex=find_existing(root,c)
     if ex:
         folder,m=ex
+        # A previous incomplete package is not a usable review.
+        if not (folder/"zoom_annotated.mp4").is_file():
+            ex=None
+    if ex:
+        folder,m=ex
         changed=False
         if status and m.get("status")!=status: m["status"]=status; changed=True
         if report_id and m.get("report_id")!=report_id: m["report_id"]=report_id; changed=True
         if changed: m["updated_at"]=iso(dt.datetime.now(dt.timezone.utc)); (folder/"review.json").write_text(json.dumps(m,indent=2))
         return m
     first_t,last_t=c["first"]["time"],c["last"]["time"]
+    if last_t<=first_t:
+        raise RuntimeError("Cannot build moving-object review: track endpoints have no positive time span")
     frames=[]
     for p in sorted(Path(cache_dir).glob("*_c3_512.jpg")):
         try: t=frame_time(p.name)
         except Exception: continue
         if first_t<=t<=last_t: frames.append((p,t))
     if len(frames)<2: raise RuntimeError(f"Only {len(frames)} cached frames in track interval")
+    # Limit encodes for 14-day detector windows without hiding the time span.
+    if len(frames)>48:
+        indices=sorted({round(i*(len(frames)-1)/47) for i in range(48)})
+        frames=[frames[i] for i in indices]
     rid=review_id(c); out=root/rid; tmp=out/".frames"
     # Keep only the two zoom videos needed for scientific review. Full-frame
     # videos are reproducible from the original SOHO frames and previously
     # doubled storage for every realtime hypothesis.
-    dirs={n:tmp/n for n in ("zoom_raw","zoom_annotated")}
+    dirs={n:tmp/n for n in ("zoom_raw","zoom_annotated","full_frame")}
     for d in dirs.values(): d.mkdir(parents=True,exist_ok=True)
     crop=160; scale=640; manifest=[]
     try:
@@ -78,14 +89,16 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
             zf=f"crop={crop}:{crop}:{left}:{top},scale={scale}:{scale}:flags=lanczos"
             ff(["-i",str(src),"-vf",zf,"-q:v","2",str(dirs["zoom_raw"]/f"frame_{i:04d}.jpg")])
             ff(["-i",str(src),"-vf",zf+f",drawbox=x={zx}:y={zy}:w=36:h=36:color=yellow@0.95:t=3","-q:v","2",str(dirs["zoom_annotated"]/f"frame_{i:04d}.jpg")])
+            ff(["-i",str(src),"-vf",f"drawbox=x={bx}:y={by}:w=18:h=18:color=yellow@0.95:t=2","-q:v","3",str(dirs["full_frame"]/f"frame_{i:04d}.jpg")])
             manifest.append([src.name,iso(t),f"{x:.3f}",f"{y:.3f}",left,top])
         encode_seq(dirs["zoom_raw"],out/"zoom_raw.mp4"); encode_seq(dirs["zoom_annotated"],out/"zoom_annotated.mp4")
+        encode_seq(dirs["full_frame"],out/"full_annotated.mp4")
         ff(["-framerate","1","-start_number","0","-i",str(dirs["zoom_annotated"]/"frame_%04d.jpg"),"-vf","scale=240:240,tile=4x3:nb_frames=12:padding=2:margin=2","-frames:v","1",str(out/"zoom_contact_sheet.jpg")],required=False)
         with (out/"manifest.tsv").open("w") as f:
             f.write("filename\tutc\tx512\ty512\tcrop_left\tcrop_top\n")
             for row in manifest: f.write("\t".join(map(str,row))+"\n")
         created=iso(dt.datetime.now(dt.timezone.utc))
-        meta={"review_id":rid,"candidate":c["cid"],"priority":c.get("priority"),"event_group":c.get("event_group"),"event_members":c.get("event_members",1),"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":512,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":None,"thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
+        meta={"review_id":rid,"candidate":c["cid"],"priority":c.get("priority"),"event_group":c.get("event_group"),"event_members":c.get("event_members",1),"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":512,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":"full_annotated.mp4","thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
         (out/"review.json").write_text(json.dumps(meta,indent=2))
         return meta
     finally:
