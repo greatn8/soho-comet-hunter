@@ -25,5 +25,10 @@ while true; do
       echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] publish cycle failed rc=$rc; will retry" | tee -a "$LOG"
     fi
   fi
+  # Recheck the realtime hunter even when the publisher cycle succeeds.
+  # A successful Git push does not prove the GPU hunter is alive.
+  if ! bash ./tools/ensure_realtime_running.sh >> "$LOG" 2>&1; then
+    echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] WARNING: realtime hunter recovery failed" | tee -a "$LOG"
+  fi
   sleep "$INTERVAL"
 done
