@@ -2,7 +2,7 @@
 """Realtime SOHO/LASCO C3 comet hunter supervisor."""
 
 from __future__ import annotations
-import argparse, datetime as dt, fcntl, html, json, math, os, re, shutil, signal, subprocess, tempfile, time
+import argparse, datetime as dt, fcntl, html, json, math, os, re, shutil, signal, subprocess, tempfile, threading, time
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urljoin
@@ -24,6 +24,7 @@ REPORT_ID_RE=re.compile(r"report_[a-z0-9]+_\d{14}",re.I)
 REPORT_POINT_RE=re.compile(r"(?m)^\s*(?P<t>\d{1,2}:\d{2}|\d{4})\s+(?P<x>\d{1,4})\s+(?P<y>\d{1,4})\s*$")
 DATE_RE=re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
 STOP=False
+HEARTBEAT_LOCK=threading.RLock()
 
 def log(msg):
     stamp=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -702,24 +703,60 @@ def append_tsv(path,header,row):
         if not exists:f.write("\t".join(header)+"\n")
         f.write("\t".join(str(x) for x in row)+"\n")
 
-def write_heartbeat(results_dir,status="ok",new_frames=0,error="",phase="",progress=None):
-    last_frame=""
-    try:
-        last_frame=(results_dir/"last_detector_frame.txt").read_text().strip()
-    except Exception:
-        pass
-    payload={
-        "checked_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),
-        "status":status,
-        "phase":phase or None,
-        "progress":progress if isinstance(progress,dict) else None,
-        "new_frames":int(new_frames),
-        "last_frame":last_frame or None,
-        "error":error or None,
-    }
-    tmp=results_dir/"heartbeat.json.tmp"
+def _heartbeat_save(results_dir,payload):
+    # Process-specific temp filenames prevent the realtime worker and a
+    # one-time cached recheck from clobbering one another's temp file.
+    tmp=results_dir/f"heartbeat.{os.getpid()}.tmp"
     tmp.write_text(json.dumps(payload,indent=2),encoding="utf-8")
     tmp.replace(results_dir/"heartbeat.json")
+
+
+def write_heartbeat(results_dir,status="ok",new_frames=0,error="",phase="",progress=None):
+    with HEARTBEAT_LOCK:
+        last_frame=""
+        try:
+            last_frame=(results_dir/"last_detector_frame.txt").read_text().strip()
+        except Exception:
+            pass
+        now=dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z")
+        previous=load_json(results_dir/"heartbeat.json",{})
+        if not isinstance(previous,dict):
+            previous={}
+        same_phase=(previous.get("status")==status
+                    and previous.get("phase")==(phase or None))
+        payload={
+            "checked_at":now,
+            "status":status,
+            "phase":phase or None,
+            "phase_started_at":previous.get("phase_started_at",now) if same_phase else now,
+            "progress":progress if isinstance(progress,dict) else None,
+            "new_frames":int(new_frames),
+            "last_frame":last_frame or None,
+            "error":error or None,
+        }
+        _heartbeat_save(results_dir,payload)
+
+
+def pulse_heartbeat(results_dir):
+    """Show process liveness without changing last successful detector frame."""
+    with HEARTBEAT_LOCK:
+        previous=load_json(results_dir/"heartbeat.json",{})
+        if not isinstance(previous,dict) or not previous:
+            return
+        # A repeatedly failing worker must not masquerade as a healthy one.
+        if previous.get("status") in ("error","stopped"):
+            return
+        previous["checked_at"]=dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z")
+        _heartbeat_save(results_dir,previous)
+
+
+def heartbeat_keepalive(results_dir,stop_event,interval=120):
+    while not stop_event.wait(interval):
+        try:
+            pulse_heartbeat(results_dir)
+        except Exception as exc:
+            log(f"WARN: heartbeat keepalive failed: {exc}")
+
 
 def select_recent_frames(frames, window_hours):
     """Select a window relative to the newest available SOHO frame, not wall time."""
@@ -1162,6 +1199,12 @@ def main():
     project=Path(args.project).expanduser().resolve(); state_dir=project/"state"; results_dir=project/"results"/"realtime"; cache_dir=Path("/dev/shm")/f"comet_realtime_{os.environ.get('USER','user')}_c3_512"
     for d in (state_dir,results_dir,cache_dir):d.mkdir(parents=True,exist_ok=True)
     signal.signal(signal.SIGINT,on_signal); signal.signal(signal.SIGTERM,on_signal)
+    heartbeat_stop=threading.Event()
+    heartbeat_thread=threading.Thread(
+        target=heartbeat_keepalive,args=(results_dir,heartbeat_stop),
+        name="soho-heartbeat",daemon=True
+    )
+    heartbeat_thread.start()
     log("Realtime hunter starting."); log(f"Project: {project}"); log(f"Rolling cache: {cache_dir}"); log(f"Multiscale CUDA windows={args.search_windows}h budgets={args.short_budget_minutes},{args.medium_budget_minutes},{args.compute_minutes}m max_candidates_per_pass={args.max_candidates}."); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
     cleanup=prune_realtime_reviews(results_dir)
     reclaimed=cleanup["removed_bytes"]+cleanup["removed_redundant_bytes"]
@@ -1172,6 +1215,7 @@ def main():
         run_detector(project,cache_dir,results_dir,args,force=True)
         write_heartbeat(results_dir,status="ok",new_frames=0)
         log("Cached-frame reprocessing complete.")
+        heartbeat_stop.set()
         return 0
     while not STOP:
         start=time.time()
@@ -1184,7 +1228,7 @@ def main():
                     results_dir,
                     status="running",
                     new_frames=len(new),
-                    phase="Running historical-parity CUDA detector",
+                    phase="Running multiscale CUDA detector",
                 )
                 run_detector(project,cache_dir,results_dir,args)
                 cleanup=prune_realtime_reviews(results_dir)
@@ -1199,5 +1243,6 @@ def main():
         sleep_for=max(5,args.poll_seconds-(time.time()-start)); log(f"Next realtime check in about {int(sleep_for)}s.")
         end=time.time()+sleep_for
         while time.time()<end and not STOP: time.sleep(min(10,end-time.time()))
+    heartbeat_stop.set()
     log("Realtime hunter stopped."); return 0
 if __name__=="__main__": raise SystemExit(main())
