@@ -2,7 +2,7 @@
 """Realtime SOHO/LASCO C3 comet hunter supervisor."""
 
 from __future__ import annotations
-import argparse, datetime as dt, fcntl, html, json, math, os, re, shutil, signal, subprocess, time
+import argparse, datetime as dt, fcntl, html, json, math, os, re, shutil, signal, subprocess, tempfile, time
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urljoin
@@ -721,8 +721,72 @@ def write_heartbeat(results_dir,status="ok",new_frames=0,error="",phase="",progr
     tmp.write_text(json.dumps(payload,indent=2),encoding="utf-8")
     tmp.replace(results_dir/"heartbeat.json")
 
+def select_recent_frames(frames, window_hours):
+    """Select a window relative to the newest available SOHO frame, not wall time."""
+    if not frames:
+        return []
+    newest=image_time(frames[-1].name)
+    cutoff=newest-dt.timedelta(hours=window_hours)
+    return [p for p in frames if image_time(p.name)>=cutoff]
+
+
+def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
+    """Independent CUDA searches on the same cached input images.
+
+    This intentionally does not change the CUDA detector or refetch SOHO data.
+    Short passes cannot be crowded out by implausible multi-day tracks.
+    """
+    all_candidates=[]
+    runs=[]
+    budgets=(args.short_budget_minutes,args.medium_budget_minutes,args.compute_minutes)
+    for window_hours,budget in zip(args.search_windows,budgets):
+        subset=select_recent_frames(frames,window_hours)
+        info={"window_hours":window_hours,"budget_minutes":budget,
+              "input_frames":len(subset),"parsed_tracks":0}
+        if len(subset)<args.min_frames:
+            info["status"]="INSUFFICIENT_FRAMES"
+            runs.append(info)
+            log(f"Skipping {window_hours}h window: only {len(subset)} frames.")
+            continue
+        # Hardlinks avoid copying thousands of JPEGs; files remain locally
+        # accessible as regular images for the existing CUDA binary.
+        with tempfile.TemporaryDirectory(prefix="soho_window_",dir=str(cache_dir.parent)) as staged:
+            stage=Path(staged)
+            for original in subset:
+                target=stage/original.name
+                try:
+                    os.link(original,target)
+                except OSError:
+                    target.symlink_to(original.resolve())
+            cmd=[str(project/"comet_hunter_archive"),"--camera","c3",
+                 "--resolution","512","--input-dir",str(stage),
+                 "--budget-minutes",str(budget),"--min-frames",
+                 str(args.min_frames),"--max-candidates",str(args.max_candidates)]
+            log(f"CUDA {window_hours}h pass: {len(subset)} cached frames, {budget}m budget.")
+            proc=subprocess.run(cmd,cwd=project,text=True,stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        log_path=results_dir/f"detector_{run_id}_{window_hours}h.log"
+        log_path.write_text(proc.stdout,encoding="utf-8")
+        if proc.returncode!=0:
+            raise RuntimeError(f"CUDA {window_hours}h pass failed ({proc.returncode}); "
+                               f"see {log_path}. Newest frame not marked complete.")
+        parsed=parse_candidates(proc.stdout)
+        for c in parsed:
+            c["source_window_hours"]=window_hours
+            c["source_candidate_id"]=c["cid"]
+            # CUDA C01 etc. is scoped to one pass. Keep global IDs numeric
+            # so dashboard and alert format continue to work unchanged.
+            c["cid"]=f"C{window_hours:03d}{int(c['cid'][1:]):04d}"
+        info["status"]="OK"
+        info["parsed_tracks"]=len(parsed)
+        info["consistent_tracks"]=sum(not c.get("trajectory_warning") for c in parsed)
+        runs.append(info)
+        all_candidates.extend(parsed)
+    return all_candidates,runs
+
+
 def run_detector(project,cache_dir,results_dir,args,force=False):
-    frames=prune_cache(cache_dir,args.window_hours)
+    frames=prune_cache(cache_dir,max(args.window_hours,*args.search_windows))
     if len(frames)<args.min_frames:
         log(f"Only {len(frames)} recent frame(s); waiting for at least {args.min_frames}."); return
     newest=frames[-1].name; last_run=results_dir/"last_detector_frame.txt"
@@ -732,13 +796,13 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         log("WARN: GPU remained busy; retry next cycle."); return
     binary=project/"comet_hunter_archive"
     run_id=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    log_path=results_dir/f"detector_{run_id}.log"
-    cmd=[str(binary),"--camera","c3","--resolution","512","--input-dir",str(cache_dir),"--budget-minutes",str(args.compute_minutes),"--min-frames",str(args.min_frames),"--max-candidates",str(args.max_candidates)]
-    log(f"Running realtime CUDA detector on {len(frames)} frame(s).")
-    proc=subprocess.run(cmd,cwd=project,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    log_path.write_text(proc.stdout,encoding="utf-8")
-    if proc.returncode!=0:
-        log(f"WARN: CUDA detector exited {proc.returncode}; see {log_path}"); return
+    log(f"Running multiscale CUDA detector on {len(frames)} cached frame(s).")
+    raw_candidates,window_runs=run_multiscale_cuda(
+        project,frames,results_dir,args,run_id,cache_dir
+    )
+    if not any(row["status"]=="OK" for row in window_runs):
+        log("WARN: not enough frames to run any CUDA window; newest frame not marked complete.")
+        return
     latest_frame = results_dir / "latest_frame.jpg"
     try:
         tmp_frame = results_dir / "latest_frame.jpg.part"
@@ -748,7 +812,6 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     except Exception as exc:
         log(f"WARN: could not save latest processed frame preview: {exc}")
 
-    raw_candidates=parse_candidates(proc.stdout)
     rejection_counts={}
     for c in raw_candidates:
         for reason in comet_filter_reasons(c):
@@ -756,7 +819,13 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
 
     candidates=[c for c in raw_candidates if comet_like(c)]
     annotate_motion_families(candidates)
-    candidates=sorted(candidates,key=live_candidate_rank,reverse=True)
+    # Prefer local, coherent short tracks as event representatives. Keep the
+    # 14-day candidates separately for verification and diagnostic visibility.
+    candidates=sorted(candidates,key=lambda c:(
+        bool(c.get("trajectory_warning")),
+        c.get("source_window_hours",336),
+        -live_candidate_rank(c),
+    ))
     event_groups=group_event_hypotheses(candidates)
     event_representatives=[g["representative"] for g in event_groups]
 
@@ -809,7 +878,16 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     # benchmarked against all historical known-comet recoveries. Retain the
     # highest-ranked visually weak event hypotheses for human review instead
     # of allowing an uncalibrated verifier to hide every marginal candidate.
-    low_support_review_limit=8
+    low_support_review_limit=16
+    # Long-window artifact candidates must not consume all available review
+    # slots ahead of short, recent tracks.
+    recent_cutoff=image_time(newest)-dt.timedelta(hours=36)
+    rejected_representatives.sort(key=lambda c:(
+        bool(c.get("trajectory_warning")),
+        c["last"]["time"]<recent_cutoff,
+        c.get("source_window_hours",336),
+        -live_candidate_rank(c),
+    ))
     low_support_review=rejected_representatives[:low_support_review_limit]
     review_representatives=verified_representatives+low_support_review
     for c in low_support_review:
@@ -819,6 +897,9 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         "run_id":run_id,
         "newest_frame":newest,
         "frames_scanned":len(frames),
+        "window_runs":window_runs,
+        "multiscale_window_hours":list(args.search_windows),
+        "source_resolution":512,
         "raw_tracks_parsed":len(raw_candidates),
         "raw_high":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="HIGH"),
         "raw_medium":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="MEDIUM"),
@@ -848,6 +929,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         "pixel_strong_events":sum(1 for c in verified_representatives if c.get("review_class")=="STRONG_REVIEW"),
         "pixel_secondary_events":sum(1 for c in verified_representatives if c.get("review_class")=="SECONDARY"),
         "low_support_review_events":len(low_support_review),
+        "consistent_raw_tracks":sum(not c.get("trajectory_warning") for c in raw_candidates),
         "event_grouping":{
             "min_overlap_minutes":60.0,
             "min_overlap_fraction":0.45,
@@ -908,6 +990,9 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     for c in candidates:
         track_rows.append({
             "candidate":c["cid"],
+            "source_window_hours":c.get("source_window_hours"),
+            "source_candidate_id":c.get("source_candidate_id"),
+            "trajectory_warning":c.get("trajectory_warning",""),
             "priority":c["priority"],
             "frames":c["frames"],
             "rms":c["rms"],
@@ -934,6 +1019,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     for c in rejected_representatives:
         rejected_rows.append({
             "candidate":c["cid"],
+            "source_window_hours":c.get("source_window_hours"),
             "priority":c["priority"],
             "review_class":c.get("review_class"),
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
@@ -988,6 +1074,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             log(f"WARN: live review media failed for {c['cid']}: {exc}")
         rows.append({
             "candidate":c["cid"],
+            "source_window_hours":c.get("source_window_hours"),
             "status":status,
             "report_id":rid,
             "match_error_1024":err,
@@ -1056,12 +1143,26 @@ def main():
     p=argparse.ArgumentParser(description="Realtime SOHO C3 CUDA comet hunter")
     p.add_argument("--project",required=True); p.add_argument("--poll-seconds",type=int,default=905); p.add_argument("--window-hours",type=int,default=336); p.add_argument("--bootstrap-hours",type=int,default=336); p.add_argument("--compute-minutes",type=int,default=8); p.add_argument("--min-frames",type=int,default=5); p.add_argument("--max-candidates",type=int,default=100); p.add_argument("--gpu-wait-seconds",type=int,default=720); p.add_argument("--once",action="store_true")
     p.add_argument("--reprocess-cache-once",action="store_true",help="Rerun cached CUDA frames without any SOHO requests; then exit.")
+    p.add_argument("--search-windows",default="12,48,336",
+                   help="Comma-separated independent CUDA search windows in hours.")
+    p.add_argument("--short-budget-minutes",type=int,default=2)
+    p.add_argument("--medium-budget-minutes",type=int,default=3)
     args=p.parse_args()
     if args.poll_seconds<900:p.error("--poll-seconds must be at least 900")
+    try:
+        args.search_windows=tuple(int(v) for v in args.search_windows.split(","))
+    except ValueError:
+        p.error("--search-windows must contain three integer hours, e.g. 12,48,336")
+    if len(args.search_windows)!=3 or sorted(set(args.search_windows))!=list(args.search_windows):
+        p.error("--search-windows must be three strictly increasing hour values")
+    if min(args.search_windows)<1 or max(args.search_windows)>args.window_hours:
+        p.error("Search windows must be within --window-hours")
+    if min(args.short_budget_minutes,args.medium_budget_minutes,args.compute_minutes)<1:
+        p.error("All CUDA budgets must be positive")
     project=Path(args.project).expanduser().resolve(); state_dir=project/"state"; results_dir=project/"results"/"realtime"; cache_dir=Path("/dev/shm")/f"comet_realtime_{os.environ.get('USER','user')}_c3_512"
     for d in (state_dir,results_dir,cache_dir):d.mkdir(parents=True,exist_ok=True)
     signal.signal(signal.SIGINT,on_signal); signal.signal(signal.SIGTERM,on_signal)
-    log("Realtime hunter starting."); log(f"Project: {project}"); log(f"Rolling cache: {cache_dir}"); log(f"Historical-parity CUDA mode: window={args.window_hours}h budget={args.compute_minutes}m max_candidates={args.max_candidates}."); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
+    log("Realtime hunter starting."); log(f"Project: {project}"); log(f"Rolling cache: {cache_dir}"); log(f"Multiscale CUDA windows={args.search_windows}h budgets={args.short_budget_minutes},{args.medium_budget_minutes},{args.compute_minutes}m max_candidates_per_pass={args.max_candidates}."); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
     cleanup=prune_realtime_reviews(results_dir)
     reclaimed=cleanup["removed_bytes"]+cleanup["removed_redundant_bytes"]
     if cleanup["removed_dirs"] or reclaimed:
