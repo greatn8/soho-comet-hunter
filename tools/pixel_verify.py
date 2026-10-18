@@ -97,7 +97,7 @@ def _sample_signal(gray, x, y):
     }
 
 
-def verify_track_pixels(candidate, frame_paths, gray_cache=None, max_samples=48):
+def verify_track_pixels(candidate, frame_paths, gray_cache=None, max_samples=48, model="velocity"):
     """Measure whether a compact source is repeatedly present on the fitted path.
 
     This intentionally verifies the underlying pixels rather than trusting the
@@ -138,8 +138,18 @@ def verify_track_pixels(candidate, frame_paths, gray_cache=None, max_samples=48)
             continue
 
         hours = (when - first_t).total_seconds() / 3600.0
-        x = float(first["x"]) + float(candidate["vx"]) * hours
-        y = float(first["y"]) + float(candidate["vy"]) * hours
+        if model == "endpoints":
+            span = (last_t - first_t).total_seconds()
+            if span <= 0:
+                continue
+            fraction = (when - first_t).total_seconds() / span
+            x = float(first["x"]) + fraction * (float(last["x"]) - float(first["x"]))
+            y = float(first["y"]) + fraction * (float(last["y"]) - float(first["y"]))
+        elif model == "velocity":
+            x = float(first["x"]) + float(candidate["vx"]) * hours
+            y = float(first["y"]) + float(candidate["vy"]) * hours
+        else:
+            raise ValueError(f"Unknown trajectory model: {model}")
         sample = _sample_signal(gray, x, y)
         if sample is None:
             continue
