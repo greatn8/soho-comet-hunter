@@ -468,6 +468,8 @@ function realtimeCandidateCard(c) {
       </div>
       ${media}
       ${trajectoryWarning}
+      ${(c.quality_issues || []).includes("FRAME_COUNT_EXCEEDS_SOURCE_IMAGES") ? '<div class="realtime-media-missing">Reported track frames exceed distinct available source images. This event is not validated as a comet.</div>' : ''}
+      ${c.pixel_verification?.endpoint_model ? '<small>Alternate endpoint-path pixel check: ' + escapeHtml(c.pixel_verification.endpoint_model.status || "UNAVAILABLE") + ' (' + escapeHtml(String(c.pixel_verification.endpoint_model.hits ?? 0)) + '/' + escapeHtml(String(c.pixel_verification.endpoint_model.samples ?? 0)) + ' hits). Independent observation review required.</small>' : ''}
       <div class="realtime-candidate-meta">\n        <div><span>Review class</span><strong>${escapeHtml(prettyClass(c.review_class || "UNCLASSIFIED"))}</strong></div>\n        <div><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>\n        <div><span>Speed</span><strong>${escapeHtml(metricText(c.speed))} px/h</strong></div>\n        <div><span>Fit RMS</span><strong>${escapeHtml(metricText(c.rms))}</strong></div>\n        <div><span>Sunward</span><strong>${escapeHtml(metricText(c.sunward))} px/h</strong></div>\n        <div><span>Pixel hits</span><strong>${escapeHtml((c.pixel_verification?.hits ?? "—") + "/" + (c.pixel_verification?.samples ?? "—"))}</strong></div>\n        <div><span>Peak SNR</span><strong>${escapeHtml(metricText(c.pixel_verification?.peak_snr))}</strong></div>\n        <div><span>Pixel status</span><strong>${escapeHtml(c.pixel_verification?.status || "—")}</strong></div>\n      </div>\n      <div class="realtime-track">
         <span>${escapeHtml(compactFrameName(c.first))}</span>
         <b>→</b>
