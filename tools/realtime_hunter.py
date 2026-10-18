@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 
 from live_review import ensure_live_review
 from pixel_verify import classify_for_review, verify_track_pixels
+from track_evidence import audit_track_frames, position_at
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
@@ -849,6 +850,8 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     except Exception as exc:
         log(f"WARN: could not save latest processed frame preview: {exc}")
 
+    for c in raw_candidates:
+        audit_track_frames(c, frames)
     rejection_counts={}
     for c in raw_candidates:
         for reason in comet_filter_reasons(c):
@@ -903,6 +906,14 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             pixel["reason"]=c["trajectory_warning"]
             review_class="VISUAL_REJECT"
             historical_like=False
+        # Preserve endpoint-interpolation evidence separately from velocity.
+        # A velocity mismatch does not by itself prove that no object exists.
+        if c.get("trajectory_warning")=="ENDPOINT_VELOCITY_MISMATCH" and c.get("available_source_frames",0)>=5:
+            try:
+                alternative=verify_track_pixels(c,frames,gray_cache=gray_cache,model="endpoints")
+                pixel["endpoint_model"]=alternative
+            except Exception as exc:
+                pixel["endpoint_model_error"]=str(exc)
         c["pixel_verification"]=pixel
         c["review_class"]=review_class
         c["historical_recovery_profile"]=historical_like
@@ -1030,6 +1041,8 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "source_window_hours":c.get("source_window_hours"),
             "source_candidate_id":c.get("source_candidate_id"),
             "trajectory_warning":c.get("trajectory_warning",""),
+            "quality_issues":c.get("quality_issues",[]),
+            "available_source_frames":c.get("available_source_frames",0),
             "priority":c["priority"],
             "frames":c["frames"],
             "rms":c["rms"],
@@ -1134,6 +1147,8 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "review_id":review_id,
             "review_error":review_error,
             "trajectory_warning":c.get("trajectory_warning",""),
+            "quality_issues":c.get("quality_issues",[]),
+            "available_source_frames":c.get("available_source_frames",0),
             "endpoint_order_corrected":c.get("endpoint_order_corrected",False),
             "edge_relevant":edge_relevant,
             "hours_behind_latest":round(edge_age_hours,2),
