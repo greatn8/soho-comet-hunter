@@ -41,7 +41,17 @@ def find_existing(root,c):
     for p in root.glob("*/review.json"):
         try: m=json.loads(p.read_text())
         except Exception: continue
-        if same_signature(m.get("signature") or {},sig): return p.parent,m
+        # Reuse media only for the same underlying endpoints. Similar
+        # velocities alone can point at completely different source pixels.
+        if not same_signature(m.get("signature") or {},sig):
+            continue
+        try:
+            same_files=(m.get("first")==c["first"]["file"] and m.get("last")==c["last"]["file"])
+            same_xy=(math.hypot(float(m["first_x"])-float(c["first"]["x"]),float(m["first_y"])-float(c["first"]["y"]))<=3.0 and math.hypot(float(m["last_x"])-float(c["last"]["x"]),float(m["last_y"])-float(c["last"]["y"]))<=3.0)
+        except (KeyError,TypeError,ValueError):
+            same_files=same_xy=False
+        if same_files and same_xy:
+            return p.parent,m
     return None
 
 def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
