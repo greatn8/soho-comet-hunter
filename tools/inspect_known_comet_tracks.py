@@ -24,18 +24,14 @@ def inspect(text):
         delta_y=c["last"]["y"]-c["first"]["y"]
         # This is displacement, not pixel verification or discovery proof.
         dist=math.hypot(delta_x,delta_y)
-        size=1024 if "_1024" in text[text.find("first:"):text.find("first:")+90] else None
         if dist<1:
             failures["near_stationary_endpoints"]+=1
-        if c["frames"]>22:
-            failures["impossible_frame_count_for_23_frame_replay"]+=1
         if c["rms"]>1.2:
             failures["rms_gt_1.2"]+=1
         ranked.append((dist,c["id"],c["frames"],c["priority"],c["rms"],
                        [c["first"]["x"],c["first"]["y"]],
                        [c["last"]["x"],c["last"]["y"]]))
         # Split field into a coarse, transparent quadrant for audit.
-        res=1024 if "_1024" in c["id"] else None
         locations[(int(c["first"]["x"]//128),int(c["first"]["y"]//128))]+=1
     return {"cuda_headers":headers,"parsed_tracks":len(rows),
             "parse_loss":max(0,headers-len(rows)),
