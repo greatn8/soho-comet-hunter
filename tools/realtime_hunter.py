@@ -776,11 +776,15 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
     """
     all_candidates=[]
     runs=[]
+    # Explicit marker persists across tmux/watchdog restarts. The flag
+    # requires the separately compiled experimental CUDA detector.
+    stationary_filter=(project/"state"/"realtime_cuda_stationary_enabled").is_file()
     budgets=(args.short_budget_minutes,args.medium_budget_minutes,args.compute_minutes)
     for window_hours,budget in zip(args.search_windows,budgets):
         subset=select_recent_frames(frames,window_hours)
         info={"window_hours":window_hours,"budget_minutes":budget,
-              "input_frames":len(subset),"parsed_tracks":0}
+              "input_frames":len(subset),"parsed_tracks":0,
+              "stationary_filter_enabled":stationary_filter}
         if len(subset)<args.min_frames:
             info["status"]="INSUFFICIENT_FRAMES"
             runs.append(info)
@@ -800,7 +804,10 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
                  "--resolution","512","--input-dir",str(stage),
                  "--budget-minutes",str(budget),"--min-frames",
                  str(args.min_frames),"--max-candidates",str(args.max_candidates)]
-            log(f"CUDA {window_hours}h pass: {len(subset)} cached frames, {budget}m budget.")
+            if stationary_filter:
+                cmd.append("--within-window-stationary-filter")
+            log(f"CUDA {window_hours}h pass: {len(subset)} cached frames, {budget}m budget; "
+                f"stationary filter={'ON' if stationary_filter else 'OFF'}.")
             proc=subprocess.run(cmd,cwd=project,text=True,stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         log_path=results_dir/f"detector_{run_id}_{window_hours}h.log"
@@ -1232,7 +1239,9 @@ def main():
         name="soho-heartbeat",daemon=True
     )
     heartbeat_thread.start()
-    log("Realtime hunter starting."); log(f"Project: {project}"); log(f"Rolling cache: {cache_dir}"); log(f"Multiscale CUDA windows={args.search_windows}h budgets={args.short_budget_minutes},{args.medium_budget_minutes},{args.compute_minutes}m max_candidates_per_pass={args.max_candidates}."); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
+    log("Realtime hunter starting."); log(f"Project: {project}");
+    log("Experimental CUDA stationary filter: "
+        + ("ENABLED" if (state_dir/"realtime_cuda_stationary_enabled").is_file() else "disabled")); log(f"Rolling cache: {cache_dir}"); log(f"Multiscale CUDA windows={args.search_windows}h budgets={args.short_budget_minutes},{args.medium_budget_minutes},{args.compute_minutes}m max_candidates_per_pass={args.max_candidates}."); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
     cleanup=prune_realtime_reviews(results_dir)
     reclaimed=cleanup["removed_bytes"]+cleanup["removed_redundant_bytes"]
     if cleanup["removed_dirs"] or reclaimed:
