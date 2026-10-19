@@ -1066,8 +1066,19 @@ detectFrameCuda(
     meta.width = width;
     meta.height = height;
 
-    int rawCapacity =
-        pass.maxPoints * 6;
+    // GPU atomicAdd has nondeterministic scheduling. Truncating the
+    // FIRST maxPoints*6 hits makes two byte-identical images return
+    // different coordinate subsets, creating fictitious motion.
+    // Allocate room for every possible pixel-local-maximum instead.
+    // LASCO input is 512/1024 px, so at 1024 this is ~12 MiB.
+    const long long pixelCapacity =
+        static_cast<long long>(width) * static_cast<long long>(height);
+    if (pixelCapacity <= 0 ||
+        pixelCapacity > static_cast<long long>(std::numeric_limits<int>::max())) {
+        cudaFree(dGray);
+        throw std::runtime_error("Invalid CUDA detection image pixel capacity");
+    }
+    const int rawCapacity = static_cast<int>(pixelCapacity);
 
     DeviceDetection* dOutput =
         nullptr;
@@ -1153,11 +1164,12 @@ detectFrameCuda(
         )
     );
 
-    count =
-        std::min(
-            count,
-            rawCapacity
-        );
+    if (count > rawCapacity) {
+        cudaFree(dGray);
+        cudaFree(dOutput);
+        cudaFree(dCount);
+        throw std::runtime_error("CUDA detection capacity exceeded; refusing truncated point set");
+    }
 
     std::vector<DeviceDetection>
         raw(count);
@@ -1183,9 +1195,14 @@ detectFrameCuda(
         raw.end(),
         [](const DeviceDetection& a,
            const DeviceDetection& b) {
-            return
-                a.strength
-                > b.strength;
+            if (a.strength != b.strength) {
+                return a.strength > b.strength;
+            }
+            // Deterministic tie-break independent of GPU atomic order.
+            if (a.y != b.y) {
+                return a.y < b.y;
+            }
+            return a.x < b.x;
         }
     );
 
