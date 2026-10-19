@@ -86,12 +86,18 @@ def encode_masked(source, destination, size, bounds):
 
 
 def run_cuda_region(binary, project, frames, resolution, bounds,
-                    budget_minutes, max_candidates, log_path):
+                    budget_minutes, max_candidates, log_path, control="real"):
     base = "/dev/shm" if Path("/dev/shm").is_dir() else None
     with tempfile.TemporaryDirectory(prefix="soho_spatial_test_",dir=base) as name:
         inputs = Path(name)
+        if control not in ("real","static"):
+            raise ValueError("Unknown input control: "+control)
         for source in frames:
-            encode_masked(source,inputs/source.name,resolution,bounds)
+            # The static negative control repeats precisely the SAME image
+            # pixels at every timestamp. No real object can move in it.
+            # Filenames/cadence stay identical to the real observation.
+            image_source = frames[0] if control=="static" else source
+            encode_masked(image_source,inputs/source.name,resolution,bounds)
         cmd = [
             str(binary),"--camera","c3","--resolution",str(resolution),
             "--input-dir",str(inputs),
@@ -161,6 +167,8 @@ def main():
     parser.add_argument("--frames-root",type=Path,
                         help="Folder of original, unmodified C3 images")
     parser.add_argument("--report-dir",type=Path)
+    parser.add_argument("--control",choices=("real","static"),default="real",
+                        help="real=original evolving frames; static=repeat the first input frame at all timestamps")
     parser.add_argument("--execute",action="store_true")
     opts=parser.parse_args()
     project=opts.project.expanduser().resolve()
@@ -195,12 +203,18 @@ def main():
     report_dir=opts.report_dir or (project/"results"/"spatial_comet_replay"/
                dt.datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
     report={"event_id":case["event_id"],"known_object":case["known_object"],
+            "control_mode":opts.control,
+            "negative_control_no_real_motion":opts.control=="static",
             "resolution":opts.resolution,"grid":opts.grid,"overlap":opts.overlap,
             "experimental":True,"derived_images_not_original":True,
             "image_count":len(frames),"source_dir":str(root),
             "max_candidates_per_region":opts.max_candidates,"regions":[]}
     print(f'Known control: {case["known_object"]} | {opts.resolution}px '
-          f'| original input frames={len(frames)} | grid={opts.grid}x{opts.grid}',flush=True)
+          f'| original input frames={len(frames)} | grid={opts.grid}x{opts.grid} '
+          f'| control={opts.control}',flush=True)
+    if opts.control=="static":
+        print("NEGATIVE CONTROL: identical original frame repeated with each timestamp. "
+              "Every candidate trajectory is spurious motion.",flush=True)
     for i in regions:
         bounds=region_bounds(opts.resolution,opts.grid,i,opts.overlap)
         print(f"Region {i:02d}: keep ROI {bounds}",flush=True)
@@ -223,16 +237,19 @@ def main():
             entry["status"]="GPU_BUSY"
             print(f"Region {idx}: GPU busy, skipped",flush=True)
             continue
-        logfile=report_dir/f"region_{idx:02d}_{opts.resolution}.log"
+        logfile=report_dir/f"region_{idx:02d}_{opts.resolution}_{opts.control}.log"
         try:
             code,tracks=run_cuda_region(binary,project,frames,opts.resolution,
                                        entry["bounds"],opts.budget_minutes,
-                                       opts.max_candidates,logfile)
+                                       opts.max_candidates,logfile,control=opts.control)
             entry["status"]="COMPLETE" if code==0 else "CUDA_FAILED"
             entry["returncode"]=code
             entry["log_file"]=logfile.name
             entry.update(summarize_tracks(tracks,entry["bounds"],len(frames),
                                           opts.max_candidates))
+            if opts.control=="static":
+                entry["known_false_motion_tracks"]=len(tracks)
+                entry["interpretation"]="All reported moving tracks are false: the input pixels never change."
             print(f"Region {idx:02d}: status={entry['status']} "
                   f"tracks={entry['tracks_total']} "
                   f"inside={entry['midpoints_inside_roi']} "
