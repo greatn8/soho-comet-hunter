@@ -1,0 +1,22 @@
+name: CUDA stationary filter host tests
+on:
+  pull_request:
+    paths:
+      - 'cuda/**'
+      - 'tests/test_cuda_stationary_filter.cpp'
+      - '.github/workflows/cuda-stationary-filter-test.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'cuda/**'
+      - 'tests/test_cuda_stationary_filter.cpp'
+      - '.github/workflows/cuda-stationary-filter-test.yml'
+jobs:
+  host-filter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run C++ filter tests
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -Icuda tests/test_cuda_stationary_filter.cpp -o /tmp/soho_stationary_filter_test
+          /tmp/soho_stationary_filter_test
