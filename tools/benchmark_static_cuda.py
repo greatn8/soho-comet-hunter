@@ -92,7 +92,8 @@ def summarize(output, tracks, count, limit, mode):
     }
 
 
-def run_once(binary, project, frames, resolution, mode, budget, limit, report_dir):
+def run_once(binary, project, frames, resolution, mode, budget, limit, report_dir,
+             stationary_filter=False, stationary_fraction=0.80, stationary_bin=2):
     base = "/dev/shm" if Path("/dev/shm").is_dir() else None
     with tempfile.TemporaryDirectory(prefix="soho_unmasked_static_", dir=base) as path:
         stage = Path(path)
@@ -106,10 +107,15 @@ def run_once(binary, project, frames, resolution, mode, budget, limit, report_di
         cmd=[str(binary),"--camera","c3","--resolution",str(resolution),
              "--input-dir",str(stage),"--budget-minutes",str(budget),
              "--min-frames","5","--max-candidates",str(limit)]
+        if stationary_filter:
+            cmd += ["--within-window-stationary-filter",
+                    "--stationary-fraction",str(stationary_fraction),
+                    "--stationary-bin",str(stationary_bin)]
         proc=subprocess.run(cmd,cwd=project,text=True,capture_output=True,
                             timeout=max(300,budget*120))
         output=proc.stdout+"\n"+proc.stderr
-        log=report_dir/f"unmasked_{mode}_{resolution}.log"
+        variant="filtered" if stationary_filter else "unfiltered"
+        log=report_dir/f"unmasked_{mode}_{resolution}_{variant}.log"
         log.write_text(output,encoding="utf-8")
         return proc.returncode, output, log.name
 
@@ -124,6 +130,12 @@ def main():
     ap.add_argument("--max-candidates",type=int,default=250)
     ap.add_argument("--budget-minutes",type=int,default=1)
     ap.add_argument("--wait-for-gpu-seconds",type=int,default=900)
+    ap.add_argument("--binary",type=Path,
+                    help="CUDA binary to test (default: project/comet_hunter_archive)")
+    ap.add_argument("--compare-filter",action="store_true",
+                    help="Run both unfiltered and opt-in within-window filter on each image sequence")
+    ap.add_argument("--stationary-fraction",type=float,default=0.80)
+    ap.add_argument("--stationary-bin",type=int,default=2)
     ap.add_argument("--compare-real",action="store_true",
                     help="Also run the ordinary unmodified evolving image sequence")
     ap.add_argument("--report-dir",type=Path)
@@ -134,6 +146,10 @@ def main():
         ap.error("--max-candidates must be 10..1000")
     if not 1<=args.budget_minutes<=10:
         ap.error("--budget-minutes must be 1..10")
+    if not 0.5 <= args.stationary_fraction <= 1.0:
+        ap.error("--stationary-fraction must be 0.5..1.0")
+    if not 1 <= args.stationary_bin <= 8:
+        ap.error("--stationary-bin must be 1..8")
     project=args.project.expanduser().resolve()
     cases=[c for c in controls(Path(__file__).resolve().parents[1]/
                                "docs/data/candidates.json")
@@ -157,38 +173,53 @@ def main():
     print(f"Input images: {len(frames)} | first source sha256: {first_image_sha}",flush=True)
     print("Modes: "+", ".join(modes),flush=True)
     print("STATIC: exactly the same original JPEG bytes under each original timestamp.",flush=True)
+    binary=(args.binary.expanduser().resolve() if args.binary else
+            project/"comet_hunter_archive")
+    print(f"Detector binary: {binary}",flush=True)
+    print(f"Filter variants: {'unfiltered, filtered' if args.compare_filter else 'unfiltered only'}",flush=True)
     if not args.execute:
         print("PLAN ONLY: --execute to run the unmasked negative control.",flush=True)
         return
-    binary=project/"comet_hunter_archive"
     if not binary.is_file():
         raise SystemExit(f"CUDA detector missing: {binary}")
     report_dir.mkdir(parents=True,exist_ok=True)
     result={"control":case["known_object"],"event_id":case["event_id"],
             "original_images":len(frames),"resolution":args.resolution,
             "first_image_sha256":first_image_sha,"unmasked":True,
-            "source_images_unchanged":True,"runs":[]}
+            "source_images_unchanged":True,"detector_binary":str(binary),
+            "stationary_fraction":args.stationary_fraction,
+            "stationary_bin":args.stationary_bin,"runs":[]}
     for mode in modes:
-        until=time.monotonic()+args.wait_for_gpu_seconds
-        while busy_cuda() and time.monotonic()<until:
-            time.sleep(10)
-        if busy_cuda():
-            entry={"mode":mode,"status":"GPU_BUSY"}
-        else:
-            try:
-                code,output,filename=run_once(
-                    binary,project,frames,args.resolution,mode,
-                    args.budget_minutes,args.max_candidates,report_dir)
-                tracks=parse_output(output)
-                entry=summarize(output,tracks,len(frames),args.max_candidates,mode)
-                entry.update({"cuda_return_code":code,
-                              "status":"COMPLETE" if code==0 else "CUDA_FAILED",
-                              "log_file":filename})
-            except (OSError,ValueError,RuntimeError,subprocess.TimeoutExpired) as exc:
-                entry={"mode":mode,"status":"ERROR","error":str(exc)}
-        result["runs"].append(entry)
-        print(json.dumps(entry,indent=2),flush=True)
-        (report_dir/"report.json").write_text(json.dumps(result,indent=2)+"\n")
+        for filtered in ([False, True] if args.compare_filter else [False]):
+            until=time.monotonic()+args.wait_for_gpu_seconds
+            while busy_cuda() and time.monotonic()<until:
+                time.sleep(10)
+            if busy_cuda():
+                entry={"mode":mode,"stationary_filter_enabled":filtered,"status":"GPU_BUSY"}
+            else:
+                try:
+                    code,output,filename=run_once(
+                        binary,project,frames,args.resolution,mode,
+                        args.budget_minutes,args.max_candidates,report_dir,
+                        stationary_filter=filtered,
+                        stationary_fraction=args.stationary_fraction,
+                        stationary_bin=args.stationary_bin)
+                    tracks=parse_output(output)
+                    entry=summarize(output,tracks,len(frames),args.max_candidates,mode)
+                    entry.update({"stationary_filter_enabled":filtered,
+                                  "stationary_removed_per_pass":[
+                                      int(line.split(":")[-1].split()[0])
+                                      for line in output.splitlines()
+                                      if "within-window stationary detections removed:" in line],
+                                  "cuda_return_code":code,
+                                  "status":"COMPLETE" if code==0 else "CUDA_FAILED",
+                                  "log_file":filename})
+                except (OSError,ValueError,RuntimeError,subprocess.TimeoutExpired) as exc:
+                    entry={"mode":mode,"stationary_filter_enabled":filtered,
+                           "status":"ERROR","error":str(exc)}
+            result["runs"].append(entry)
+            print(json.dumps(entry,indent=2),flush=True)
+            (report_dir/"report.json").write_text(json.dumps(result,indent=2)+"\n")
     print("Report:",report_dir/"report.json",flush=True)
     print("This experiment makes no positive comet discovery claim.",flush=True)
 
