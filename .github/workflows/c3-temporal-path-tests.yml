@@ -1,0 +1,14 @@
+name: C3 temporal path CPU tests
+on:
+  pull_request:
+    paths:
+      - 'tools/score_reported_c3_motion.py'
+      - 'tests/test_reported_c3_motion.py'
+      - '.github/workflows/c3-temporal-path-tests.yml'
+jobs:
+  cpu-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run synthetic moving and static frame control tests
+        run: python3 -m unittest discover -s tests -p 'test_reported_c3_motion.py' -v
