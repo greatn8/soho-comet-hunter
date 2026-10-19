@@ -166,9 +166,6 @@ def main():
     project=args.project.expanduser().resolve()
     frames=(args.frames_root.expanduser().resolve() if args.frames_root else
             project/"results"/"known_comet_inputs"/EVENT_ID)
-    inputs=[(when[-8:-4],x,y) for when,x,y in RAW_POINTS]
-    # The record timestamps are ISO8601; the slice above is not robust to
-    # timezone formatting. Parse time components explicitly.
     inputs=[]
     for timestamp,x,y in RAW_POINTS:
         when=dt.datetime.fromisoformat(timestamp.replace("Z","+00:00"))
