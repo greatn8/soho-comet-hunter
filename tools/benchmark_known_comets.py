@@ -68,7 +68,10 @@ def controls(dashboard):
 def image_roots(project, explicit_roots):
     if explicit_roots:
         return [Path(p).expanduser().resolve() for p in explicit_roots]
-    roots = [project / name for name in ("results", "archive", "images", "input", "frames")]
+    # Historical processing may have used sibling archive/work directories
+    # or nonstandard caches. Scan the whole dedicated comet workspace rather
+    # than guessing five directory names inside one project.
+    roots = [project.parent]
     shm = Path("/dev/shm")
     if shm.is_dir():
         roots += [p for p in shm.iterdir()
@@ -79,14 +82,18 @@ def image_roots(project, explicit_roots):
 def index_images(roots, max_entries=300000):
     by_size = {512: defaultdict(list), 1024: defaultdict(list)}
     inspected = 0
+    archived_inputs = []
+    root_counts = {}
     for root in roots:
         if not root.exists():
             continue
+        root_matches = {512: 0, 1024: 0}
         # Do not interpret generated video frames or cropped reviews as original SOHO input.
         for current, dirs, files in os.walk(root):
             dirs[:] = [d for d in dirs if d not in
                        {".git", "review", ".frames", "media", "__pycache__",
-                        "zoom_raw", "zoom_annotated", "full_frame", "node_modules"}]
+                        "zoom_raw", "zoom_annotated", "full_frame", "node_modules",
+                        "known_comet_replay"}]
             for name in files:
                 inspected += 1
                 if inspected > max_entries:
@@ -97,8 +104,14 @@ def index_images(roots, max_entries=300000):
                 match = IMAGE.match(name)
                 if match:
                     date = when(name)
-                    by_size[int(match.group(2))][date].append(Path(current) / name)
-    return by_size, inspected
+                    size = int(match.group(2))
+                    by_size[size][date].append(Path(current) / name)
+                    root_matches[size] += 1
+                elif len(archived_inputs) < 30 and name.lower().endswith(
+                        (".tar", ".tar.gz", ".tgz", ".zip", ".tar.zst", ".fits", ".fits.gz")):
+                    archived_inputs.append(str(Path(current)/name))
+        root_counts[str(root)] = root_matches
+    return by_size, inspected, root_counts, archived_inputs
 
 
 def pick_frames(index, start, end, pad_hours=1.0):
@@ -296,14 +309,22 @@ def main():
     results=args.report_dir or project/"results"/"known_comet_replay"/dt.datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     cases=controls(args.dashboard)
     roots=image_roots(project,args.frames_root)
-    indexed,inspected=index_images(roots,args.max_entries)
+    indexed,inspected,root_counts,archive_hints=index_images(roots,args.max_entries)
     report={"generated_at":dt.datetime.now(UTC).isoformat(),
             "execution_requested":args.execute,
             "project":str(project),"searched_roots":[str(p) for p in roots],
             "inspected_file_entries":inspected,
+            "image_counts_by_root":root_counts,
+            "possible_archived_input_files":archive_hints,
             "original_image_counts":{str(k):sum(map(len,v.values())) for k,v in indexed.items()},
             "controls":len(cases),"runs":[]}
     print(f"Controls: {len(cases)} | files inspected: {inspected} | roots: {roots}",flush=True)
+    for root,counts in root_counts.items():
+        print(f"Input inventory: {root} => {counts}",flush=True)
+    if archive_hints:
+        print("Possible compressed/FITS inputs (not directly suitable for CUDA replay):",flush=True)
+        for candidate in archive_hints[:15]:
+            print("  "+candidate,flush=True)
     if args.execute and not binary.is_file():
         raise SystemExit(f"CUDA binary missing: {binary}")
     for event in cases:
@@ -342,6 +363,9 @@ def main():
                   f"{row['status']} | temporal={row.get('temporal_hypotheses','—')} | "
                   f"positional={row.get('positional_recovered','UNKNOWN')}",flush=True)
             save_report(results,report)
+    if not any(r["status"]=="COMPLETE" for r in report["runs"]):
+        print("No completed CUDA replay. This is an image-data availability result, "
+              "NOT an assessment of detector recall.",flush=True)
     print(f"Report: {results/'report.md'}",flush=True)
     return 0
 
