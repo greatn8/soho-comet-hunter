@@ -30,7 +30,7 @@ from pathlib import Path
 UTC = dt.timezone.utc
 IMAGE = re.compile(r"^(20\d{6}_\d{4})_c3_(512|1024)\.jpe?g$", re.I)
 CANDIDATE = re.compile(
-    r"^(C\d+)\s+\[(HIGH|MEDIUM)\].*?\bframes=(\d+).*?"
+    r"^(C\d+)\s+\[(HIGH|MEDIUM|LOW)\].*?\bframes=(\d+).*?"
     r"\bRMS=([0-9.]+).*?\bscore=([0-9.]+)", re.I
 )
 POINT = re.compile(
@@ -160,13 +160,17 @@ def parse_output(stdout):
             continue
         first = last = None
         for line2 in lines[i+1:i+6]:
+            if CANDIDATE.search(line2.strip()):
+                break  # Never steal endpoints from the next CUDA candidate.
             m = POINT.search(line2)
             if m:
                 point = {"time": when(m.group(1)),
                          "x": float(m.group(2)), "y": float(m.group(3))}
-                if "first:" in line2.lower():
+                # Native CUDA prints "last :" (with a space before colon).
+                # Older and synthetic logs may use "last:" or "first:".
+                if re.search(r"\bfirst\s*:",line2,re.I):
                     first = point
-                elif "last:" in line2.lower():
+                elif re.search(r"\blast\s*:",line2,re.I):
                     last = point
         if first and last:
             if first["time"] > last["time"]:
