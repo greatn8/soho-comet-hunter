@@ -522,7 +522,7 @@ def read_tsv_records(path):
 
 
 FRAME_NAME_RE = re.compile(
-    r"(?P<date>20\\d{6})_(?P<hm>\\d{4})_c[23]_(?:512|1024)\\.jpg",
+    r"(?P<date>20\d{6})_(?P<hm>\d{4})_c[23]_(?:512|1024)\.jpg",
     re.IGNORECASE,
 )
 
