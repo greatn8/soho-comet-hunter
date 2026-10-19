@@ -7,9 +7,22 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
-from benchmark_known_comets import controls, evaluate, parse_output, pick_frames, when
+from benchmark_known_comets import controls, evaluate, parse_output, pick_frames, when, index_images
 
 class ReplayTests(unittest.TestCase):
+    def test_full_workspace_inventory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            nested=root/"old_archive"/"cache"/"2024"
+            nested.mkdir(parents=True)
+            (nested/"20241126_0354_c3_1024.jpg").write_bytes(b"test")
+            (nested/"possible.tar.gz").write_bytes(b"test")
+            indexed,n,per_root,archives=index_images([root])
+            self.assertEqual(n,2)
+            self.assertIn(when("20241126_0354_c3_1024.jpg"),indexed[1024])
+            self.assertEqual(per_root[str(root)][1024],1)
+            self.assertTrue(any(x.endswith("possible.tar.gz") for x in archives))
+
     def test_known_controls_loaded(self):
         path=Path(__file__).resolve().parents[1]/"docs/data/candidates.json"
         known=controls(path)
