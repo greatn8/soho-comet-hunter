@@ -23,6 +23,8 @@
 #include <utility>
 #include <vector>
 
+#include "window_stationary_filter.hpp"
+
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -117,6 +119,12 @@ struct Args {
     int edgeMask = 24;
     float centerMaskFraction = 0.09f;
     int artifactBin = 3;
+
+    // OFF by default until the historical known-comet recovery benchmark
+    // confirms sensitivity. Never silently change the production detector.
+    bool withinWindowStationaryFilter = false;
+    float stationaryMinFrameFraction = 0.80f;
+    int stationaryBin = 2;
 
     int maxCandidates = 100;
     int rawSeedKeep = 2500;
@@ -3143,6 +3151,15 @@ static std::vector<Track> runPass(
             pass.artifactMinDays
         );
 
+    size_t stationaryRemoved = 0;
+    if (args.withinWindowStationaryFilter) {
+        stationaryRemoved = comet::removeWindowStationaryPoints(
+            detections,
+            args.stationaryBin,
+            args.stationaryMinFrameFraction
+        );
+    }
+
     size_t filteredCount =
         0;
 
@@ -3157,6 +3174,10 @@ static std::vector<Track> runPass(
     std::cout
         << "    recurring-coordinate detections removed: "
         << removed
+        << "\n"
+        << "    within-window stationary detections removed: "
+        << stationaryRemoved
+        << (args.withinWindowStationaryFilter ? " (enabled)" : " (disabled)")
         << "\n"
         << "    points remaining: "
         << filteredCount
@@ -3598,6 +3619,15 @@ static Args parseArgs(
                     )
                 );
         }
+        else if (option == "--within-window-stationary-filter") {
+            args.withinWindowStationaryFilter = true;
+        }
+        else if (option == "--stationary-fraction") {
+            args.stationaryMinFrameFraction = std::stof(value("--stationary-fraction"));
+        }
+        else if (option == "--stationary-bin") {
+            args.stationaryBin = std::stoi(value("--stationary-bin"));
+        }
         else if (
             option
             == "--max-candidates"
@@ -3626,7 +3656,10 @@ static Args parseArgs(
                 << "  --min-frames 5\n"
                 << "  --edge-mask 24\n"
                 << "  --center-mask-frac 0.09\n"
-                << "  --max-candidates 100\n";
+                << "  --max-candidates 100\n"
+                << "  --within-window-stationary-filter (experimental, OFF by default)\n"
+                << "  --stationary-fraction 0.80 (fraction of frames)\n"
+                << "  --stationary-bin 2 (spatial pixel bin)\n";
 
             std::exit(0);
         }
@@ -3658,6 +3691,13 @@ static Args parseArgs(
         throw std::runtime_error(
             "--resolution must be auto, 512, or 1024"
         );
+    }
+
+    if (args.stationaryBin < 1 || args.stationaryBin > 8 ||
+        !std::isfinite(args.stationaryMinFrameFraction) ||
+        args.stationaryMinFrameFraction < 0.5f ||
+        args.stationaryMinFrameFraction > 1.0f) {
+        throw std::runtime_error("Invalid within-window stationary filter parameters");
     }
 
     if (
