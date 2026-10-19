@@ -1,0 +1,14 @@
+name: Realtime view reset tests
+on:
+  pull_request:
+    paths:
+      - 'tools/update_dashboard.py'
+      - 'tests/test_realtime_view_reset.py'
+      - '.github/workflows/realtime-reset-tests.yml'
+jobs:
+  reset-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify display cutoff and keep prior records
+        run: python3 -m unittest discover -s tests -p 'test_realtime_view_reset.py' -v
