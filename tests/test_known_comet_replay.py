@@ -23,6 +23,31 @@ class ReplayTests(unittest.TestCase):
             self.assertEqual(per_root[str(root)][1024],1)
             self.assertTrue(any(x.endswith("possible.tar.gz") for x in archives))
 
+    def test_naive_soho_times_are_utc_not_host_local(self):
+        import os
+        import time
+        old = os.environ.get("TZ")
+        try:
+            os.environ["TZ"] = "Australia/Sydney"
+            if hasattr(time,"tzset"):
+                time.tzset()
+            self.assertEqual(when("2026-07-30T02:30:00").isoformat(),
+                             "2026-07-30T02:30:00+00:00")
+            self.assertEqual(when("2026-07-30T13:30:00+11:00").isoformat(),
+                             "2026-07-30T02:30:00+00:00")
+            case = next(x for x in controls(Path(__file__).resolve().parents[1]/
+                             "docs/data/candidates.json")
+                        if x["event_id"] == "EV20260730T0530_1E9C7C")
+            self.assertEqual(case["first"].date().isoformat(),"2026-07-30")
+            self.assertEqual(case["first"].hour,2)
+        finally:
+            if old is None:
+                os.environ.pop("TZ",None)
+            else:
+                os.environ["TZ"]=old
+            if hasattr(time,"tzset"):
+                time.tzset()
+
     def test_known_controls_loaded(self):
         path=Path(__file__).resolve().parents[1]/"docs/data/candidates.json"
         known=controls(path)

@@ -45,7 +45,13 @@ def when(value):
     value = str(value)
     if IMAGE.match(value):
         return dt.datetime.strptime(value[:13], "%Y%m%d_%H%M").replace(tzinfo=UTC)
-    return dt.datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+    # SOHO and dashboard event timestamps represent UTC even when their ISO
+    # strings omit an explicit offset. datetime.astimezone() assumes the
+    # machine's LOCAL timezone for naive values (e.g. Sydney => -11h).
+    parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def controls(dashboard):
