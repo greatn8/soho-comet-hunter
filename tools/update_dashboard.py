@@ -543,6 +543,36 @@ def frame_iso(frame_name):
         return None
 
 
+def realtime_view_reset_time(source):
+    """Optional display-only epoch stored outside Git and detector state."""
+    marker = Path(source) / "dashboard_view_reset_at.txt"
+    if not marker.is_file():
+        return None
+    try:
+        stamp = datetime.fromisoformat(marker.read_text(encoding="utf-8").strip().replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            raise ValueError("Cutoff must include UTC timezone")
+        return stamp.astimezone(timezone.utc)
+    except (OSError, ValueError) as exc:
+        print(f"[WARN] Ignoring invalid realtime display reset marker {marker}: {exc}")
+        return None
+
+
+def realtime_row_visible(row, reset_at):
+    """Old observation endpoints do not become new just because CUDA ran again."""
+    if reset_at is None:
+        return True
+    if not isinstance(row, dict):
+        return False
+    last_at = frame_iso(row.get("last"))
+    if not last_at:
+        return False
+    try:
+        return datetime.fromisoformat(last_at.replace("Z", "+00:00")) > reset_at
+    except ValueError:
+        return False
+
+
 def realtime_archive_id(row):
     last = clean(row.get("last")) or "unknown"
     candidate = clean(row.get("candidate")) or "CXX"
@@ -680,6 +710,7 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
     source = Path(realtime_source).expanduser().resolve()
     if not source.exists():
         return list(by_id.values())
+    reset_at = realtime_view_reset_time(source)
 
     rows = []
     for row in read_tsv_records(source / "alerts.tsv"):
@@ -692,6 +723,8 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
     promoted = 0
 
     for row, status in rows:
+        if not realtime_row_visible(row, reset_at):
+            continue
         last_seen_text = frame_iso(row.get("last"))
         if not last_seen_text:
             continue
@@ -840,13 +873,16 @@ def publish_realtime_data(realtime_source, data_dir):
     alert_text_path = source / "latest_alert.txt"
     heartbeat_path = source / "heartbeat.json"
     input_source_path = source / "input_source.json"
+    reset_at = realtime_view_reset_time(source)
 
     latest_candidates = []
     if candidates_path.exists():
         try:
             loaded = json.loads(candidates_path.read_text(encoding="utf-8"))
             if isinstance(loaded, list):
-                latest_candidates = loaded
+                latest_candidates = [
+                    row for row in loaded if realtime_row_visible(row, reset_at)
+                ]
         except Exception as exc:
             print(f"[WARN] Could not parse {candidates_path}: {exc}")
 
@@ -873,7 +909,7 @@ def publish_realtime_data(realtime_source, data_dir):
     review_history = []
     seen_reviews = set()
     for row in history_seed:
-        if not isinstance(row, dict):
+        if not realtime_row_visible(row, reset_at):
             continue
         review_id = clean(row.get("review_id")) or find_realtime_review_id(source, row)
         key = review_id or "|".join(
@@ -912,8 +948,10 @@ def publish_realtime_data(realtime_source, data_dir):
         for row in latest_candidates
     ]
 
-    alerts = read_tsv_records(alerts_path)
-    known = read_tsv_records(known_path)
+    all_alerts = read_tsv_records(alerts_path)
+    all_known = read_tsv_records(known_path)
+    alerts = [row for row in all_alerts if realtime_row_visible(row, reset_at)]
+    known = [row for row in all_known if realtime_row_visible(row, reset_at)]
 
     last_frame = None
     if frame_path.exists():
@@ -1020,8 +1058,10 @@ def publish_realtime_data(realtime_source, data_dir):
         "current_unmatched_total": current_unmatched_total,
         "current_known_total": current_known_total,
         "alerts_total": len(alerts),
-        "alerts_lifetime_total": len(alerts),
+        "alerts_lifetime_total": len(all_alerts),
         "known_matches_total": len(known),
+        "known_matches_lifetime_total": len(all_known),
+        "view_reset_at": reset_at.isoformat().replace("+00:00", "Z") if reset_at else None,
         "latest_alert": latest_alert,
         "latest_candidates": latest_candidates[:50],
         "review_candidates": review_candidates,
