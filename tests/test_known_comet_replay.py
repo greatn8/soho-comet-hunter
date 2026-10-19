@@ -80,14 +80,14 @@ class ReplayTests(unittest.TestCase):
         lines=(
             "C483 [MEDIUM] | pass=deep-06 | frames=17 | speed=14.17 px/h | "
             "vx=-10.01 | vy=10.02 | RMS=1.42 | brightnessCV=0.27 | "
-            "sunward=14.14 px/h | score=225.97\\n"
-            "    first: 20260730_0254_c3_512.jpg (391.00, 122.00)\\n"
-            "    last : 20260730_0630_c3_512.jpg (354.00, 157.00)\\n"
+            "sunward=14.14 px/h | score=225.97\n"
+            "    first: 20260730_0254_c3_512.jpg (391.00, 122.00)\n"
+            "    last : 20260730_0630_c3_512.jpg (354.00, 157.00)\n"
             "C489 [LOW] | pass=deep-03 | frames=21 | speed=11.18 px/h | "
             "vx=10.05 | vy=-4.90 | RMS=1.60 | brightnessCV=1.21 | "
-            "sunward=-10.31 px/h | score=224.80\\n"
-            "    first: 20260730_0142_c3_512.jpg (390.00, 126.00)\\n"
-            "    last : 20260730_0630_c3_512.jpg (435.00, 102.00)\\n"
+            "sunward=-10.31 px/h | score=224.80\n"
+            "    first: 20260730_0142_c3_512.jpg (390.00, 126.00)\n"
+            "    last : 20260730_0630_c3_512.jpg (435.00, 102.00)\n"
         )
         rows=parse_output(lines)
         self.assertEqual(len(rows),2)
