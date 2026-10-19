@@ -19,6 +19,27 @@ class MultiscaleTests(unittest.TestCase):
                              [frames[2].name,frames[3].name])
             self.assertEqual(len(select_recent_frames(frames,48)),4)
 
+    def test_experimental_filter_marker_survives_restarts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); cache=root/"cache"; cache.mkdir()
+            (root/"state").mkdir()
+            (root/"state"/"realtime_cuda_stationary_enabled").write_text("on\\n")
+            for hour in range(5):
+                (cache/f"20261016_{hour:02d}00_c3_512.jpg").write_bytes(b"fake")
+            calls=[]
+            def fake_run(cmd,**kwargs):
+                calls.append(cmd)
+                return types.SimpleNamespace(returncode=0,stdout="")
+            args=types.SimpleNamespace(search_windows=(2,5,12),
+                short_budget_minutes=1,medium_budget_minutes=1,
+                compute_minutes=1,min_frames=2,max_candidates=100)
+            with patch("realtime_hunter.subprocess.run",side_effect=fake_run):
+                _,stats=run_multiscale_cuda(
+                    root,sorted(cache.glob("*.jpg")),root,args,"test",cache)
+            self.assertEqual(len(calls),3)
+            self.assertTrue(all("--within-window-stationary-filter" in cmd for cmd in calls))
+            self.assertTrue(all(row["stationary_filter_enabled"] for row in stats))
+
     def test_three_independent_runs_and_namespaced_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); cache=root/"cache"; cache.mkdir()
