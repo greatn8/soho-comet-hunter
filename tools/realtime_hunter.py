@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from live_review import ensure_live_review
-from pixel_verify import classify_for_review, verify_track_pixels
+from pixel_verify import classify_for_review, verify_track_pixels, verify_temporal_motion
 from track_evidence import audit_track_frames, position_at
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
@@ -914,6 +914,15 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
                 pixel["endpoint_model"]=alternative
             except Exception as exc:
                 pixel["endpoint_model_error"]=str(exc)
+        # Independent negative control: does a compact source move through
+        # successive image positions, or persist at fixed pixels?
+        # This is diagnostic until benchmarked against known SOHO comets.
+        try:
+            control_model="endpoints" if c.get("trajectory_warning") else "velocity"
+            pixel["temporal_motion"]=verify_temporal_motion(
+                c,frames,gray_cache=gray_cache,model=control_model)
+        except Exception as exc:
+            pixel["temporal_motion"]={"status":"UNAVAILABLE","error":str(exc)}
         c["pixel_verification"]=pixel
         c["review_class"]=review_class
         c["historical_recovery_profile"]=historical_like
@@ -934,6 +943,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         bool(c.get("trajectory_warning")),
         c["last"]["time"]<recent_cutoff,
         c.get("source_window_hours",336),
+        -(c.get("pixel_verification",{}).get("temporal_motion",{}).get("support_fraction") or 0),
         -live_candidate_rank(c),
     ))
     low_support_review=rejected_representatives[:low_support_review_limit]
@@ -973,6 +983,8 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "low_support":velocity_sign_counts(rejected_representatives),
         },
         "pixel_verified_events":len(verified_representatives),
+        "temporal_motion_measured":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("status")=="MEASURED" for c in event_representatives),
+        "temporal_motion_supported":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("supported",0) >= 3 for c in event_representatives),
         "pixel_rejected_events":len(rejected_representatives),
         "pixel_strong_events":sum(1 for c in verified_representatives if c.get("review_class")=="STRONG_REVIEW"),
         "pixel_secondary_events":sum(1 for c in verified_representatives if c.get("review_class")=="SECONDARY"),
