@@ -253,3 +253,85 @@ def classify_for_review(candidate, pixel_result):
         # is weak or unavailable so the verifier cannot erase known-like cases.
         return "SECONDARY", True
     return "VISUAL_REJECT", False
+
+
+def verify_temporal_motion(candidate, frame_paths, gray_cache=None, model="velocity",
+                           max_samples=18, min_separation_px=5.0):
+    """Independent moving-source evidence against same-pixel background.
+
+    At a tracked position in a middle frame, compare the compact source
+    signal to the same position in earlier and later frames. A stationary
+    feature or occulting-edge artifact should remain at that pixel; a moving
+    compact source may appear only while passing through it.
+
+    Diagnostic only until measured against historical known-comet controls.
+    """
+    cache = gray_cache if gray_cache is not None else {}
+    first = candidate["first"]
+    last = candidate["last"]
+    t0, t1 = first["time"], last["time"]
+    if t1 <= t0:
+        return {"status": "UNAVAILABLE", "tested": 0, "supported": 0,
+                "support_fraction": 0.0, "reason": "ZERO_TIME_SPAN"}
+    eligible = []
+    for f in frame_paths:
+        try:
+            t = _frame_time(f)
+        except (TypeError, ValueError):
+            continue
+        if t0 <= t <= t1:
+            eligible.append((Path(f), t))
+    eligible.sort(key=lambda entry: entry[1])
+    if len(eligible) < 5:
+        return {"status": "UNAVAILABLE", "tested": 0, "supported": 0,
+                "support_fraction": 0.0, "reason": "TOO_FEW_SOURCE_FRAMES"}
+
+    def position(t):
+        if model == "endpoints":
+            fraction = (t - t0).total_seconds() / (t1 - t0).total_seconds()
+            return (float(first["x"]) + fraction * (float(last["x"])-float(first["x"])),
+                    float(first["y"]) + fraction * (float(last["y"])-float(first["y"])))
+        hours = (t - t0).total_seconds() / 3600.0
+        return (float(first["x"]) + hours * float(candidate["vx"]),
+                float(first["y"]) + hours * float(candidate["vy"]))
+
+    selected = list(range(1, len(eligible)-1))
+    if len(selected) > max_samples:
+        selected = sorted({selected[round(i*(len(selected)-1)/(max_samples-1))]
+                           for i in range(max_samples)})
+    tested = supported = 0
+    excess_values = []
+    for i in selected:
+        target,t = eligible[i]
+        x,y = position(t)
+        # Seek controls distant enough in time that the fitted source should
+        # have moved several pixels, not just to adjacent 12-minute images.
+        left = next((j for j in range(i-1,-1,-1)
+                     if math.dist(position(eligible[j][1]),(x,y)) >= min_separation_px),None)
+        right = next((j for j in range(i+1,len(eligible))
+                      if math.dist(position(eligible[j][1]),(x,y)) >= min_separation_px),None)
+        if left is None or right is None:
+            continue
+        current = _decode_gray(target,cache)
+        before = _decode_gray(eligible[left][0],cache)
+        after = _decode_gray(eligible[right][0],cache)
+        if current is None or before is None or after is None:
+            continue
+        a = _sample_signal(current,x,y)
+        b = _sample_signal(before,x,y)
+        c = _sample_signal(after,x,y)
+        if a is None or b is None or c is None:
+            continue
+        baseline = max(b["contrast"],c["contrast"])
+        excess = a["contrast"] - baseline
+        tested += 1
+        excess_values.append(excess)
+        # Requiring significance against the same position is intentionally
+        # more resistant to persistent background features than spatial SNR.
+        if a["snr"] >= 2.5 and excess >= max(3.0,2.0*a["noise"]):
+            supported += 1
+    frac = supported/tested if tested else 0.0
+    return {"status":"MEASURED" if tested>=3 else "UNAVAILABLE",
+            "tested":tested,"supported":supported,
+            "support_fraction":round(frac,4),
+            "median_excess":round(_median(excess_values),3)}
