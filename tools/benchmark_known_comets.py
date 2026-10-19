@@ -160,6 +160,8 @@ def parse_output(stdout):
             continue
         first = last = None
         for line2 in lines[i+1:i+6]:
+            if CANDIDATE.search(line2.strip()):
+                break  # Never steal endpoints from the next CUDA candidate.
             m = POINT.search(line2)
             if m:
                 point = {"time": when(m.group(1)),
