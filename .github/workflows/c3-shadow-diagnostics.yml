@@ -6,6 +6,8 @@ on:
       - "tests/test_c3_shadow_streak.py"
       - "tests/test_c3_shadow_rank_audit.py"
       - "tools/audit_c3_shadow_ranking.py"
+      - "tools/diagnose_c3_peak_vs_track.py"
+      - "tests/test_c3_peak_vs_track.py"
       - ".github/workflows/c3-shadow-diagnostics.yml"
 jobs:
   shadow:
@@ -18,3 +20,4 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_c3_shadow_streak.py' -v
           python3 -m unittest discover -s tests -p 'test_c3_shadow_rank_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_c3_peak_vs_track.py' -v
