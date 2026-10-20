@@ -1,0 +1,16 @@
+name: C3 shadow streak diagnostics tests
+on:
+  pull_request:
+    paths:
+      - "tools/diagnose_c3_shadow_streak.py"
+      - "tests/test_c3_shadow_streak.py"
+      - ".github/workflows/c3-shadow-diagnostics.yml"
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numpy
+        run: python3 -m pip install numpy
+      - name: Offline feature and negative controls
+        run: python3 -m unittest discover -s tests -p 'test_c3_shadow_streak.py' -v
