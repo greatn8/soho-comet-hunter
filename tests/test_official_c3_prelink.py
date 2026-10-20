@@ -3,7 +3,10 @@ from pathlib import Path
 import sys
 import unittest
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    raise unittest.SkipTest("CPU pixel diagnostic requires numpy; the dedicated workflow installs it")
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
 from diagnose_official_c3_prelink import raw_maxima,truth_rank,sample_mask_reason
