@@ -603,7 +603,21 @@ function renderRealtime(payload) {
     ? payload.review_candidates
     : currentRows;
   const { primary, diagnostics } = realtimeReviewGroups(reviewRows);
-  const rowsToDisplay = state.showLowSupportRealtime ? [...primary, ...diagnostics] : primary;
+  // Never leave an active discovery dashboard visually empty when the only
+  // results are unverified. Show a *small* preview of CURRENT weak tracks,
+  // clearly labelled, while retaining the full diagnostic toggle. Do not
+  // promote them to alerts or mix them into the permanent archive.
+  const currentDiagnosticPreviews = !state.showLowSupportRealtime && !primary.length
+    ? currentRows.filter(isRealtimeDiagnosticOnly).slice(0, 3)
+    : [];
+  const rowsToDisplay = state.showLowSupportRealtime
+    ? [...primary, ...diagnostics]
+    : [...primary, ...currentDiagnosticPreviews];
+  const diagnosticNotice = currentDiagnosticPreviews.length
+    ? '<div class="realtime-empty"><strong>No evidence-supported candidates in the published review set.</strong> Showing ' +
+      currentDiagnosticPreviews.length +
+      ' recent LOW SUPPORT track preview(s) below for manual inspection. These are not verified comets or discovery alerts.</div>'
+    : '';
 
   if (!reviewRows.length) {
     candidatesEl.innerHTML = '<div class="realtime-empty">No retained realtime review candidates yet.</div>';
@@ -640,6 +654,7 @@ function renderRealtime(payload) {
     : "";
 
   candidatesEl.innerHTML =
+    diagnosticNotice +
     ordered.slice(0, visible).map(realtimeCandidateCard).join("") +
     more + diagnosticControls;
 
