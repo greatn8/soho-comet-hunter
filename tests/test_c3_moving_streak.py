@@ -1,7 +1,10 @@
 """Synthetic moving-dark-trough and real-moving-source controls."""
 import sys,unittest
 from pathlib import Path
-import numpy as np
+try:
+ import numpy as np
+except ImportError:
+ raise unittest.SkipTest('numpy only installed in dedicated shadow diagnostic CI')
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
 from audit_c3_moving_streak import shadow_center_in_frame, streak_drift_measurements, following_evidence
 
