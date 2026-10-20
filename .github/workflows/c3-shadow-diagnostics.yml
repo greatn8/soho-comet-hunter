@@ -10,6 +10,8 @@ on:
       - "tests/test_c3_peak_vs_track.py"
       - "tools/audit_c3_moving_streak.py"
       - "tests/test_c3_moving_streak.py"
+      - "tools/audit_c3_source_shape.py"
+      - "tests/test_c3_source_shape.py"
       - ".github/workflows/c3-shadow-diagnostics.yml"
 jobs:
   shadow:
@@ -24,3 +26,4 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_c3_shadow_rank_audit.py' -v
           python3 -m unittest discover -s tests -p 'test_c3_peak_vs_track.py' -v
           python3 -m unittest discover -s tests -p 'test_c3_moving_streak.py' -v
+          python3 -m unittest discover -s tests -p 'test_c3_source_shape.py' -v
