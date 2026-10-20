@@ -650,6 +650,12 @@ def build_realtime_archive_candidate(row, status, promoted_at):
             "The live trajectory matched a recent Sungrazer report. "
             "Human review is still recommended before treating the identity as definitive."
         )
+    elif str(row.get("review_class") or "").upper() == "STRONG_REVIEW":
+        review_class = "STRONG_REVIEW"
+        notes = (
+            "Strong realtime review automatically archived 24 hours after its last image. "
+            "This is an unconfirmed moving-object candidate, not a validated comet."
+        )
     else:
         review_class = "REALTIME_UNRESOLVED"
         notes = (
@@ -659,7 +665,7 @@ def build_realtime_archive_candidate(row, status, promoted_at):
 
     return {
         "id": candidate_id,
-        "title": f"Realtime candidate {candidate_id}",
+        "title": f"Realtime candidate {clean(row.get('candidate')) or candidate_id}",
         "score": number(row.get("score")),
         "review_class": review_class,
         "event_id": candidate_id,
@@ -684,6 +690,33 @@ def build_realtime_archive_candidate(row, status, promoted_at):
         "known_object": report_id,
         "promoted_at": promoted_at,
     }
+
+
+def preserve_realtime_archive_media(source, data_dir, candidate, review_id):
+    """Copy bounded review evidence into stable historical dashboard media."""
+    if not review_id or not str(review_id).startswith("RT"):
+        return
+    safe_id = norm_id(candidate.get("id"))
+    if not safe_id:
+        return
+    review_folder = source / "review" / str(review_id)
+    dest = data_dir.parent / "media" / "realtime_archive" / safe_id
+    for filename, field, size_cap in (
+        ("zoom_annotated.mp4", "video", 15 * 1024 * 1024),
+        ("zoom_contact_sheet.jpg", "thumbnail", 2 * 1024 * 1024),
+    ):
+        src, target = review_folder / filename, dest / filename
+        if not target.is_file():
+            try:
+                if not src.is_file() or src.stat().st_size > size_cap:
+                    continue
+                dest.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, target)
+            except OSError as exc:
+                print(f"[WARN] Could not preserve historical review media: {exc}")
+                continue
+        if target.is_file():
+            candidate[field] = f"./media/realtime_archive/{safe_id}/{filename}"
 
 
 def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
@@ -712,11 +745,54 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
         return list(by_id.values())
     reset_at = realtime_view_reset_time(source)
 
+    # Persist strong reviews until their 24-hour archive age, even when
+    # subsequent GPU runs drop their candidate IDs from latest_candidates.
+    pending_path = data_dir / "realtime_strong_pending.json"
+    try:
+        pending_data = json.loads(pending_path.read_text(encoding="utf-8"))
+        pending = pending_data.get("pending", {}) if isinstance(pending_data, dict) else {}
+        if not isinstance(pending, dict):
+            pending = {}
+    except (OSError, ValueError):
+        pending = {}
+
+    def hold_strong(row):
+        if not isinstance(row, dict):
+            return
+        if str(row.get("review_class") or "").upper() != "STRONG_REVIEW":
+            return
+        if not realtime_row_visible(row, reset_at) or not frame_iso(row.get("last")):
+            return
+        key = realtime_archive_id(row)
+        if key not in by_id:
+            pending[key] = dict(row)
+
+    current_path = source / "latest_candidates.json"
+    try:
+        current_rows = json.loads(current_path.read_text(encoding="utf-8"))
+        if isinstance(current_rows, list):
+            for row in current_rows:
+                hold_strong(row)
+    except (OSError, ValueError) as exc:
+        print(f"[WARN] Could not read live candidate history: {exc}")
+
+    previous_dashboard_path = data_dir / "realtime.json"
+    try:
+        previous_dashboard = json.loads(previous_dashboard_path.read_text(encoding="utf-8"))
+        previous_rows = previous_dashboard.get("review_candidates", [])
+        if isinstance(previous_rows, list):
+            for row in previous_rows:
+                hold_strong(row)
+    except (OSError, ValueError) as exc:
+        print(f"[WARN] Could not read published candidate history: {exc}")
+
     rows = []
     for row in read_tsv_records(source / "alerts.tsv"):
         rows.append((row, "UNMATCHED"))
     for row in read_tsv_records(source / "known_matches.tsv"):
         rows.append((row, "KNOWN_REPORT"))
+    for row in pending.values():
+        rows.append((row, str(row.get("status") or "SEEN_ALREADY").upper()))
 
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=age_hours)
@@ -739,12 +815,9 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
         review_id = find_realtime_review_id(source, row)
         candidate = build_realtime_archive_candidate(row, status, promoted_at)
         candidate["review_id"] = review_id
-        # Realtime live-media clips are intentionally ephemeral and are not
-        # attached to the permanent candidate archive.
-        candidate["video"] = None
-        candidate["thumbnail"] = None
-        candidate["review_raw_video"] = None
-        candidate["review_full_video"] = None
+        # Live-media is ephemeral: preserve at least the annotated video and
+        # contact-sheet thumbnail in the permanent archive before they vanish.
+        preserve_realtime_archive_media(source, data_dir, candidate, review_id)
         existing = by_id.get(candidate["id"])
 
         if existing:
@@ -754,6 +827,13 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
                 existing["realtime_status"] = status
                 existing["known_object"] = candidate.get("known_object")
                 existing["notes"] = candidate["notes"]
+            elif (candidate["review_class"] == "STRONG_REVIEW"
+                  and existing.get("review_class") == "REALTIME_UNRESOLVED"):
+                existing["review_class"] = "STRONG_REVIEW"
+                existing["notes"] = candidate["notes"]
+            for field in ("video", "thumbnail"):
+                if not existing.get(field) and candidate.get(field):
+                    existing[field] = candidate[field]
             for field in ("score", "speed", "sun_distance", "rms", "frames"):
                 if existing.get(field) is None and candidate.get(field) is not None:
                     existing[field] = candidate[field]
@@ -761,6 +841,17 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
 
         by_id[candidate["id"]] = candidate
         promoted += 1
+
+    # Archive is permanent; the pending queue is only for not-yet-eligible
+    # strong reviews and is removed once the record is archived.
+    pending = {key:row for key,row in pending.items() if key not in by_id}
+    pending_payload = {"pending":pending}
+    try:
+        previous_pending = json.loads(pending_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        previous_pending = None
+    if pending_payload != previous_pending:
+        pending_path.write_text(json.dumps(pending_payload,indent=2)+"\n",encoding="utf-8")
 
     candidates = sorted(
         by_id.values(),
@@ -886,6 +977,20 @@ def publish_realtime_data(realtime_source, data_dir):
         except Exception as exc:
             print(f"[WARN] Could not parse {candidates_path}: {exc}")
 
+    # Remove already-archived realtime detections from the realtime section:
+    # their permanent records now appear in the historical candidate archive.
+    try:
+        archived_payload = json.loads((data_dir / "realtime_archive.json").read_text(encoding="utf-8"))
+        archived_ids = {
+            str(item.get("id")) for item in archived_payload.get("candidates", [])
+            if isinstance(item, dict)
+        }
+    except (OSError, ValueError):
+        archived_ids = set()
+    latest_candidates = [
+        row for row in latest_candidates if realtime_archive_id(row) not in archived_ids
+    ]
+
     # Preserve a bounded review history across frequent dashboard publishes.
     # Current candidates are inserted first, followed by older review rows from
     # the previous dashboard payload. Only the newest 100 unique reviews are
@@ -910,6 +1015,8 @@ def publish_realtime_data(realtime_source, data_dir):
     seen_reviews = set()
     for row in history_seed:
         if not realtime_row_visible(row, reset_at):
+            continue
+        if realtime_archive_id(row) in archived_ids:
             continue
         review_id = clean(row.get("review_id")) or find_realtime_review_id(source, row)
         key = review_id or "|".join(
