@@ -252,6 +252,8 @@ def main():
     ap.add_argument("--max-candidates",type=int,default=500)
     ap.add_argument("--budget-minutes",type=int,default=2)
     ap.add_argument("--execute",action="store_true")
+    ap.add_argument("--include-spatial",action="store_true",
+                    help="Also A/B test opt-in spatial peak balancing using actual known comet truth")
     ap.add_argument("--output",type=Path)
     args=ap.parse_args()
     if not 1<=args.budget_minutes<=10 or not 20<=args.max_candidates<=1000:
@@ -291,6 +293,8 @@ def main():
                              text=True,check=True).stdout
     if "--trajectory-null-control" not in help_text:
         ap.error("Test binary does not support the experimental null control")
+    if args.include_spatial and "--spatial-balanced-peaks" not in help_text:
+        ap.error("Test binary does not support --spatial-balanced-peaks; rebuild the isolated test binary")
     output=(args.output or project/"results"/"sungrazer_c3_truth_replay").expanduser().resolve()
     output.mkdir(parents=True,exist_ok=True)
     report={"training_source":"Sungrazer official training ZIPs",
@@ -310,7 +314,11 @@ def main():
                 entry["error"]="STAGING_FAILED: "+str(e)
                 print(f"{case['dataset']}: {entry['error']}",flush=True)
                 continue
-            for variant, flags in VARIANTS.items():
+            variants=dict(VARIANTS)
+            if args.include_spatial:
+                variants["spatial_only"]=["--within-window-stationary-filter","--spatial-balanced-peaks"]
+                variants["spatial_and_null"]=["--within-window-stationary-filter","--spatial-balanced-peaks","--trajectory-integrity-filter","--trajectory-null-control"]
+            for variant, flags in variants.items():
                 if busy_cuda():
                     print("Production GPU detector currently busy; stopping A/B replay safely.",flush=True)
                     entry["runs"].append({"variant":variant,"status":"GPU_BUSY"})
