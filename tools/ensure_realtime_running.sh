@@ -45,10 +45,14 @@ if ! command -v tmux >/dev/null 2>&1; then
 fi
 
 mkdir -p "$PROJECT/state" "$PROJECT/logs" "$PROJECT/results/realtime"
-exec 8>"$PROJECT/state/.realtime_recover.lock"
+# The previous lock pathname can remain held forever by an orphan tmux
+# launcher which inherited FD 8. Use a fresh lock namespace to recover from
+# that existing leaked lock without deleting or mutating the old lock inode.
+# All callers of THIS version use the new pathname, preserving mutual exclusion.
+exec 8>"$PROJECT/state/.realtime_recover_v2.lock"
 if ! flock -n 8; then
-  echo "[INFO] Another hunter-recovery check is already in progress."
-  exit 0
+  echo "[WARN] Realtime recovery lock is busy; another recovery may be underway." >&2
+  exit 1
 fi
 
 hunter_running() {
@@ -88,7 +92,10 @@ tmux kill-session -t "$SESSION" 2>/dev/null || true
 # automatically because a 14-day CUDA replay may take much longer.
 printf -v launch 'cd %q && exec python3 %q --project %q >> %q 2>&1' \
   "$PROJECT" "$HUNTER" "$PROJECT" "$LOG"
-tmux new-session -d -s "$SESSION" "bash -lc $(printf '%q' "$launch")"
+# Critical: do not let tmux (or its server) inherit the recovery flock.
+# Otherwise a detached tmux wrapper can hold FD 8 after this script exits,
+# preventing every subsequent watchdog recovery.
+tmux new-session -d -s "$SESSION" "bash -lc $(printf '%q' "$launch")" 8>&-
 
 sleep 2
 if hunter_running; then
