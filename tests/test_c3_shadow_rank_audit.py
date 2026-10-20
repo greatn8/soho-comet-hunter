@@ -37,6 +37,25 @@ class ShadowRankTests(unittest.TestCase):
         self.assertTrue(row["evaluable"])
         self.assertFalse(row["associated_with_persistent_shadow"])
 
+    def test_unevaluable_track_is_preserved_and_not_penalised(self):
+        mask=np.zeros((512,512),dtype=bool)
+        mask[300:420,95:105]=True
+        unevaluable=self.track(100,500,700,dy=2)
+        evidence=track_artifact_evidence(unevaluable,mask)
+        self.assertFalse(evidence["evaluable"])
+        self.assertFalse(evidence.get("associated_with_persistent_shadow",False))
+        valid=self.track(100,340,600)
+        entries=[
+            {"track":unevaluable,"native_rank":1,"quadrant":"LOWER_LEFT",
+             "shadow":evidence,"comet_like":True},
+            {"track":valid,"native_rank":2,"quadrant":"LOWER_LEFT",
+             "shadow":track_artifact_evidence(valid,mask),"comet_like":True},
+        ]
+        sorted_rows=ranking_order(entries,"streak_last")
+        self.assertEqual(len(sorted_rows),2)
+        self.assertEqual(sorted_rows[0]["native_rank"],1)
+        self.assertEqual(sorted_rows[1]["native_rank"],2)
+
     def test_rank_only_no_candidate_deletion(self):
         mask=np.zeros((512,512),dtype=bool)
         mask[300:420,95:105]=True
