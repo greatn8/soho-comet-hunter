@@ -779,6 +779,7 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
     # Explicit marker persists across tmux/watchdog restarts. The flag
     # requires the separately compiled experimental CUDA detector.
     stationary_filter=(project/"state"/"realtime_cuda_stationary_enabled").is_file()
+    enhanced_filter=(project/"state"/"realtime_cuda_enhanced_enabled").is_file()
     budgets=(args.short_budget_minutes,args.medium_budget_minutes,args.compute_minutes)
     for window_hours,budget in zip(args.search_windows,budgets):
         subset=select_recent_frames(frames,window_hours)
@@ -806,6 +807,9 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
                  str(args.min_frames),"--max-candidates",str(args.max_candidates)]
             if stationary_filter:
                 cmd.append("--within-window-stationary-filter")
+            if enhanced_filter:
+                cmd.extend(["--spatial-balanced-peaks", "--trajectory-integrity-filter",
+                            "--trajectory-null-control"])
             log(f"CUDA {window_hours}h pass: {len(subset)} cached frames, {budget}m budget; "
                 f"stationary filter={'ON' if stationary_filter else 'OFF'}.")
             proc=subprocess.run(cmd,cwd=project,text=True,stdout=subprocess.PIPE,
