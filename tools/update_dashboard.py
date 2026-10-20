@@ -1004,7 +1004,27 @@ def publish_realtime_data(realtime_source, data_dir):
         except Exception:
             previous_payload = {}
 
-    history_seed = list(latest_candidates)
+    # Strong reviews awaiting the 24-hour archive transfer MUST remain
+    # visible even after being displaced from the 100 newest routine tracks.
+    # This read-only ledger is also used by promote_realtime_candidates above.
+    pending_strong = []
+    pending_strong_path = data_dir / "realtime_strong_pending.json"
+    if pending_strong_path.is_file():
+        try:
+            pending_data = json.loads(pending_strong_path.read_text(encoding="utf-8"))
+            pending = pending_data.get("pending", {})
+            if isinstance(pending, dict):
+                pending_strong = [
+                    row for row in pending.values()
+                    if isinstance(row, dict)
+                    and str(row.get("review_class") or "").upper() == "STRONG_REVIEW"
+                    and realtime_archive_id(row) not in archived_ids
+                    and realtime_row_visible(row, reset_at)
+                ]
+        except (OSError, ValueError, TypeError) as exc:
+            print(f"[WARN] Could not restore pending strong reviews to realtime display: {exc}")
+    pending_strong.sort(key=lambda row: str(row.get("last") or ""), reverse=True)
+    history_seed = pending_strong + list(latest_candidates)
     old_history = previous_payload.get("review_candidates")
     if not isinstance(old_history, list):
         old_history = previous_payload.get("latest_candidates")
