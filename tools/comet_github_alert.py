@@ -55,6 +55,8 @@ def normalize(candidate, track=None):
         "last": str(candidate.get("last") or ""),
         "frames": candidate.get("frames"),
         "pixel_verification": candidate.get("pixel_verification") or {},
+        "submission_frames": candidate.get("submission_frames") or [],
+        "submission_frame_status": candidate.get("submission_frame_status") or "",
         "track": {
             k: track.get(k) for k in ("first_x", "first_y", "last_x", "last_y", "vx", "vy")
             if k in track
@@ -147,6 +149,12 @@ def watch(project, interval, age_hours, test):
                     if any(same_physical_object(old, candidate) or
                            unique_key(old)==unique_key(candidate) for old in dispatched):
                         continue
+                    try:
+                        from extract_submission_frames import extract_submission_rows
+                        candidate["submission_frames"] = extract_submission_rows(project, candidate)
+                        candidate["submission_frame_status"] = "Review all approximate pixel coordinates"
+                    except Exception as frame_error:
+                        candidate["submission_frame_status"] = "Frame extraction unavailable: " + str(frame_error)[:180]
                     cli_dispatch(candidate)
                     dispatched.append(candidate)
                     tmp = state_file.with_name(state_file.name+".tmp")
@@ -220,6 +228,22 @@ def issue_details(candidate, test=False):
             f"- First measured XY (512): ({track['first_x']}, {track['first_y']})\n"
             f"- Last measured XY (512): ({track['last_x']}, {track['last_y']})\n"
         )
+    report_rows = candidate.get("submission_frames") or []
+    if report_rows:
+        row_text = ("\\n### Frame positions for SOHO report (UTC, 512x512, upper-left origin)\\n\\n"
+                    "| Frame Time | X Pos | Y Pos | Basis |\\n"
+                    "|---|---:|---:|---|\\n")
+        for row in report_rows:
+            row_text += (f"| {row.get('date','')} {row.get('time','')} | "
+                         f"{row.get('x','')} | {row.get('y','')} | "
+                         f"{row.get('basis','')} |\\n")
+        row_text += ("\\n**Verify all positions against the original images.** "
+                     "CUDA endpoints are detector-fit values. Intermediate coordinates "
+                     "are temporally localized pixel estimates, NOT confirmed astrometry.\\n")
+    else:
+        row_text = ("\\n### Frame positions\\n"
+                    "No independently supported per-frame positions available. "
+                    "Do not substitute interpolated guesses.\\n")
     body = (
         f"@{ASSIGNEE} **Investigate promptly — candidate, NOT confirmed discovery.**\n\n"
         f"- Candidate: **{candidate_id}**\n"
@@ -230,7 +254,7 @@ def issue_details(candidate, test=False):
         f"- Tracked frames: {candidate.get('frames')}\n"
         f"- Pixel support: {pixel.get('hits')}/{pixel.get('samples')}\n"
         f"- Temporal-motion support: {motion.get('supported')}/{motion.get('tested')}\n"
-        + endpoints +
+        + endpoints + row_text +
         f"\n[Watch review video]({link}) (may not be published yet)\n"
         f"[Open live dashboard]({DASHBOARD})\n\n"
         "Check actual SOHO images and existing Sungrazer reports before claiming discovery.\n"
