@@ -38,10 +38,10 @@ THRESHOLD=18.0
 def moving_box_sum(img, diameter):
     """Vectorized integral-image sum, constant padding (only interior used)."""
     r=diameter//2
-    a=np.pad(img.astype(np.int32),((r,r+1),(r,r+1)))
+    a=np.pad(img.astype(np.int32),((r,r),(r,r)))
     # Integral image has explicit initial zero row/column.
     integ=np.pad(a,((1,0),(1,0))).cumsum(0).cumsum(1)
-    # For a 512px input padded by r on left/top and r+1 on right/bottom,
+    # For a 512px input padded by r on each side,
     # the full (diameter)x(diameter) box has 512x512 output.
     return (integ[diameter:,diameter:]-integ[:-diameter,diameter:]
             -integ[diameter:,:-diameter]+integ[:-diameter,:-diameter])
