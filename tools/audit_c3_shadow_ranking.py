@@ -63,7 +63,8 @@ def track_artifact_evidence(track, feature, sample_count=21,
     y=np.rint(ys).astype(int)
     valid=_in_field(x,y,quadrant)
     if valid.sum()<min_samples:
-        return {"evaluable":False,"reason":"INSUFFICIENT_PATH_PIXELS"}
+        return {"evaluable":False,"associated_with_persistent_shadow":False,
+                "reason":"INSUFFICIENT_PATH_PIXELS"}
     controls=[]
     matching=[]
     for offset in offsets:
@@ -76,7 +77,8 @@ def track_artifact_evidence(track, feature, sample_count=21,
         matching.append(actual)
         controls.append(null)
     if len(controls)<2:
-        return {"evaluable":False,"reason":"INSUFFICIENT_MATCHED_CONTROLS"}
+        return {"evaluable":False,"associated_with_persistent_shadow":False,
+                "reason":"INSUFFICIENT_MATCHED_CONTROLS"}
     observed=float(np.mean(matching))
     comparison=float(np.mean(controls))
     excess=observed-comparison
@@ -118,7 +120,8 @@ def ranking_order(items, policy):
     original=sorted(items,key=lambda i:(-float(i["track"]["score"]),i["native_rank"]))
     if policy=="native":return original
     if policy=="streak_last":
-        return sorted(original,key=lambda i:bool(i["shadow"]["associated_with_persistent_shadow"]))
+        return sorted(original,key=lambda i:bool(i["shadow"].get(
+            "associated_with_persistent_shadow",False)))
     if policy=="spatial_diversity":
         return diversify(original)
     if policy=="streak_then_diverse":
