@@ -1,7 +1,10 @@
 """Small synthetic controls for offline streak-associated reranking."""
 import sys, unittest
 from pathlib import Path
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    raise unittest.SkipTest("numpy only installed in dedicated shadow diagnostic CI")
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
 from audit_c3_shadow_ranking import track_artifact_evidence, ranking_order, audit
 
