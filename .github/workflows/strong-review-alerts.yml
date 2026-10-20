@@ -1,0 +1,31 @@
+name: SOHO strong-review email alerts
+
+on:
+  repository_dispatch:
+    types: [soho-strong-review]
+  push:
+    branches: [main]
+    paths:
+      - docs/data/realtime.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: comet-strong-review-notifications
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create assigned GitHub issue for new STRONG_REVIEW
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: python3 tools/comet_github_alert.py --issue --age-hours 12
