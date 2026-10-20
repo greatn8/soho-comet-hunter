@@ -55,6 +55,7 @@ def normalize(candidate, track=None):
         "last": str(candidate.get("last") or ""),
         "frames": candidate.get("frames"),
         "pixel_verification": candidate.get("pixel_verification") or {},
+        "official_report_check": candidate.get("official_report_check") or {},
         "submission_frames": candidate.get("submission_frames") or [],
         "submission_frame_status": candidate.get("submission_frame_status") or "",
         "track": {
@@ -155,6 +156,9 @@ def watch(project, interval, age_hours, test):
                         candidate["submission_frame_status"] = "Review all approximate pixel coordinates"
                     except Exception as frame_error:
                         candidate["submission_frame_status"] = "Frame extraction unavailable: " + str(frame_error)[:180]
+                    # Check official reports before sending; do not suppress alerts.
+                    from check_recent_sungrazer_reports import fetch_and_check
+                    candidate["official_report_check"] = fetch_and_check(candidate)
                     cli_dispatch(candidate)
                     dispatched.append(candidate)
                     tmp = state_file.with_name(state_file.name+".tmp")
@@ -228,6 +232,24 @@ def issue_details(candidate, test=False):
             f"- First measured XY (512): ({track['first_x']}, {track['first_y']})\n"
             f"- Last measured XY (512): ({track['last_x']}, {track['last_y']})\n"
         )
+    report_check = candidate.get("official_report_check") or {}
+    status_check = str(report_check.get("status") or "CHECK_UNAVAILABLE")
+    report_text = "\\n### Official Sungrazer reports cross-check\\n\\n"
+    report_text += f"- Status: **{status_check}**\\n"
+    report_text += f"- Parsed official reports: {report_check.get('reports_parsed', 'unknown')}\\n"
+    if report_check.get("checked_at_utc"):
+        report_text += f"- Checked at: {report_check['checked_at_utc']}\\n"
+    for entry in (report_check.get("matches") or [])[:3]:
+        report_text += (f"- **{entry['report_id']}**: {entry['status']}; "
+                        f"max endpoint difference {entry['max_endpoint_distance_px_512']} "
+                        "pixels (512 scale), "
+                        f"velocity difference {entry['velocity_difference_px_per_hour']} "
+                        f"pixels/hour; type {entry.get('sighting_type','Unknown')}\\n")
+    report_text += (f"- [Check official reports]({report_check.get('official_url','https://sungrazer.nrl.navy.mil/plain-text-reports')})\\n"
+                    "- This is a preliminary trajectory comparison. A missing or "
+                    "nonmatching report does NOT guarantee discovery priority.\\n")
+    if report_check.get("message"):
+        report_text += "- Note: " + str(report_check['message'])[:220] + "\\n"
     report_rows = candidate.get("submission_frames") or []
     if report_rows:
         row_text = ("\\n### Frame positions for SOHO report (UTC, 512x512, upper-left origin)\\n\\n"
@@ -254,7 +276,7 @@ def issue_details(candidate, test=False):
         f"- Tracked frames: {candidate.get('frames')}\n"
         f"- Pixel support: {pixel.get('hits')}/{pixel.get('samples')}\n"
         f"- Temporal-motion support: {motion.get('supported')}/{motion.get('tested')}\n"
-        + endpoints + row_text +
+        + endpoints + report_text + row_text +
         f"\n[Watch review video]({link}) (may not be published yet)\n"
         f"[Open live dashboard]({DASHBOARD})\n\n"
         "Check actual SOHO images and existing Sungrazer reports before claiming discovery.\n"
