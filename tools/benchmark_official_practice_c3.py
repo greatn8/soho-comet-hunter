@@ -209,7 +209,7 @@ def match_comet(tracks, truth, max_median_px=12.0, max_worst_px=22.0):
         worst = errs[-1]
         evaluated.append({
             "candidate": c["id"], "frames": c["frames"],
-            "priority": c["priority"],
+            "priority": c.get("priority", "UNKNOWN"),
             "original_rank": next((i + 1 for i, r in enumerate(tracks) if r["id"] == c["id"]), None),
             "truth_observations_covered": len(errs),
             "median_error_px": round(median,2),
