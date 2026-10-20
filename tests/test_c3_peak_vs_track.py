@@ -27,7 +27,7 @@ class PeakStages(unittest.TestCase):
   self.assertTrue(all(z>=18 for z in strength))
  def test_spatial_balancing_never_adds_peaks(self):
   xs=np.arange(900,dtype=np.int32)%512
-  ys=np.arange(900,dtype=np.int32)//512*200+340
+  ys=np.arange(900,dtype=np.int32)//512*90+340
   inds=spatial_balanced_indices(xs,ys)
   self.assertEqual(len(inds),700)
   self.assertEqual(len(set(inds.tolist())),700)
