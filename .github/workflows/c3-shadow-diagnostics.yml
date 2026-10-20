@@ -4,6 +4,8 @@ on:
     paths:
       - "tools/diagnose_c3_shadow_streak.py"
       - "tests/test_c3_shadow_streak.py"
+      - "tests/test_c3_shadow_rank_audit.py"
+      - "tools/audit_c3_shadow_ranking.py"
       - ".github/workflows/c3-shadow-diagnostics.yml"
 jobs:
   shadow:
@@ -13,4 +15,6 @@ jobs:
       - name: Install numpy
         run: python3 -m pip install numpy
       - name: Offline feature and negative controls
-        run: python3 -m unittest discover -s tests -p 'test_c3_shadow_streak.py' -v
+        run: |
+          python3 -m unittest discover -s tests -p 'test_c3_shadow_streak.py' -v
+          python3 -m unittest discover -s tests -p 'test_c3_shadow_rank_audit.py' -v
