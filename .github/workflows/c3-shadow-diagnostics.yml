@@ -14,6 +14,8 @@ on:
       - "tests/test_c3_source_shape.py"
       - "tools/benchmark_official_c3_512.py"
       - "tests/test_official_c3_512.py"
+      - "tools/audit_official_c3_512_points.py"
+      - "tests/test_official_c3_512_points.py"
       - ".github/workflows/c3-shadow-diagnostics.yml"
 jobs:
   shadow:
@@ -30,3 +32,4 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_c3_moving_streak.py' -v
           python3 -m unittest discover -s tests -p 'test_c3_source_shape.py' -v
           python3 -m unittest discover -s tests -p 'test_official_c3_512.py' -v
+          python3 -m unittest discover -s tests -p 'test_official_c3_512_points.py' -v
