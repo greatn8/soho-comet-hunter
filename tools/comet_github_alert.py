@@ -301,6 +301,11 @@ def run_issue(event_path, event_name, token, age_hours):
         choices = (published.get("review_candidates") or published.get("latest_candidates") or [])
     recent = [normalize(c) for c in choices
               if isinstance(c, dict) and is_recent_strong(c, age_hours)]
+    # Dashboard-push fallback performs its own report check too.
+    from check_recent_sungrazer_reports import fetch_and_check
+    for candidate in recent:
+        if not candidate.get("official_report_check"):
+            candidate["official_report_check"] = fetch_and_check(candidate)
     old = existing_alerts(token)
     created = 0
     for candidate in recent:
