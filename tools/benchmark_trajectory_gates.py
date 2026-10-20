@@ -12,6 +12,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import getpass
 from pathlib import Path
 import re
 import subprocess
@@ -47,7 +48,7 @@ def main():
     if not source.is_file():
         parser.error(f"CUDA source missing: {source}")
 
-    cache = Path("/dev/shm") / f"comet_realtime_{os.getlogin()}_c3_512"
+    cache = Path("/dev/shm") / f"comet_realtime_{getpass.getuser()}_c3_512"
     if not cache.exists():
         parser.error(f"Realtime image cache not found: {cache}")
 
