@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "window_stationary_filter.hpp"
+#include "trajectory_integrity_filter.hpp"
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -125,6 +126,8 @@ struct Args {
     bool withinWindowStationaryFilter = false;
     float stationaryMinFrameFraction = 0.80f;
     int stationaryBin = 2;
+    bool trajectoryIntegrityFilter = false;
+    bool trajectoryNullControl = false;
 
     int maxCandidates = 100;
     int rawSeedKeep = 2500;
@@ -3204,6 +3207,10 @@ static std::vector<Track> runPass(
         return {};
     }
 
+    const auto occupied = args.trajectoryNullControl
+        ? comet::makeFrameOccupancy(detections)
+        : comet::FrameOccupancy{};
+
     GpuTrajectorySearch gpuSearch(
         detections,
         images,
@@ -3234,6 +3241,9 @@ static std::vector<Track> runPass(
     tracks.reserve(
         seeds.size()
     );
+    size_t invalidTrajectories = 0;
+    size_t nullControlRejected = 0;
+    size_t nullControlTested = 0;
 
     for (
         const auto& seed :
@@ -3283,6 +3293,24 @@ static std::vector<Track> runPass(
                 > componentLimit
         ) {
             continue;
+        }
+
+        if (args.trajectoryIntegrityFilter &&
+            !comet::consistentEndpointVelocity(track, images)) {
+            ++invalidTrajectories;
+            continue;
+        }
+        if (args.trajectoryNullControl) {
+            const auto evidence = comet::measurePathNullEvidence(
+                track, images, occupied, images.front().width,
+                images.front().height, pass.tolerance);
+            if (evidence.evaluable) {
+                ++nullControlTested;
+                if (!evidence.supported) {
+                    ++nullControlRejected;
+                    continue;
+                }
+            }
         }
 
         if (
@@ -3357,6 +3385,10 @@ static std::vector<Track> runPass(
             passEnd
             - passStart
         ).count();
+
+    std::cout << "    integrity reject: " << invalidTrajectories
+              << " | path-null tested: " << nullControlTested
+              << " | path-null rejected: " << nullControlRejected << "\n";
 
     std::cout
         << "    pass candidates: "
@@ -3645,6 +3677,12 @@ static Args parseArgs(
         else if (option == "--stationary-bin") {
             args.stationaryBin = std::stoi(value("--stationary-bin"));
         }
+        else if (option == "--trajectory-integrity-filter") {
+            args.trajectoryIntegrityFilter = true;
+        }
+        else if (option == "--trajectory-null-control") {
+            args.trajectoryNullControl = true;
+        }
         else if (
             option
             == "--max-candidates"
@@ -3676,7 +3714,9 @@ static Args parseArgs(
                 << "  --max-candidates 100\n"
                 << "  --within-window-stationary-filter (experimental, OFF by default)\n"
                 << "  --stationary-fraction 0.80 (fraction of frames)\n"
-                << "  --stationary-bin 2 (spatial pixel bin)\n";
+                << "  --stationary-bin 2 (spatial pixel bin)\n"
+                << "  --trajectory-integrity-filter (experimental; endpoint fit coherence)\n"
+                << "  --trajectory-null-control (experimental; shifted-path negative control)\n";
 
             std::exit(0);
         }
