@@ -780,6 +780,7 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
     # requires the separately compiled experimental CUDA detector.
     stationary_filter=(project/"state"/"realtime_cuda_stationary_enabled").is_file()
     enhanced_filter=(project/"state"/"realtime_cuda_enhanced_enabled").is_file()
+    effective_max_candidates=max(args.max_candidates,500) if enhanced_filter else args.max_candidates
     budgets=(args.short_budget_minutes,args.medium_budget_minutes,args.compute_minutes)
     for window_hours,budget in zip(args.search_windows,budgets):
         subset=select_recent_frames(frames,window_hours)
