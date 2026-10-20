@@ -17,7 +17,7 @@ import tempfile
 import time
 
 from benchmark_known_comets import (UTC, busy_cuda, controls, image_roots,
-    index_images, parse_output, pick_frames, positional_errors, truth_rows,
+    index_images, parse_output, pick_frames, positional_errors, when,
     verify_dimensions)
 
 VARIANTS = {
@@ -26,6 +26,30 @@ VARIANTS = {
     "integrity_null": ["--within-window-stationary-filter", "--trajectory-integrity-filter",
                        "--trajectory-null-control"],
 }
+
+
+def load_truth(path, event_id):
+    if not path:
+        return []
+    rows=[]
+    with Path(path).open(newline="",encoding="utf-8") as file:
+        reader=csv.DictReader(file)
+        expected={"event_id","utc","x1024","y1024","origin"}
+        if not expected.issubset(reader.fieldnames or []):
+            raise ValueError("Independent truth CSV requires event_id,utc,x1024,y1024,origin")
+        for row in reader:
+            if row["event_id"]!=event_id:
+                continue
+            origin=row["origin"].strip().lower()
+            if origin not in ("lower_left","upper_left"):
+                raise ValueError("origin must be lower_left or upper_left")
+            x,y=float(row["x1024"]),float(row["y1024"])
+            if not (0<=x<=1024 and 0<=y<=1024):
+                raise ValueError("truth point outside original 1024 image")
+            if origin=="lower_left":
+                y=1024-y
+            rows.append((when(row["utc"]),x,y))
+    return sorted(rows)
 
 
 def assess(tracks, case, resolution, truth, tolerance_px=20):
@@ -70,7 +94,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--project",type=Path,required=True)
     p.add_argument("--binary",type=Path,help="Previously built experimental binary. Defaults to results/trajectory_gate_ab")
-    p.add_argument("--truth",type=Path,help="CSV columns event_id,utc,x1024,y1024; independently sourced")
+    p.add_argument("--truth",type=Path,help="CSV columns event_id,utc,x1024,y1024,origin; independently sourced")
     p.add_argument("--event-id",action="append",help="Select control; repeat for several")
     p.add_argument("--frames-root",type=Path,action="append",default=[])
     p.add_argument("--minutes",type=int,default=2)
@@ -118,7 +142,7 @@ def main():
                 print("  Running "+name,flush=True)
                 try:
                     code,tracks=run_one(binary,project,frames,size,a.minutes,a.max_candidates,flags,log)
-                    truth=truth_rows(a.truth,case["event_id"])
+                    truth=load_truth(a.truth,case["event_id"])
                     result={"variant":name,"exit_code":code,"log":str(log)}
                     if code==0:
                         result.update(assess(tracks,case,size,truth))
