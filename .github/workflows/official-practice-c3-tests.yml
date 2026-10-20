@@ -1,0 +1,19 @@
+name: Official C3 comet practice benchmark tests
+on:
+  pull_request:
+    paths:
+      - 'tools/benchmark_official_practice_c3.py'
+      - 'tests/test_official_practice_c3.py'
+      - '.github/workflows/official-practice-c3-tests.yml'
+  push:
+    branches: [cuda-source-review]
+    paths:
+      - 'tools/benchmark_official_practice_c3.py'
+      - 'tests/test_official_practice_c3.py'
+      - '.github/workflows/official-practice-c3-tests.yml'
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s tests -p 'test_official_practice_c3.py' -v
