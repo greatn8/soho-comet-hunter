@@ -786,7 +786,9 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
         subset=select_recent_frames(frames,window_hours)
         info={"window_hours":window_hours,"budget_minutes":budget,
               "input_frames":len(subset),"parsed_tracks":0,
-              "stationary_filter_enabled":stationary_filter}
+              "stationary_filter_enabled":stationary_filter,
+              "enhanced_filter_enabled":enhanced_filter,
+              "cuda_candidate_limit":effective_max_candidates}
         if len(subset)<args.min_frames:
             info["status"]="INSUFFICIENT_FRAMES"
             runs.append(info)
@@ -805,14 +807,16 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
             cmd=[str(project/"comet_hunter_archive"),"--camera","c3",
                  "--resolution","512","--input-dir",str(stage),
                  "--budget-minutes",str(budget),"--min-frames",
-                 str(args.min_frames),"--max-candidates",str(args.max_candidates)]
+                 str(args.min_frames),"--max-candidates",str(effective_max_candidates)]
             if stationary_filter:
                 cmd.append("--within-window-stationary-filter")
             if enhanced_filter:
                 cmd.extend(["--spatial-balanced-peaks", "--trajectory-integrity-filter",
                             "--trajectory-null-control"])
             log(f"CUDA {window_hours}h pass: {len(subset)} cached frames, {budget}m budget; "
-                f"stationary filter={'ON' if stationary_filter else 'OFF'}.")
+                f"stationary filter={'ON' if stationary_filter else 'OFF'}; "
+                f"enhanced spatial/null={'ON' if enhanced_filter else 'OFF'}; "
+                f"CUDA candidate cap={effective_max_candidates}.")
             proc=subprocess.run(cmd,cwd=project,text=True,stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         log_path=results_dir/f"detector_{run_id}_{window_hours}h.log"
