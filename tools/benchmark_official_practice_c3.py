@@ -209,6 +209,8 @@ def match_comet(tracks, truth, max_median_px=12.0, max_worst_px=22.0):
         worst = errs[-1]
         evaluated.append({
             "candidate": c["id"], "frames": c["frames"],
+            "priority": c["priority"],
+            "original_rank": next((i + 1 for i, r in enumerate(tracks) if r["id"] == c["id"]), None),
             "truth_observations_covered": len(errs),
             "median_error_px": round(median,2),
             "worst_error_px": round(worst,2),
@@ -252,6 +254,9 @@ def main():
     ap.add_argument("--max-candidates",type=int,default=500)
     ap.add_argument("--budget-minutes",type=int,default=2)
     ap.add_argument("--execute",action="store_true")
+    ap.add_argument("--variant",action="append",
+                    choices=("stationary_only","plus_integrity","plus_integrity_and_null","spatial_only","spatial_and_null"),
+                    help="Run only selected variant(s); repeat as needed. Default all available.")
     ap.add_argument("--include-spatial",action="store_true",
                     help="Also A/B test opt-in spatial peak balancing using actual known comet truth")
     ap.add_argument("--output",type=Path)
@@ -318,6 +323,11 @@ def main():
             if args.include_spatial:
                 variants["spatial_only"]=["--within-window-stationary-filter","--spatial-balanced-peaks"]
                 variants["spatial_and_null"]=["--within-window-stationary-filter","--spatial-balanced-peaks","--trajectory-integrity-filter","--trajectory-null-control"]
+            if args.variant:
+                unknown = set(args.variant) - set(variants)
+                if unknown:
+                    ap.error(f"Selected variant(s) unavailable; pass --include-spatial: {sorted(unknown)}")
+                variants = {name:flags for name,flags in variants.items() if name in args.variant}
             for variant, flags in variants.items():
                 if busy_cuda():
                     print("Production GPU detector currently busy; stopping A/B replay safely.",flush=True)
