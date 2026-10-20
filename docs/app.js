@@ -18,7 +18,8 @@ const state = {
   myReview: "all",
   markedOnly: false,
   sort: "verified",
-  liveReviewVisible: 8
+  liveReviewVisible: 8,
+  showLowSupportRealtime: false
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -480,6 +481,25 @@ function realtimeCandidateCard(c) {
   `;
 }
 
+// Weak exploratory tracks are retained for engineering review, but must not
+// crowd out events with pixel support or a known-report match. This is a
+// DISPLAY decision only: all detections and clips remain in the raw archive.
+function isRealtimeDiagnosticOnly(row) {
+  const cls = normalizeClass(row?.review_class);
+  const status = normalizeClass(row?.status);
+  return (cls === "LOW_SUPPORT" || cls === "VISUAL_REJECT") && status !== "KNOWN_REPORT";
+}
+
+function realtimeReviewGroups(rows) {
+  const diagnostics = [];
+  const primary = [];
+  for (const row of rows) {
+    if (isRealtimeDiagnosticOnly(row)) diagnostics.push(row);
+    else primary.push(row);
+  }
+  return { primary, diagnostics };
+}
+
 function renderRealtime(payload) {
   state.realtime = payload || null;
 
@@ -525,12 +545,10 @@ function renderRealtime(payload) {
     (Number(payload.hunter_new_frames ?? 0) === 0
       ? '<small>No newer SOHO C3 frame at last check</small>'
       : `<small>${escapeHtml(payload.hunter_new_frames)} new SOHO frame(s) this check</small>`);
-  alertCountEl.textContent = String(
-    payload.current_unmatched_total ??
-    (Array.isArray(payload.latest_candidates)
-      ? payload.latest_candidates.filter(c => String(c.status || "").toUpperCase() === "UNMATCHED").length
-      : 0)
-  );
+  // The previous counter included unmatched LOW_SUPPORT artifacts, so it
+  // regularly displayed a misleading positive count with zero useful tracks.
+  const latestRows = Array.isArray(payload.latest_candidates) ? payload.latest_candidates : [];
+  alertCountEl.textContent = String(realtimeReviewGroups(latestRows).primary.length);
   knownCountEl.textContent = String(
     payload.current_known_total ??
     (Array.isArray(payload.latest_candidates)
@@ -584,13 +602,33 @@ function renderRealtime(payload) {
   const reviewRows = Array.isArray(payload.review_candidates) && payload.review_candidates.length
     ? payload.review_candidates
     : currentRows;
+  const { primary, diagnostics } = realtimeReviewGroups(reviewRows);
+  const rowsToDisplay = state.showLowSupportRealtime ? [...primary, ...diagnostics] : primary;
 
   if (!reviewRows.length) {
     candidatesEl.innerHTML = '<div class="realtime-empty">No retained realtime review candidates yet.</div>';
     return;
   }
 
-  const ordered = [...reviewRows].sort((a, b) => {
+  const diagnosticControls = diagnostics.length ? `<div class="realtime-review-more">
+    <small>${diagnostics.length} low-support / inconsistent track(s) retained for engineering diagnostics, not validated comets.</small>
+    <button type="button" id="toggleWeakRealtime">
+      ${state.showLowSupportRealtime ? "Hide weak diagnostic tracks" : `Show ${diagnostics.length} weak diagnostic tracks`}
+    </button>
+  </div>` : "";
+
+  if (!rowsToDisplay.length) {
+    candidatesEl.innerHTML = '<div class="realtime-empty">No evidence-supported realtime candidates yet. The detector is running, but its current tracks have not passed review.</div>' + diagnosticControls;
+    const toggle = $("#toggleWeakRealtime");
+    if (toggle) toggle.addEventListener("click", () => {
+      state.showLowSupportRealtime = !state.showLowSupportRealtime;
+      state.liveReviewVisible = 8;
+      renderRealtime(payload);
+    });
+    return;
+  }
+
+  const ordered = [...rowsToDisplay].sort((a, b) => {
     const rank = { UNMATCHED: 0, KNOWN_REPORT: 1, SEEN_ALREADY: 2 };
     return (rank[String(a.status || "").toUpperCase()] ?? 9) -
       (rank[String(b.status || "").toUpperCase()] ?? 9);
@@ -603,8 +641,14 @@ function renderRealtime(payload) {
 
   candidatesEl.innerHTML =
     ordered.slice(0, visible).map(realtimeCandidateCard).join("") +
-    more;
+    more + diagnosticControls;
 
+  const toggle = $("#toggleWeakRealtime");
+  if (toggle) toggle.addEventListener("click", () => {
+    state.showLowSupportRealtime = !state.showLowSupportRealtime;
+    state.liveReviewVisible = 8;
+    renderRealtime(payload);
+  });
   const moreButton = $("#showMoreRealtimeReviews");
   if (moreButton) {
     moreButton.addEventListener("click", () => {
