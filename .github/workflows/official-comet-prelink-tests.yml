@@ -1,0 +1,22 @@
+name: Known comet prelink pixel diagnostics tests
+on:
+  pull_request:
+    paths:
+      - 'tools/diagnose_official_c3_prelink.py'
+      - 'tests/test_official_c3_prelink.py'
+      - '.github/workflows/official-comet-prelink-tests.yml'
+  push:
+    branches: [cuda-source-review]
+    paths:
+      - 'tools/diagnose_official_c3_prelink.py'
+      - 'tests/test_official_c3_prelink.py'
+      - '.github/workflows/official-comet-prelink-tests.yml'
+jobs:
+  prelink-cpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CPU array dependency
+        run: python3 -m pip install numpy
+      - name: Test pixel stage classification
+        run: python3 -m unittest discover -s tests -p 'test_official_c3_prelink.py' -v
