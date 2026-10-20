@@ -1,0 +1,24 @@
+name: Trajectory null-control host tests
+on:
+  pull_request:
+    paths:
+      - 'cuda/trajectory_integrity_filter.hpp'
+      - 'cuda/comet_hunter_archive.cu'
+      - 'tests/trajectory_integrity_filter_test.cpp'
+      - '.github/workflows/trajectory-null-control.yml'
+  push:
+    branches: [cuda-source-review]
+    paths:
+      - 'cuda/trajectory_integrity_filter.hpp'
+      - 'cuda/comet_hunter_archive.cu'
+      - 'tests/trajectory_integrity_filter_test.cpp'
+      - '.github/workflows/trajectory-null-control.yml'
+jobs:
+  host-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run host-side trajectory tests
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic -Icuda tests/trajectory_integrity_filter_test.cpp -o /tmp/soho_trajectory_test
+          /tmp/soho_trajectory_test
