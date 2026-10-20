@@ -1,0 +1,16 @@
+name: Spatial peak selector host tests
+on:
+  pull_request:
+    paths:
+      - 'cuda/spatial_peak_selector.hpp'
+      - 'cuda/comet_hunter_archive.cu'
+      - 'tests/test_spatial_peak_selector.cpp'
+      - '.github/workflows/spatial-peak-tests.yml'
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -Icuda tests/test_spatial_peak_selector.cpp -o /tmp/spatial_peaks
+          /tmp/spatial_peaks

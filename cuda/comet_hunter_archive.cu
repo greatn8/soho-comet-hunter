@@ -25,6 +25,7 @@
 
 #include "window_stationary_filter.hpp"
 #include "trajectory_integrity_filter.hpp"
+#include "spatial_peak_selector.hpp"
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -128,6 +129,7 @@ struct Args {
     int stationaryBin = 2;
     bool trajectoryIntegrityFilter = false;
     bool trajectoryNullControl = false;
+    bool spatialBalancedPeaks = false;
 
     int maxCandidates = 100;
     int rawSeedKeep = 2500;
@@ -1209,13 +1211,10 @@ detectFrameCuda(
         }
     );
 
-    if (
-        static_cast<int>(raw.size())
-        > pass.maxPoints
-    ) {
-        raw.resize(
-            pass.maxPoints
-        );
+    if (args.spatialBalancedPeaks) {
+        raw = comet::selectSpatiallyBalanced(std::move(raw), width, height, pass.maxPoints);
+    } else if (static_cast<int>(raw.size()) > pass.maxPoints) {
+        raw.resize(pass.maxPoints);
     }
 
     std::vector<Detection>
@@ -3683,6 +3682,9 @@ static Args parseArgs(
         else if (option == "--trajectory-null-control") {
             args.trajectoryNullControl = true;
         }
+        else if (option == "--spatial-balanced-peaks") {
+            args.spatialBalancedPeaks = true;
+        }
         else if (
             option
             == "--max-candidates"
@@ -3716,7 +3718,8 @@ static Args parseArgs(
                 << "  --stationary-fraction 0.80 (fraction of frames)\n"
                 << "  --stationary-bin 2 (spatial pixel bin)\n"
                 << "  --trajectory-integrity-filter (experimental; endpoint fit coherence)\n"
-                << "  --trajectory-null-control (experimental; shifted-path negative control)\n";
+                << "  --trajectory-null-control (experimental; shifted-path negative control)\n"
+                << "  --spatial-balanced-peaks (experimental; brightness + spatial distribution)\n";
 
             std::exit(0);
         }
