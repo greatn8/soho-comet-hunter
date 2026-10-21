@@ -112,6 +112,14 @@ class ResolutionTests(unittest.TestCase):
                     realtime_hunter.validate_source_resolution(target,1024)
                     self.assertTrue(target.exists())
 
+    def test_candidate_ranking_is_resolution_invariant(self):
+        baseline={"frames":10,"sunward":3.0,"speed":5.0,"rms":0.7,
+                  "cv":0.3,"motion_family_size":2,"resolution":512}
+        high=dict(baseline, resolution=1024, sunward=6.0,
+                  speed=10.0, rms=1.4)
+        self.assertAlmostEqual(realtime_hunter.live_candidate_rank(baseline),
+                               realtime_hunter.live_candidate_rank(high))
+
     def test_alert_endpoint_bounds(self):
         for size in (512,1024):
             c = {"first":f"20261021_0930_c3_{size}.jpg",
