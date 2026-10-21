@@ -355,7 +355,10 @@ def prune_realtime_reviews(results_dir,max_transient=100,max_age_days=14):
 
         status=str(meta.get("status") or "").upper()
         priority=str(meta.get("priority") or "").upper()
-        important=(status=="KNOWN_REPORT" or priority=="HIGH")
+        review_class=str(meta.get("review_class") or "").upper()
+        # A MEDIUM-priority raw CUDA track may later pass pixel verification
+        # and become a STRONG_REVIEW. Protect all such videos until archival.
+        important=(status=="KNOWN_REPORT" or priority=="HIGH" or review_class=="STRONG_REVIEW")
         if important:
             continue
 
