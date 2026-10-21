@@ -45,6 +45,7 @@ def read_json(path, default):
 
 
 def normalize(candidate, track=None):
+    track = track if isinstance(track, dict) else candidate.get("track")
     track = track if isinstance(track, dict) else {}
     return {
         "candidate": str(candidate.get("candidate") or ""),
@@ -203,12 +204,49 @@ def existing_alerts(token):
             first_line = body.split("\n", 1)[0]
             encoded = first_line[len(MARKER):].removesuffix(" -->")
             try:
-                found.append(json.loads(encoded))
+                record = json.loads(encoded)
+                if isinstance(record, dict):
+                    record["_issue_number"] = issue.get("number")
+                    found.append(record)
             except ValueError:
                 pass
         if len(batch) < 100:
             break
     return found
+
+
+def endpoint_track_valid(track):
+    """Only display finite, on-image C3 coordinates as detector estimates."""
+    if not isinstance(track, dict):
+        return False
+    try:
+        return all(math.isfinite(float(track[key])) and 0 <= float(track[key]) < 512
+                   for key in ("first_x", "first_y", "last_x", "last_y"))
+    except (TypeError, ValueError, KeyError):
+        return False
+
+
+def report_position_rows(candidate):
+    """Use image-supported rows first; otherwise return CUDA fitted endpoints."""
+    rows = candidate.get("submission_frames") or []
+    if isinstance(rows, list) and rows:
+        return [row for row in rows if isinstance(row, dict)][:64]
+    track = candidate.get("track") or {}
+    if not endpoint_track_valid(track):
+        return []
+    try:
+        first = utc_of_frame(candidate["first"])
+        last = utc_of_frame(candidate["last"])
+    except (ValueError, KeyError):
+        return []
+    return [
+        {"date": first.strftime("%Y-%m-%d"), "time": first.strftime("%H:%M"),
+         "x": round(float(track["first_x"]), 1), "y": round(float(track["first_y"]), 1),
+         "basis": "CUDA fitted endpoint (verify)"},
+        {"date": last.strftime("%Y-%m-%d"), "time": last.strftime("%H:%M"),
+         "x": round(float(track["last_x"]), 1), "y": round(float(track["last_y"]), 1),
+         "basis": "CUDA fitted endpoint (verify)"},
+    ]
 
 
 def issue_details(candidate, test=False):
@@ -227,45 +265,49 @@ def issue_details(candidate, test=False):
                 f"{review_id}/zoom_annotated.mp4")
     track = candidate.get("track") or {}
     endpoints = ""
-    if all(k in track for k in ("first_x", "first_y", "last_x", "last_y")):
+    if endpoint_track_valid(track):
         endpoints = (
-            f"- First measured XY (512): ({track['first_x']}, {track['first_y']})\n"
-            f"- Last measured XY (512): ({track['last_x']}, {track['last_y']})\n"
+            f"- First CUDA fitted XY (512, top-left): ({track['first_x']}, {track['first_y']})\n"
+            f"- Last CUDA fitted XY (512, top-left): ({track['last_x']}, {track['last_y']})\n"
         )
     report_check = candidate.get("official_report_check") or {}
     status_check = str(report_check.get("status") or "CHECK_UNAVAILABLE")
-    report_text = "\\n### Official Sungrazer reports cross-check\\n\\n"
-    report_text += f"- Status: **{status_check}**\\n"
-    report_text += f"- Parsed official reports: {report_check.get('reports_parsed', 'unknown')}\\n"
+    report_text = "\n### Official Sungrazer reports cross-check\n\n"
+    report_text += f"- Status: **{status_check}**\n"
+    report_text += f"- Parsed official reports: {report_check.get('reports_parsed', 'unknown')}\n"
     if report_check.get("checked_at_utc"):
-        report_text += f"- Checked at: {report_check['checked_at_utc']}\\n"
+        report_text += f"- Checked at: {report_check['checked_at_utc']}\n"
     for entry in (report_check.get("matches") or [])[:3]:
         report_text += (f"- **{entry['report_id']}**: {entry['status']}; "
                         f"max endpoint difference {entry['max_endpoint_distance_px_512']} "
                         "pixels (512 scale), "
                         f"velocity difference {entry['velocity_difference_px_per_hour']} "
-                        f"pixels/hour; type {entry.get('sighting_type','Unknown')}\\n")
-    report_text += (f"- [Check official reports]({report_check.get('official_url','https://sungrazer.nrl.navy.mil/plain-text-reports')})\\n"
+                        f"pixels/hour; type {entry.get('sighting_type','Unknown')}\n")
+    report_text += (f"- [Check official reports]({report_check.get('official_url','https://sungrazer.nrl.navy.mil/plain-text-reports')})\n"
                     "- This is a preliminary trajectory comparison. A missing or "
-                    "nonmatching report does NOT guarantee discovery priority.\\n")
+                    "nonmatching report does NOT guarantee discovery priority.\n")
     if report_check.get("message"):
-        report_text += "- Note: " + str(report_check['message'])[:220] + "\\n"
-    report_rows = candidate.get("submission_frames") or []
-    if report_rows:
-        row_text = ("\\n### Frame positions for SOHO report (UTC, 512x512, upper-left origin)\\n\\n"
-                    "| Frame Time | X Pos | Y Pos | Basis |\\n"
-                    "|---|---:|---:|---|\\n")
-        for row in report_rows:
-            row_text += (f"| {row.get('date','')} {row.get('time','')} | "
-                         f"{row.get('x','')} | {row.get('y','')} | "
-                         f"{row.get('basis','')} |\\n")
-        row_text += ("\\n**Verify all positions against the original images.** "
-                     "CUDA endpoints are detector-fit values. Intermediate coordinates "
-                     "are temporally localized pixel estimates, NOT confirmed astrometry.\\n")
+        report_text += "- Note: " + str(report_check["message"])[:220] + "\n"
+
+    rows = report_position_rows(candidate)
+    if rows:
+        row_text = ("\n### Frame positions for SOHO report (UTC, 512x512, upper-left origin)\n\n"
+                    "| Frame Time | X Pos | Y Pos | Basis |\n"
+                    "|---|---:|---:|---|\n")
+        for row in rows:
+            row_text += (f"| {row.get('date', '')} {row.get('time', '')} | "
+                         f"{row.get('x', '')} | {row.get('y', '')} | "
+                         f"{row.get('basis', '')} |\n")
+        row_text += ("\n**Verify every position against the original SOHO images.** "
+                     "CUDA endpoints are fitted detector values; intermediate positions "
+                     "are temporal pixel estimates, not independently verified astrometry. "
+                     "Use the coordinates only with the corresponding 512x512 images.\n")
     else:
-        row_text = ("\\n### Frame positions\\n"
-                    "No independently supported per-frame positions available. "
-                    "Do not substitute interpolated guesses.\\n")
+        row_text = ("\n### Frame positions\n"
+                    "No detector endpoints or independently supported per-frame "
+                    "positions were available. Do not invent coordinates.\n")
+    if candidate.get("submission_frame_status"):
+        row_text += f"\nPosition extraction: {str(candidate['submission_frame_status'])[:240]}\n"
     body = (
         f"@{ASSIGNEE} **Investigate promptly — candidate, NOT confirmed discovery.**\n\n"
         f"- Candidate: **{candidate_id}**\n"
@@ -282,6 +324,17 @@ def issue_details(candidate, test=False):
         "Check actual SOHO images and existing Sungrazer reports before claiming discovery.\n"
     )
     return (f"☄ SOHO STRONG_REVIEW: {candidate_id}", body)
+
+
+def issue_body_and_metadata(candidate):
+    """Embed coordinate coverage for reliable duplicate enrichment."""
+    title, body = issue_details(candidate)
+    track = candidate.get("track") or {}
+    marker = {k: candidate.get(k) for k in
+              ("review_id", "candidate", "first", "last")}
+    marker["track"] = track if isinstance(track, dict) else {}
+    marker["position_row_count"] = len(report_position_rows(candidate))
+    return title, MARKER + json.dumps(marker, separators=(",", ":")) + " -->\n" + body
 
 
 def run_issue(event_path, event_name, token, age_hours):
@@ -308,19 +361,45 @@ def run_issue(event_path, event_name, token, age_hours):
             candidate["official_report_check"] = fetch_and_check(candidate)
     old = existing_alerts(token)
     created = 0
+    upgraded = 0
     for candidate in recent:
-        if any(same_physical_object(prior, candidate) or
-               unique_key(prior)==unique_key(candidate) for prior in old):
+        matching = next((prior for prior in old if
+                         same_physical_object(prior, candidate) or
+                         unique_key(prior) == unique_key(candidate)), None)
+        title, body = issue_body_and_metadata(candidate)
+        row_count = len(report_position_rows(candidate))
+        if matching:
+            try:
+                prior_count = int(matching.get("position_row_count") or 0)
+            except (TypeError, ValueError):
+                prior_count = 0
+            issue_number = matching.get("_issue_number")
+            # The dashboard may provide coordinates AFTER the direct alert,
+            # or the direct dispatch may follow an initially sparse fallback.
+            # Upgrade that SAME issue, never create a duplicate discovery alert.
+            if issue_number and row_count > prior_count:
+                github_api("PATCH", f"/repos/{REPO}/issues/{issue_number}",
+                           token, {"body": body})
+                github_api("POST", f"/repos/{REPO}/issues/{issue_number}/comments",
+                           token, {"body":
+                                   f"@{ASSIGNEE} Position table updated: {row_count} "
+                                   "candidate coordinates are now included above. "
+                                   "Open the issue to inspect the frame times, X/Y "
+                                   "values and evidence basis. Verify all positions "
+                                   "on the original SOHO images before submission."})
+                matching["position_row_count"] = row_count
+                upgraded += 1
+                print(f"Upgraded existing alert issue #{issue_number}: "
+                      f"{row_count} coordinate rows")
             continue
-        title, body = issue_details(candidate)
-        compact = {k: candidate.get(k) for k in ("review_id", "candidate", "first", "last", "track")}
-        body = MARKER + json.dumps(compact, separators=(",", ":")) + " -->\n" + body
         issue = github_api("POST", f"/repos/{REPO}/issues", token,
                            {"title": title, "body": body, "assignees": [ASSIGNEE]})
-        print(f"Created assigned alert issue #{issue.get('number')} for {candidate['candidate']}")
-        old.append(candidate)
+        print(f"Created assigned alert issue #{issue.get('number')} "
+              f"for {candidate['candidate']} with {row_count} coordinate rows")
+        old.append({**candidate, "_issue_number": issue.get("number"),
+                    "position_row_count": row_count})
         created += 1
-    print(f"New strong-review notification issues: {created}")
+    print(f"New strong-review notification issues: {created}; enriched: {upgraded}")
 
 
 def main():
