@@ -46,6 +46,39 @@ class ResolutionTests(unittest.TestCase):
             self.assertAlmostEqual(x,200)
             self.assertAlmostEqual(y,300)
 
+    def test_candidate_endpoints_never_bleed_across_blocks(self):
+        header = lambda n: (
+            f"C{n} [MEDIUM] | pass=deep-03 | frames=5 | speed=5.00 px/h "
+            "| vx=1.00 | vy=1.00 | RMS=0.79 | brightnessCV=0.42 "
+            "| sunward=3.00 px/h | score=51.46"
+        )
+        # A malformed/incomplete candidate must be skipped, not combined
+        # with the next candidate's perfectly valid first/last positions.
+        output = "\n".join([
+            header("316"),
+            "    first: 20260730_0142_c3_1024.jpg (698.00, 82.00)",
+            "    last : 20260730_0306_c3_1024.jpg (699.00, 83.00)",
+            header("317"),
+            "    last : 20260730_0630_c3_1024.jpg (723.00, 56.00)",
+            header("318"),
+            "    first: 20260730_0406_c3_1024.jpg (308.00, 913.00)",
+            "    last : 20260730_0630_c3_1024.jpg (309.00, 926.00)",
+        ])
+        parsed = realtime_hunter.parse_candidates(output)
+        self.assertEqual([c["cid"] for c in parsed], ["C316", "C318"])
+        self.assertEqual(parsed[-1]["first"]["x"], 308.0)
+
+    def test_valid_native_endpoints_stay_together(self):
+        output = "\n".join([
+            "C317 [MEDIUM] | pass=deep-03 | frames=5 | speed=7.40 px/h | vx=5.03 | vy=-5.43 | RMS=0.79 | brightnessCV=0.42 | sunward=5.00 px/h | score=51.46",
+            "    first: 20260730_0142_c3_1024.jpg (698.00, 82.00)",
+            "    last : 20260730_0630_c3_1024.jpg (723.00, 56.00)",
+        ])
+        parsed = realtime_hunter.parse_candidates(output)
+        self.assertEqual(len(parsed), 1)
+        self.assertEqual((parsed[0]["first"]["x"], parsed[0]["first"]["y"]), (698.0, 82.0))
+        self.assertEqual((parsed[0]["last"]["x"], parsed[0]["last"]["y"]), (723.0, 56.0))
+
     def test_alert_endpoint_bounds(self):
         for size in (512,1024):
             c = {"first":f"20261021_0930_c3_{size}.jpg",
