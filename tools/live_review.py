@@ -67,6 +67,11 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
         changed=False
         if status and m.get("status")!=status: m["status"]=status; changed=True
         if report_id and m.get("report_id")!=report_id: m["report_id"]=report_id; changed=True
+        # A raw MEDIUM track can still pass the STRONG pixel verifier.
+        # Record the actual review class so cleanup will preserve its video.
+        if c.get("review_class") and m.get("review_class") != c["review_class"]:
+            m["review_class"] = c["review_class"]
+            changed = True
         if changed: m["updated_at"]=iso(dt.datetime.now(dt.timezone.utc)); (folder/"review.json").write_text(json.dumps(m,indent=2))
         return m
     first_t,last_t=c["first"]["time"],c["last"]["time"]
@@ -108,7 +113,7 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
             f.write("filename\tutc\tx512\ty512\tcrop_left\tcrop_top\n")
             for row in manifest: f.write("\t".join(map(str,row))+"\n")
         created=iso(dt.datetime.now(dt.timezone.utc))
-        meta={"review_id":rid,"candidate":c["cid"],"priority":c.get("priority"),"event_group":c.get("event_group"),"event_members":c.get("event_members",1),"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":512,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":"full_annotated.mp4","thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
+        meta={"review_id":rid,"candidate":c["cid"],"priority":c.get("priority"),"review_class":c.get("review_class"),"event_group":c.get("event_group"),"event_members":c.get("event_members",1),"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":512,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":"full_annotated.mp4","thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
         (out/"review.json").write_text(json.dumps(meta,indent=2))
         return meta
     finally:
