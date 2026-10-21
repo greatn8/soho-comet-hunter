@@ -178,6 +178,19 @@ def write_nrt_jpeg(data,target):
         raise RuntimeError(detail or "ffmpeg could not convert realtime GIF")
     tmp.replace(target)
 
+def validate_source_resolution(path, resolution):
+    """Refuse mislabeled, corrupt, or upscaled image input."""
+    probe=subprocess.run(
+        ["ffprobe","-v","error","-select_streams","v:0",
+         "-show_entries","stream=width,height","-of","csv=p=0",str(path)],
+        capture_output=True,text=True,timeout=20)
+    if probe.returncode:
+        raise ValueError("ffprobe could not decode SOHO source image")
+    dims=probe.stdout.strip().split(",")
+    if dims != [str(resolution),str(resolution)]:
+        raise ValueError(f"Expected native {resolution}x{resolution}, found {probe.stdout.strip()}")
+
+
 def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,results_dir=None,resolution=512):
     soho_gate_wait(state_dir,poll_seconds)
     if STOP:return []
@@ -256,10 +269,16 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
     )
 
     new=[]
-    needed=[
-        name for name in sorted(selected)
-        if not ((cache_dir/name).exists() and (cache_dir/name).stat().st_size>10000)
-    ]
+    needed=[]
+    for name in sorted(selected):
+        cached=cache_dir/name
+        if cached.exists() and cached.stat().st_size>10000:
+            try:
+                validate_source_resolution(cached,resolution)
+                continue
+            except (OSError,ValueError):
+                cached.unlink(missing_ok=True)
+        needed.append(name)
     if results_dir is not None and needed:
         write_heartbeat(
             Path(results_dir),
@@ -280,9 +299,11 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
             else:
                 tmp=target.with_suffix(".part")
                 tmp.write_bytes(data)
+                validate_source_resolution(tmp,resolution)
                 tmp.replace(target)
             new.append(target)
         except Exception as exc:
+            (target.with_suffix(".part")).unlink(missing_ok=True)
             log(f"WARN: failed {name} from {source_name}: {exc}")
 
         if results_dir is not None and (download_index==len(needed) or download_index%25==0):
