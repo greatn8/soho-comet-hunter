@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt, hashlib, json, math, re, shutil, subprocess
 from pathlib import Path
 
-FRAME_RE=re.compile(r"(?P<date>20\d{6})_(?P<hm>\d{4})_c3_512\.jpg$",re.I)
+FRAME_RE=re.compile(r"(?P<date>20\d{6})_(?P<hm>\d{4})_c3_(?:512|1024)\.jpg$",re.I)
 
 def frame_time(name):
     m=FRAME_RE.search(str(name))
@@ -78,7 +78,9 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
     if last_t<=first_t:
         raise RuntimeError("Cannot build moving-object review: track endpoints have no positive time span")
     frames=[]
-    for p in sorted(Path(cache_dir).glob("*_c3_512.jpg")):
+    resolution = int(c.get("resolution", 512))
+    if resolution not in (512, 1024): raise ValueError("Unsupported image resolution")
+    for p in sorted(Path(cache_dir).glob(f"*_c3_{resolution}.jpg")):
         try: t=frame_time(p.name)
         except Exception: continue
         if first_t<=t<=last_t: frames.append((p,t))
@@ -93,18 +95,19 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
     # doubled storage for every realtime hypothesis.
     dirs={n:tmp/n for n in ("zoom_raw","zoom_annotated","full_frame")}
     for d in dirs.values(): d.mkdir(parents=True,exist_ok=True)
-    crop=160; scale=640; manifest=[]
+    ratio = resolution / 512.0
+    crop=int(160*ratio); scale=640; manifest=[]
     try:
         for i,(src,t) in enumerate(frames):
             h=(t-first_t).total_seconds()/3600.0
             x=float(c["first"]["x"])+float(c["vx"])*h; y=float(c["first"]["y"])+float(c["vy"])*h
-            left=max(0,min(512-crop,int(round(x-crop/2)))); top=max(0,min(512-crop,int(round(y-crop/2))))
-            bx=max(0,min(494,int(round(x-9)))); by=max(0,min(494,int(round(y-9))))
+            left=max(0,min(resolution-crop,int(round(x-crop/2)))); top=max(0,min(resolution-crop,int(round(y-crop/2))))
+            bx=max(0,min(resolution-int(18*ratio),int(round(x-9*ratio)))); by=max(0,min(resolution-int(18*ratio),int(round(y-9*ratio))))
             zx=max(0,min(scale-36,int(round((x-left)*scale/crop-18)))); zy=max(0,min(scale-36,int(round((y-top)*scale/crop-18))))
             zf=f"crop={crop}:{crop}:{left}:{top},scale={scale}:{scale}:flags=lanczos"
             ff(["-i",str(src),"-vf",zf,"-q:v","2",str(dirs["zoom_raw"]/f"frame_{i:04d}.jpg")])
             ff(["-i",str(src),"-vf",zf+f",drawbox=x={zx}:y={zy}:w=36:h=36:color=yellow@0.95:t=3","-q:v","2",str(dirs["zoom_annotated"]/f"frame_{i:04d}.jpg")])
-            ff(["-i",str(src),"-vf",f"drawbox=x={bx}:y={by}:w=18:h=18:color=yellow@0.95:t=2","-q:v","3",str(dirs["full_frame"]/f"frame_{i:04d}.jpg")])
+            ff(["-i",str(src),"-vf",f"drawbox=x={bx}:y={by}:w={int(18*ratio)}:h={int(18*ratio)}:color=yellow@0.95:t=2","-q:v","3",str(dirs["full_frame"]/f"frame_{i:04d}.jpg")])
             manifest.append([src.name,iso(t),f"{x:.3f}",f"{y:.3f}",left,top])
         encode_seq(dirs["zoom_raw"],out/"zoom_raw.mp4"); encode_seq(dirs["zoom_annotated"],out/"zoom_annotated.mp4")
         encode_seq(dirs["full_frame"],out/"full_annotated.mp4")
@@ -113,7 +116,7 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
             f.write("filename\tutc\tx512\ty512\tcrop_left\tcrop_top\n")
             for row in manifest: f.write("\t".join(map(str,row))+"\n")
         created=iso(dt.datetime.now(dt.timezone.utc))
-        meta={"review_id":rid,"candidate":c["cid"],"priority":c.get("priority"),"review_class":c.get("review_class"),"event_group":c.get("event_group"),"event_members":c.get("event_members",1),"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":512,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":"full_annotated.mp4","thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
+        meta={"review_id":rid,"candidate":c["cid"],"priority":c.get("priority"),"review_class":c.get("review_class"),"event_group":c.get("event_group"),"event_members":c.get("event_members",1),"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":resolution,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":"full_annotated.mp4","thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
         (out/"review.json").write_text(json.dumps(meta,indent=2))
         return meta
     finally:
