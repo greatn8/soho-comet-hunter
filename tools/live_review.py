@@ -113,7 +113,7 @@ def ensure_live_review(c,cache_dir,results_dir,status="",report_id=""):
         encode_seq(dirs["full_frame"],out/"full_annotated.mp4")
         ff(["-framerate","1","-start_number","0","-i",str(dirs["zoom_annotated"]/"frame_%04d.jpg"),"-vf","scale=240:240,tile=4x3:nb_frames=12:padding=2:margin=2","-frames:v","1",str(out/"zoom_contact_sheet.jpg")],required=False)
         with (out/"manifest.tsv").open("w") as f:
-            f.write("filename\tutc\tx512\ty512\tcrop_left\tcrop_top\n")
+            f.write(f"filename\tutc\tx{resolution}\ty{resolution}\tcrop_left\tcrop_top\n")
             for row in manifest: f.write("\t".join(map(str,row))+"\n")
         created=iso(dt.datetime.now(dt.timezone.utc))
         meta={"review_id":rid,"candidate":c["cid"],"priority":c.get("priority"),"review_class":c.get("review_class"),"event_group":c.get("event_group"),"event_members":c.get("event_members",1),"status":status,"report_id":report_id or None,"camera":"c3","source_resolution":resolution,"first":c["first"]["file"],"last":c["last"]["file"],"first_x":c["first"]["x"],"first_y":c["first"]["y"],"last_x":c["last"]["x"],"last_y":c["last"]["y"],"vx":c["vx"],"vy":c["vy"],"speed":c["speed"],"rms":c["rms"],"frames_in_review":len(frames),"signature":track_signature(c),"created_at":created,"updated_at":created,"primary_video":"zoom_annotated.mp4","raw_video":"zoom_raw.mp4","full_video":"full_annotated.mp4","thumbnail":"zoom_contact_sheet.jpg" if (out/"zoom_contact_sheet.jpg").exists() else None}
