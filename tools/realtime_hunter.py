@@ -888,7 +888,7 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
                 except OSError:
                     target.symlink_to(original.resolve())
             cmd=[str(project/"comet_hunter_archive"),"--camera","c3",
-                 "--resolution",str(args.resolution),"--input-dir",str(stage),
+                 "--resolution",str(getattr(args,"resolution",512)),"--input-dir",str(stage),
                  "--budget-minutes",str(budget),"--min-frames",
                  str(args.min_frames),"--max-candidates",str(effective_max_candidates)]
             if stationary_filter:
