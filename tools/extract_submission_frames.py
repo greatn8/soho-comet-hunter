@@ -17,13 +17,13 @@ import math
 import os
 from pathlib import Path
 
-from pixel_verify import _decode_gray, _sample_signal, WIDTH, HEIGHT
+import pixel_verify as pv
 
-FRAME_SUFFIX = "_c3_512.jpg"
+FRAME_SUFFIXES = ("_c3_512.jpg", "_c3_1024.jpg")
 
 
 def image_time(name):
-    if not (len(name) == 24 and name.endswith(FRAME_SUFFIX)):
+    if not (len(name) == 24 and any(name.endswith(v) for v in FRAME_SUFFIXES)):
         raise ValueError("Unexpected C3 filename: " + str(name))
     return dt.datetime.strptime(name[:13], "%Y%m%d_%H%M").replace(tzinfo=dt.timezone.utc)
 
@@ -51,8 +51,10 @@ def extract_submission_rows(project, candidate, max_rows=32):
     if not 5 <= max_rows <= 64:
         raise ValueError("max_rows must be 5..64")
     t0, t1, (x0, y0, x1, y1) = candidate_endpoints(candidate)
+    resolution = int(candidate.get("resolution") or int(candidate["first"].split("_c3_")[-1].split(".")[0]))
+    pv.configure_resolution(resolution)
     cache = (Path("/dev/shm") /
-             ("comet_realtime_" + os.environ.get("USER", "user") + "_c3_512"))
+             ("comet_realtime_" + os.environ.get("USER", "user") + f"_c3_{resolution}"))
     if not cache.is_dir():
         return []
 
@@ -62,7 +64,7 @@ def extract_submission_rows(project, candidate, max_rows=32):
         return (x0+(x1-x0)*f, y0+(y1-y0)*f)
 
     eligible = []
-    for path in sorted(cache.glob("*_c3_512.jpg")):
+    for path in sorted(cache.glob(f"*_c3_{resolution}.jpg")):
         try:
             t = image_time(path.name)
         except ValueError:
@@ -80,11 +82,11 @@ def extract_submission_rows(project, candidate, max_rows=32):
     decoded = {}
 
     def gray(index):
-        return _decode_gray(eligible[index][0], decoded)
+        return pv._decode_gray(eligible[index][0], decoded)
 
     def control(index, direction, point):
         for j in range(index+direction, len(eligible) if direction>0 else -1, direction):
-            if math.dist(point, predicted(eligible[j][1])) >= 5.0:
+            if math.dist(point, predicted(eligible[j][1])) >= 5.0 * resolution / 512.0:
                 if gray(j) is not None:
                     return j
         return None
@@ -137,9 +139,9 @@ def extract_submission_rows(project, candidate, max_rows=32):
         if best is None or best[0] <= 0:
             continue
         _, bx, by = best
-        signal = _sample_signal(current, bx, by)
-        earlier = _sample_signal(before, bx, by)
-        later = _sample_signal(after, bx, by)
+        signal = pv._sample_signal(current, bx, by)
+        earlier = pv._sample_signal(before, bx, by)
+        later = pv._sample_signal(after, bx, by)
         if signal is None or earlier is None or later is None:
             continue
         excess = signal["contrast"] - max(earlier["contrast"],later["contrast"])
@@ -161,7 +163,7 @@ def extract_submission_rows(project, candidate, max_rows=32):
         if denominator < 1:
             continue
         x, y = numerator_x/denominator, numerator_y/denominator
-        if math.dist((x,y),point) > 5.5:
+        if math.dist((x,y),point) > 5.5 * resolution / 512.0:
             continue
         rows.append({"date": when.strftime("%Y-%m-%d"),
                      "time": when.strftime("%H:%M"),
@@ -192,7 +194,7 @@ def main():
     except ValueError as exc:
         parser.error(str(exc))
     print("Candidate:", args.candidate)
-    print("C3, 512x512, origin upper left, UTC; inspect original frames")
+    print(f"C3, {candidate.get('resolution', 512)}x{candidate.get('resolution', 512)}, origin upper left, UTC; inspect original frames")
     print("| Frame Time | X Pos | Y Pos | Basis |")
     print("|---|---:|---:|---|")
     for row in rows:
