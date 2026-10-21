@@ -106,7 +106,7 @@ def discover_completed_frames(now,lookback_days=14,resolution=512):
             found[name]={"time":when,"url":urljoin(url,name),"source":"completed"}
     return found
 
-def discover_nrt_frames(now,lookback_days=7):
+def discover_nrt_frames(now,lookback_days=7,resolution=512):
     cutoff=now-dt.timedelta(days=lookback_days)
     found={}
     url=SOHO_NRT_GIF_BASE
@@ -123,7 +123,7 @@ def discover_nrt_frames(now,lookback_days=7):
             continue
         if when<cutoff or when>now+dt.timedelta(hours=2):
             continue
-        target_name=gif_name[:-4]+"_512.jpg"
+        target_name=gif_name[:-4]+f"_{resolution}.jpg"
         found[target_name]={
             "time":when,
             "url":urljoin(url,gif_name),
@@ -160,23 +160,43 @@ def soho_gate_wait(state_dir,minimum_seconds):
         stamp_file.write_text(str(int(time.time())))
         fcntl.flock(lock.fileno(),fcntl.LOCK_UN)
 
-def write_nrt_jpeg(data,target):
+def write_nrt_jpeg(data,target,resolution=512):
+    """Convert the earliest official GIF, preserving native 1024 detail.
+
+    The 512 workflow stays unchanged. 1024 is never synthesized by
+    upsampling a smaller GIF: reject mismatches before decoding.
+    """
+    if resolution not in (512,1024):
+        raise ValueError("Unsupported realtime image resolution")
+    if resolution==1024:
+        probe=subprocess.run(
+            ["ffprobe","-v","error","-select_streams","v:0",
+             "-show_entries","stream=width,height","-of","csv=p=0",
+             "-i","pipe:0"],
+            input=data,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=20)
+        dimensions=probe.stdout.decode("utf-8","replace").strip().split(",")
+        if probe.returncode!=0 or dimensions!=["1024","1024"]:
+            raise ValueError(
+                "Near-realtime SOHO GIF is not native 1024x1024; "
+                f"received {probe.stdout.decode('utf-8','replace').strip()!r}. "
+                "Never upscale lower-resolution quicklook images.")
     tmp=target.with_name(target.name+".tmp.jpg")
-    proc=subprocess.run(
-        [
-            "ffmpeg","-hide_banner","-loglevel","error","-y",
-            "-i","pipe:0","-vf","scale=512:512:flags=lanczos",
-            "-frames:v","1","-q:v","2",str(tmp),
-        ],
-        input=data,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if proc.returncode!=0 or not tmp.exists() or tmp.stat().st_size<10000:
+    try:
+        command=["ffmpeg","-hide_banner","-loglevel","error","-y",
+                 "-i","pipe:0"]
+        if resolution==512:
+            command.extend(["-vf","scale=512:512:flags=lanczos"])
+        command.extend(["-frames:v","1","-q:v","2",str(tmp)])
+        proc=subprocess.run(
+            command,input=data,stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,timeout=90)
+        if proc.returncode!=0 or not tmp.exists() or tmp.stat().st_size<10000:
+            detail=proc.stderr.decode("utf-8","replace").strip()
+            raise RuntimeError(detail or "ffmpeg could not convert realtime GIF")
+        validate_source_resolution(tmp,resolution)
+        tmp.replace(target)
+    finally:
         tmp.unlink(missing_ok=True)
-        detail=proc.stderr.decode("utf-8","replace").strip()
-        raise RuntimeError(detail or "ffmpeg could not convert realtime GIF")
-    tmp.replace(target)
 
 def validate_source_resolution(path, resolution):
     """Refuse mislabeled, corrupt, or upscaled image input."""
@@ -199,8 +219,10 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
     # Discovery-first policy: inspect the official near-real-time quicklook
     # feed and the slower reprocessed archive in the same gated SOHO session.
     log("SOHO realtime session: checking near-real-time C3 feed and completed archive.")
-    # Genuine 1024 only: do not upscale lower-resolution NRT GIFs.
-    nrt=discover_nrt_frames(now,lookback_days=7) if resolution==512 else {}
+    # The official near-realtime C3 GIF feed carries native 1024 imagery.
+    # Probe each downloaded GIF before conversion so a lower-resolution
+    # quicklook can never be mislabeled as a genuine 1024 JPEG.
+    nrt=discover_nrt_frames(now,lookback_days=7,resolution=resolution)
     completed=discover_completed_frames(now,lookback_days=14,resolution=resolution)
 
     latest_nrt=max((v["time"] for v in nrt.values()),default=None)
@@ -295,7 +317,7 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
             if len(data)<10000:
                 raise ValueError(f"response too small ({len(data)} bytes)")
             if meta["source"]=="near_realtime":
-                write_nrt_jpeg(data,target)
+                write_nrt_jpeg(data,target,resolution=resolution)
             else:
                 tmp=target.with_suffix(".part")
                 tmp.write_bytes(data)
