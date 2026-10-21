@@ -42,7 +42,7 @@ def candidate_endpoints(candidate):
     )
 
 
-def extract_submission_rows(project, candidate, max_rows=32):
+def extract_submission_rows(project, candidate, max_rows=32, cache_dir=None):
     """Return report rows using existing JPEGs and raw CUDA track endpoints.
 
     Pixel estimates need visual validation. Rows unsupported by temporal
@@ -55,6 +55,8 @@ def extract_submission_rows(project, candidate, max_rows=32):
     pv.configure_resolution(resolution)
     cache = (Path("/dev/shm") /
              ("comet_realtime_" + os.environ.get("USER", "user") + f"_c3_{resolution}"))
+    if cache_dir is not None:
+        cache = Path(cache_dir)
     if not cache.is_dir():
         return []
 
@@ -194,7 +196,7 @@ def main():
     except ValueError as exc:
         parser.error(str(exc))
     print("Candidate:", args.candidate)
-    print(f"C3, {candidate.get('resolution', 512)}x{candidate.get('resolution', 512)}, origin upper left, UTC; inspect original frames")
+    print(f"C3, {item.get('resolution', 512)}x{item.get('resolution', 512)}, origin upper left, UTC; inspect original frames")
     print("| Frame Time | X Pos | Y Pos | Basis |")
     print("|---|---:|---:|---|")
     for row in rows:
