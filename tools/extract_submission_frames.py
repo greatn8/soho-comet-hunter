@@ -116,7 +116,7 @@ def extract_submission_rows(project, candidate, max_rows=32):
             continue
 
         cx, cy = round(point[0]), round(point[1])
-        if not (9 <= cx < WIDTH-9 and 9 <= cy < HEIGHT-9):
+        if not (9 * resolution / 512 <= cx < resolution-9 * resolution / 512 and 9 * resolution / 512 <= cy < resolution-9 * resolution / 512):
             continue
 
         # Localize the moving compact source by maximizing summed 3x3
@@ -130,7 +130,7 @@ def extract_submission_rows(project, candidate, max_rows=32):
                 score = 0
                 for dy in (-1,0,1):
                     for dx in (-1,0,1):
-                        index = (y+dy)*WIDTH+(x+dx)
+                        index = (y+dy)*resolution+(x+dx)
                         score += max(0, int(current[index]) -
                                      max(int(before[index]),int(after[index])))
                 score -= math.hypot(ox,oy)*0.05
@@ -154,7 +154,7 @@ def extract_submission_rows(project, candidate, max_rows=32):
         for dy in (-1,0,1):
             for dx in (-1,0,1):
                 x, y = bx+dx, by+dy
-                index = y*WIDTH+x
+                index = y*resolution+x
                 w = max(0, int(current[index])-max(int(before[index]),
                                                     int(after[index])))
                 numerator_x += x*w
