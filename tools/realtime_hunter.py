@@ -1156,7 +1156,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         log(f"Parsed {len(reports)} recent C3 Sungrazer reports.")
     except Exception as exc:
         reports=[]; log(f"WARN: Sungrazer duplicate check unavailable: {exc}")
-    seen_file=results_dir/"seen_tracks.json"; seen=load_json(seen_file,[])
+    seen_file=results_dir/("seen_tracks_1024.json" if args.resolution==1024 else "seen_tracks.json"); seen=load_json(seen_file,[])
     if not isinstance(seen,list):seen=[]
     rows=[]
     newest_time=image_time(newest)
