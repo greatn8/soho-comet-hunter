@@ -445,7 +445,7 @@ def parse_candidates(output):
                     item["last"]["x"]-item["first"]["x"]-item["vx"]*span,
                     item["last"]["y"]-item["first"]["y"]-item["vy"]*span,
                 )
-                if displacement_error>max(12.0,span*1.5):
+                if displacement_error>max(12.0,span*1.5)*(1024/512 if "_c3_1024.jpg" in item["first"]["file"] else 1):
                     item["trajectory_warning"]="ENDPOINT_VELOCITY_MISMATCH"
             out.append(item)
         i+=1
@@ -454,11 +454,11 @@ def parse_candidates(output):
 def comet_filter_reasons(c):
     reasons=[]
     if c["frames"]<5: reasons.append("too_few_frames")
-    if c["rms"]>1.2: reasons.append("rms_too_high")
-    if c["speed"]<0.25: reasons.append("too_slow")
-    if abs(c["vx"])>12 or abs(c["vy"])>12: reasons.append("velocity_too_high")
+    if c["rms"]>1.2*c.get("resolution",512)/512.0: reasons.append("rms_too_high")
+    if c["speed"]<0.25*c.get("resolution",512)/512.0: reasons.append("too_slow")
+    if abs(c["vx"])>12*c.get("resolution",512)/512.0 or abs(c["vy"])>12*c.get("resolution",512)/512.0: reasons.append("velocity_too_high")
     if c["cv"]>1.2: reasons.append("brightness_cv_too_high")
-    if c["sunward"]<1.0: reasons.append("weak_or_outward_motion")
+    if c["sunward"]<1.0*c.get("resolution",512)/512.0: reasons.append("weak_or_outward_motion")
     radial_fraction=(c["sunward"]/c["speed"]) if c["speed"]>0 else -999.0
     if radial_fraction<0.35: reasons.append("weak_sunward_fraction")
     return reasons
@@ -475,10 +475,12 @@ def motion_family_size(c,candidates,velocity_radius=0.35):
 
 def annotate_motion_families(candidates,velocity_radius=0.35):
     for c in candidates:
-        c["motion_family_size"]=motion_family_size(c,candidates,velocity_radius)
+        c["motion_family_size"]=motion_family_size(c,candidates,velocity_radius * c.get("resolution",512)/512.0)
     return candidates
 
-def candidate_quadrant(c,center_x=256.0,center_y=256.0):
+def candidate_quadrant(c,center_x=None,center_y=None):
+    center_x = c.get("resolution",512)/2 if center_x is None else center_x
+    center_y = c.get("resolution",512)/2 if center_y is None else center_y
     """Quadrant of the candidate midpoint in image coordinates."""
     try:
         x=(float(c["first"]["x"])+float(c["last"]["x"]))/2.0
@@ -581,7 +583,7 @@ def group_event_hypotheses(candidates):
             metrics=event_overlap_metrics(rep,c)
             if not metrics:
                 continue
-            if metrics["median_distance"]>12.0 or metrics["max_distance"]>20.0:
+            if metrics["median_distance"]>12.0*rep.get("resolution",512)/512.0 or metrics["max_distance"]>20.0*rep.get("resolution",512)/512.0:
                 continue
             key=(metrics["median_distance"],metrics["max_distance"])
             if best is None or key<best[0]:
@@ -645,11 +647,12 @@ def candidate_xy_1024(c,when,model="velocity"):
     first=c["first"]; last=c["last"]
     if model=="endpoints":
         span=(last["time"]-first["time"]).total_seconds()
-        if abs(span)<1:return 2*first["x"],2*first["y"]
+        if abs(span)<1:return (1024.0/c.get("resolution",512))*first["x"],(1024.0/c.get("resolution",512))*first["y"]
         frac=(when-first["time"]).total_seconds()/span
-        return 2*(first["x"]+(last["x"]-first["x"])*frac),2*(first["y"]+(last["y"]-first["y"])*frac)
+        return (1024.0/c.get("resolution",512))*(first["x"]+(last["x"]-first["x"])*frac),(1024.0/c.get("resolution",512))*(first["y"]+(last["y"]-first["y"])*frac)
     hours=(when-first["time"]).total_seconds()/3600
-    return 2*(first["x"]+c["vx"]*hours),2*(first["y"]+c["vy"]*hours)
+    scale=1024.0/c.get("resolution",512)
+    return scale*(first["x"]+c["vx"]*hours),scale*(first["y"]+c["vy"]*hours)
 
 def report_transforms_1024(r):
     if r.get("image_size") in (512,1024):
@@ -857,7 +860,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         log("WARN: GPU remained busy; retry next cycle."); return
     binary=project/"comet_hunter_archive"
     run_id=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    log(f"Running multiscale CUDA detector on {len(frames)} cached frame(s).")
+    log(f"Running native {args.resolution}px multiscale CUDA detector on {len(frames)} cached frame(s).")
     raw_candidates,window_runs=run_multiscale_cuda(
         project,frames,results_dir,args,run_id,cache_dir
     )
@@ -1222,7 +1225,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             [run_id,c["cid"],c["priority"],c["frames"],c["speed"],c["vx"],c["vy"],c["rms"],c["sunward"],c["score"],c["first"]["file"],c["first"]["x"],c["first"]["y"],c["last"]["file"],c["last"]["x"],c["last"]["y"],"no_recent_match" if reports else "check_unavailable"]
         )
         pixel=c.get("pixel_verification",{})
-        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - PIXEL-VERIFIED HIGH-PRIORITY EVENT\n"+f"Candidate: {c['cid']} raw_class={c['priority']} review_class={c.get('review_class')} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Pixel evidence: hits={pixel.get('hits',0)}/{pixel.get('samples',0)} hit_fraction={pixel.get('hit_fraction',0):.2f} peak_snr={pixel.get('peak_snr',0):.2f} longest_run={pixel.get('longest_hit_run',0)}\n"+f"Event group: {c.get('event_group')} members={c.get('event_members',1)}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
+        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - PIXEL-VERIFIED HIGH-PRIORITY EVENT\n"+f"Candidate: {c['cid']} raw_class={c['priority']} review_class={c.get('review_class')} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Pixel evidence: hits={pixel.get('hits',0)}/{pixel.get('samples',0)} hit_fraction={pixel.get('hit_fraction',0):.2f} peak_snr={pixel.get('peak_snr',0):.2f} longest_run={pixel.get('longest_hit_run',0)}\n"+f"Event group: {c.get('event_group')} members={c.get('event_members',1)}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [{args.resolution}]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [{args.resolution}]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
         log(alert); (results_dir/"latest_alert.txt").write_text(alert+"\n",encoding="utf-8")
     seen_file.write_text(json.dumps(seen[-1000:],indent=2),encoding="utf-8")
     (results_dir/"latest_candidates.json").write_text(json.dumps(rows,indent=2),encoding="utf-8")
