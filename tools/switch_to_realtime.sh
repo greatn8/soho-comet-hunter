@@ -6,6 +6,8 @@ SESSION="comet_realtime"
 DASH_SESSION="comet_dashboard_publish"
 LOG="$PROJECT/logs/realtime_hunter.log"
 HUNTER="$DASH_REPO/tools/realtime_hunter.py"
+RESOLUTION="${COMET_RESOLUTION:-512}"
+if [[ "$RESOLUTION" != "512" && "$RESOLUTION" != "1024" ]]; then echo "ERROR: COMET_RESOLUTION must be 512 or 1024" >&2; exit 1; fi
 cd "$PROJECT"
 mkdir -p logs state results/realtime
 if [[ "$(hostname -s)" != "bourbaki" ]]; then
@@ -38,6 +40,7 @@ pkill -TERM -f 'hybrid_hunter.py|realtime_hunter.py|run_v10_incremental|run_arch
 sleep 3
 
 date +%s > "$PROJECT/state/realtime_last_soho_session_epoch.txt"
+printf "%s\n" "$RESOLUTION" > "$PROJECT/state/realtime_c3_resolution.txt"
 cat > "$PROJECT/results/realtime/mode.json" <<'EOF'
 {
   "mode": "REALTIME_ONLY",
@@ -46,7 +49,7 @@ cat > "$PROJECT/results/realtime/mode.json" <<'EOF'
 }
 EOF
 
-tmux new-session -d -s "$SESSION" "bash -lc 'cd "$PROJECT" && exec python3 "$HUNTER" --project "$PROJECT" >> "$LOG" 2>&1'"
+tmux new-session -d -s "$SESSION" "bash -lc 'cd "$PROJECT" && exec python3 "$HUNTER" --project "$PROJECT" --resolution "$RESOLUTION" >> "$LOG" 2>&1'"
 
 # Keep the public dashboard publisher tied to the realtime hunter lifecycle.
 # Restart any older watcher so it picks up the current credential and

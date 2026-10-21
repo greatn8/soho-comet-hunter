@@ -946,7 +946,7 @@ def update_realtime_html_fallback(data_dir):
 
     frame = clean(payload.get("last_frame"))
     if frame:
-        frame = re.sub(r"_c3_512\\.jpg$", "", frame, flags=re.IGNORECASE)
+        frame = re.sub(r"_c3_(?:512|1024)\\.jpg$", "", frame, flags=re.IGNORECASE)
     else:
         frame = "—"
 
@@ -1068,9 +1068,11 @@ def publish_realtime_data(realtime_source, data_dir, age_hours=24):
             coords = [float(t[k]) for k in ("first_x", "first_y", "last_x", "last_y")]
         except (ValueError, TypeError):
             continue
-        if not all(0 <= coord < 512 for coord in coords):
+        res=int(row.get("resolution") or (1024 if "_c3_1024.jpg" in str(row.get("first","")) else 512))
+        if not all(0 <= coord < res for coord in coords):
             continue
         row["track"] = {k:t[k] for k in ("first_x", "first_y", "last_x", "last_y", "vx", "vy") if k in t}
+        row["resolution"] = res
 
     # Preserve a bounded review history across frequent dashboard publishes.
     # Current candidates are inserted first, followed by older review rows from
@@ -1209,7 +1211,7 @@ def publish_realtime_data(realtime_source, data_dir, age_hours=24):
     # that same quicklook frame on the dashboard rather than pointing at a
     # completed/reprocessed JPEG that may not exist yet.
     if last_frame and input_source.get("active_source") == "near_realtime":
-        gif_name = re.sub(r"_512\.jpg$", ".gif", last_frame, flags=re.IGNORECASE)
+        gif_name = re.sub(r"_(?:512|1024)\.jpg$", ".gif", last_frame, flags=re.IGNORECASE)
         latest_frame_url = (
             f"https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
             f"{gif_name}"

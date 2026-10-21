@@ -26,7 +26,7 @@ from urllib.request import Request, urlopen
 REPO = "greatn8/soho-comet-hunter"
 ASSIGNEE = "greatn8"
 DASHBOARD = "https://greatn8.github.io/soho-comet-hunter/"
-FILE_RE = re.compile(r"^(20\d{6})_(\d{4})_c3_512\.jpg$")
+FILE_RE = re.compile(r"^(20\d{6})_(\d{4})_c3_(?:512|1024)\.jpg$")
 MARKER = "<!-- SOHO_STRONG_REVIEW_ALERT "
 
 
@@ -55,6 +55,7 @@ def normalize(candidate, track=None):
         "first": str(candidate.get("first") or ""),
         "last": str(candidate.get("last") or ""),
         "frames": candidate.get("frames"),
+        "resolution": int(candidate.get("resolution") or (1024 if "_c3_1024.jpg" in str(candidate.get("first", "")) else 512)),
         "pixel_verification": candidate.get("pixel_verification") or {},
         "official_report_check": candidate.get("official_report_check") or {},
         "submission_frames": candidate.get("submission_frames") or [],
@@ -94,11 +95,19 @@ def same_physical_object(a, b):
         hours = (bt-at).total_seconds()/3600.
         if abs(hours) > 18:
             return False
-        ax = float(ta["last_x"]) + float(ta["vx"])*hours
-        ay = float(ta["last_y"]) + float(ta["vy"])*hours
-        distance = math.hypot(ax-float(tb["last_x"]), ay-float(tb["last_y"]))
-        dv = math.hypot(float(ta["vx"])-float(tb["vx"]),
-                        float(ta["vy"])-float(tb["vy"]))
+        # Compare historical 512 and new 1024 records at one physical scale.
+        # Without this, the same object can trigger duplicate GitHub issues
+        # after upgrading the detector resolution.
+        ra = int(a.get("resolution") or (1024 if "_c3_1024.jpg" in str(a.get("last")) else 512))
+        rb = int(b.get("resolution") or (1024 if "_c3_1024.jpg" in str(b.get("last")) else 512))
+        if ra not in (512, 1024) or rb not in (512, 1024):
+            return False
+        fa, fb = 512.0/ra, 512.0/rb
+        ax = (float(ta["last_x"]) + float(ta["vx"])*hours)*fa
+        ay = (float(ta["last_y"]) + float(ta["vy"])*hours)*fa
+        distance = math.hypot(ax-float(tb["last_x"])*fb, ay-float(tb["last_y"])*fb)
+        dv = math.hypot(float(ta["vx"])*fa-float(tb["vx"])*fb,
+                        float(ta["vy"])*fa-float(tb["vy"])*fb)
         return distance <= 8 and dv <= 2
     except (KeyError, ValueError, TypeError):
         return False
@@ -224,7 +233,8 @@ def endpoint_track_valid(track):
     if not isinstance(track, dict):
         return False
     try:
-        return all(math.isfinite(float(track[key])) and 0 <= float(track[key]) < 512
+        resolution = int(track.get("resolution", 512))
+        return all(math.isfinite(float(track[key])) and 0 <= float(track[key]) < resolution
                    for key in ("first_x", "first_y", "last_x", "last_y"))
     except (TypeError, ValueError, KeyError):
         return False
@@ -235,7 +245,8 @@ def report_position_rows(candidate):
     rows = candidate.get("submission_frames") or []
     if isinstance(rows, list) and rows:
         return [row for row in rows if isinstance(row, dict)][:64]
-    track = candidate.get("track") or {}
+    track = dict(candidate.get("track") or {})
+    track["resolution"] = int(candidate.get("resolution", 512))
     if not endpoint_track_valid(track):
         return []
     try:
@@ -267,12 +278,14 @@ def issue_details(candidate, test=False):
     if review_id:
         link = (f"https://raw.githubusercontent.com/{REPO}/live-media/"
                 f"{review_id}/zoom_annotated.mp4")
-    track = candidate.get("track") or {}
+    track = dict(candidate.get("track") or {})
+    resolution = int(candidate.get("resolution", 512))
+    track["resolution"] = resolution
     endpoints = ""
     if endpoint_track_valid(track):
         endpoints = (
-            f"- First CUDA fitted XY (512, top-left): ({track['first_x']}, {track['first_y']})\n"
-            f"- Last CUDA fitted XY (512, top-left): ({track['last_x']}, {track['last_y']})\n"
+            f"- First CUDA fitted XY ({resolution}, top-left): ({track['first_x']}, {track['first_y']})\n"
+            f"- Last CUDA fitted XY ({resolution}, top-left): ({track['last_x']}, {track['last_y']})\n"
         )
     report_check = candidate.get("official_report_check") or {}
     status_check = str(report_check.get("status") or "CHECK_UNAVAILABLE")
@@ -295,7 +308,7 @@ def issue_details(candidate, test=False):
 
     rows = report_position_rows(candidate)
     if rows:
-        row_text = ("\n### Frame positions for SOHO report (UTC, 512x512, upper-left origin)\n\n"
+        row_text = (f"\n### Frame positions for SOHO report (UTC, {resolution}x{resolution}, upper-left origin)\n\n"
                     "| Frame Time | X Pos | Y Pos | Basis |\n"
                     "|---|---:|---:|---|\n")
         for row in rows:
@@ -305,7 +318,7 @@ def issue_details(candidate, test=False):
         row_text += ("\n**Verify every position against the original SOHO images.** "
                      "CUDA endpoints are fitted detector values; intermediate positions "
                      "are temporal pixel estimates, not independently verified astrometry. "
-                     "Use the coordinates only with the corresponding 512x512 images.\n")
+                     f"Use the coordinates only with the corresponding {resolution}x{resolution} images.\n")
     else:
         row_text = ("\n### Frame positions\n"
                     "No detector endpoints or independently supported per-frame "
@@ -337,6 +350,7 @@ def issue_body_and_metadata(candidate):
     marker = {k: candidate.get(k) for k in
               ("review_id", "candidate", "first", "last")}
     marker["track"] = track if isinstance(track, dict) else {}
+    marker["resolution"] = candidate.get("resolution", 512)
     marker["position_row_count"] = len(report_position_rows(candidate))
     return title, MARKER + json.dumps(marker, separators=(",", ":")) + " -->\n" + body
 

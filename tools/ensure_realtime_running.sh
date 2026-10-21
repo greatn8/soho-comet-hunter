@@ -88,10 +88,21 @@ fi
 
 echo "[WARN] Realtime hunter missing; restarting it from the publisher watchdog."
 tmux kill-session -t "$SESSION" 2>/dev/null || true
+# An explicit persistent resolution setting is required for 1024 mode.
+# Never silently fall back to 512 following a watchdog restart.
+RESOLUTION_FILE="$PROJECT/state/realtime_c3_resolution.txt"
+RESOLUTION="512"
+if [[ -f "$RESOLUTION_FILE" ]]; then
+  RESOLUTION="$(tr -d '[:space:]' < "$RESOLUTION_FILE")"
+fi
+if [[ "$RESOLUTION" != "512" && "$RESOLUTION" != "1024" ]]; then
+  echo "[ERROR] Invalid persisted C3 resolution: $RESOLUTION" >&2
+  exit 1
+fi
 # A normal launch resumes SOHO polling; never run --reprocess-cache-once
 # automatically because a 14-day CUDA replay may take much longer.
-printf -v launch 'cd %q && exec python3 %q --project %q >> %q 2>&1' \
-  "$PROJECT" "$HUNTER" "$PROJECT" "$LOG"
+printf -v launch 'cd %q && exec python3 %q --project %q --resolution %q >> %q 2>&1' \
+  "$PROJECT" "$HUNTER" "$PROJECT" "$RESOLUTION" "$LOG"
 # Critical: do not let tmux (or its server) inherit the recovery flock.
 # Otherwise a detached tmux wrapper can hold FD 8 after this script exits,
 # preventing every subsequent watchdog recovery.

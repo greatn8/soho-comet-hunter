@@ -1,0 +1,25 @@
+name: Native C3 resolution regression
+on:
+  push:
+    branches:
+      - feature/native-c3-1024
+    paths:
+      - "tools/**"
+      - "tests/test_native_c3_resolution.py"
+      - ".github/workflows/test-native-c3-resolution.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile changed Python sources
+        run: |
+          python -m py_compile tools/realtime_hunter.py tools/pixel_verify.py tools/live_review.py tools/extract_submission_frames.py tools/comet_github_alert.py tools/check_recent_sungrazer_reports.py tools/update_dashboard.py
+      - name: Test both image resolutions
+        run: python -m unittest discover -s tests -p test_native_c3_resolution.py -v
