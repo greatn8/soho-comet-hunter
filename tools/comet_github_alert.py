@@ -95,11 +95,19 @@ def same_physical_object(a, b):
         hours = (bt-at).total_seconds()/3600.
         if abs(hours) > 18:
             return False
-        ax = float(ta["last_x"]) + float(ta["vx"])*hours
-        ay = float(ta["last_y"]) + float(ta["vy"])*hours
-        distance = math.hypot(ax-float(tb["last_x"]), ay-float(tb["last_y"]))
-        dv = math.hypot(float(ta["vx"])-float(tb["vx"]),
-                        float(ta["vy"])-float(tb["vy"]))
+        # Compare historical 512 and new 1024 records at one physical scale.
+        # Without this, the same object can trigger duplicate GitHub issues
+        # after upgrading the detector resolution.
+        ra = int(a.get("resolution") or (1024 if "_c3_1024.jpg" in str(a.get("last")) else 512))
+        rb = int(b.get("resolution") or (1024 if "_c3_1024.jpg" in str(b.get("last")) else 512))
+        if ra not in (512, 1024) or rb not in (512, 1024):
+            return False
+        fa, fb = 512.0/ra, 512.0/rb
+        ax = (float(ta["last_x"]) + float(ta["vx"])*hours)*fa
+        ay = (float(ta["last_y"]) + float(ta["vy"])*hours)*fa
+        distance = math.hypot(ax-float(tb["last_x"])*fb, ay-float(tb["last_y"])*fb)
+        dv = math.hypot(float(ta["vx"])*fa-float(tb["vx"])*fb,
+                        float(ta["vy"])*fa-float(tb["vy"])*fb)
         return distance <= 8 and dv <= 2
     except (KeyError, ValueError, TypeError):
         return False
