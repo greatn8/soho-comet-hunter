@@ -842,6 +842,14 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
         by_id[candidate["id"]] = candidate
         promoted += 1
 
+    # Recover permanent media when an older strong review video is rebuilt
+    # after its archive record was already promoted without a clip.
+    for archived in by_id.values():
+        if (archived.get("review_class") == "STRONG_REVIEW"
+                and not archived.get("video") and archived.get("review_id")):
+            preserve_realtime_archive_media(source, data_dir, archived,
+                                            archived.get("review_id"))
+
     # Archive is permanent; the pending queue is only for not-yet-eligible
     # strong reviews and is removed once the record is archived.
     pending = {key:row for key,row in pending.items() if key not in by_id}
