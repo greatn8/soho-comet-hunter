@@ -27,6 +27,8 @@ REPORT_POINT_RE=re.compile(r"(?m)^\s*(?P<t>\d{1,2}:\d{2}|\d{4})\s+(?P<x>\d{1,4})
 DATE_RE=re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
 STOP=False
 HEARTBEAT_LOCK=threading.RLock()
+# Revalidate a cached frame only if its size or modification time changes.
+VALIDATED_FRAMES=set()
 
 def log(msg):
     stamp=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -296,7 +298,13 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
         cached=cache_dir/name
         if cached.exists() and cached.stat().st_size>10000:
             try:
-                validate_source_resolution(cached,resolution)
+                stat=cached.stat()
+                fingerprint=(str(cached),stat.st_size,stat.st_mtime_ns,resolution)
+                if fingerprint not in VALIDATED_FRAMES:
+                    validate_source_resolution(cached,resolution)
+                    if len(VALIDATED_FRAMES)>=12000:
+                        VALIDATED_FRAMES.clear()
+                    VALIDATED_FRAMES.add(fingerprint)
                 continue
             except (OSError,ValueError):
                 cached.unlink(missing_ok=True)
@@ -576,14 +584,19 @@ def velocity_sign_counts(candidates):
     return out
 
 def live_candidate_rank(c):
+    # Rank physical tracks identically at 512 and 1024 image resolution.
+    # Coordinates and pixel/hour velocities double in 1024 imagery.
+    scale=c.get("resolution",512)/512.0
+    sunward=c["sunward"]/scale
+    rms=c["rms"]/scale
     radial_fraction=(c["sunward"]/c["speed"]) if c["speed"]>0 else -1.0
     family_size=max(1,int(c.get("motion_family_size",1)))
     family_penalty=math.log2(family_size)*2.5
     return (
         min(c["frames"],20)*2.0
-        + max(0.0,min(c["sunward"],12.0))*4.0
+        + max(0.0,min(sunward,12.0))*4.0
         + max(0.0,min(radial_fraction,1.5))*15.0
-        - c["rms"]*12.0
+        - rms*12.0
         - c["cv"]*6.0
         - family_penalty
     )
