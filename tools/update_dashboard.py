@@ -991,6 +991,33 @@ def publish_realtime_data(realtime_source, data_dir):
         row for row in latest_candidates if realtime_archive_id(row) not in archived_ids
     ]
 
+    # Publish the original CUDA endpoint positions, not only image filenames.
+    # Candidate labels such as C0120040 are reused between detector cycles;
+    # match all three fields so coordinates cannot cross between objects.
+    tracks_path = source / "latest_tracks.json"
+    try:
+        loaded_tracks = json.loads(tracks_path.read_text(encoding="utf-8"))
+        tracks = loaded_tracks if isinstance(loaded_tracks, list) else []
+    except (OSError, ValueError):
+        tracks = []
+    tracks_by_event = {
+        (str(t.get("candidate")), str(t.get("first")), str(t.get("last"))): t
+        for t in tracks if isinstance(t, dict)
+    }
+    for row in latest_candidates:
+        t = tracks_by_event.get((str(row.get("candidate")), str(row.get("first")), str(row.get("last"))))
+        if not isinstance(t, dict):
+            continue
+        if not all(k in t for k in ("first_x", "first_y", "last_x", "last_y")):
+            continue
+        try:
+            coords = [float(t[k]) for k in ("first_x", "first_y", "last_x", "last_y")]
+        except (ValueError, TypeError):
+            continue
+        if not all(0 <= coord < 512 for coord in coords):
+            continue
+        row["track"] = {k:t[k] for k in ("first_x", "first_y", "last_x", "last_y", "vx", "vy") if k in t}
+
     # Preserve a bounded review history across frequent dashboard publishes.
     # Current candidates are inserted first, followed by older review rows from
     # the previous dashboard payload. Only the newest 100 unique reviews are
