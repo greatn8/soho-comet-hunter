@@ -23,7 +23,7 @@ FRAME_SUFFIXES = ("_c3_512.jpg", "_c3_1024.jpg")
 
 
 def image_time(name):
-    if not (len(name) == 24 and any(name.endswith(v) for v in FRAME_SUFFIXES)):
+    if not (len(name) in (24, 25) and any(name.endswith(v) for v in FRAME_SUFFIXES)):
         raise ValueError("Unexpected C3 filename: " + str(name))
     return dt.datetime.strptime(name[:13], "%Y%m%d_%H%M").replace(tzinfo=dt.timezone.utc)
 
