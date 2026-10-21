@@ -89,6 +89,29 @@ class ResolutionTests(unittest.TestCase):
         newer["track"]["last_x"] = 600
         self.assertFalse(comet_github_alert.same_physical_object(older,newer))
 
+    def test_realtime_1024_gif_is_not_upscaled(self):
+        import shutil
+        import subprocess
+        import tempfile
+        if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+            self.skipTest("ffmpeg and ffprobe required")
+        with tempfile.TemporaryDirectory() as directory:
+            for size in (512,1024):
+                gif = subprocess.run(
+                    ["ffmpeg","-hide_banner","-loglevel","error","-f","lavfi",
+                     "-i",f"color=c=white:s={size}x{size}:d=0.1",
+                     "-frames:v","1","-f","gif","pipe:1"],
+                    stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True).stdout
+                target = Path(directory)/f"20261021_0930_c3_1024_{size}.jpg"
+                if size==512:
+                    with self.assertRaises(ValueError):
+                        realtime_hunter.write_nrt_jpeg(gif,target,resolution=1024)
+                    self.assertFalse(target.exists())
+                else:
+                    realtime_hunter.write_nrt_jpeg(gif,target,resolution=1024)
+                    realtime_hunter.validate_source_resolution(target,1024)
+                    self.assertTrue(target.exists())
+
     def test_alert_endpoint_bounds(self):
         for size in (512,1024):
             c = {"first":f"20261021_0930_c3_{size}.jpg",
