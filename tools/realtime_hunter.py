@@ -444,12 +444,29 @@ def parse_candidates(output):
         item={k:m.group(k) for k in m.groupdict()}; item["frames"]=int(item["frames"])
         for k in ("speed","vx","vy","rms","cv","sunward","score"): item[k]=float(item[k])
         item["first"]=item["last"]=None
-        for j in range(i+1,min(i+5,len(lines))):
-            pm=POINT_RE.search(lines[j])
-            if not pm: continue
+        # A candidate owns only its own endpoint lines. Never scan into the
+        # next candidate: that previously replaced a missing C317 first point
+        # with C318 first, silently creating a fictitious moving trajectory.
+        for j in range(i+1,min(i+8,len(lines))):
+            line=lines[j]
+            if CANDIDATE_RE.search(line):
+                break
+            pm=POINT_RE.search(line)
+            if not pm:
+                continue
+            label=line.strip().lower()
+            if label.startswith("first:"):
+                key="first"
+            elif label.startswith("last:"):
+                key="last"
+            else:
+                continue
+            if item[key] is not None:
+                continue
             point={"file":pm.group("file"),"x":float(pm.group("x")),"y":float(pm.group("y")),"time":image_time(pm.group("file"))}
-            if "first:" in lines[j]: item["first"]=point
-            elif "last" in lines[j]: item["last"]=point
+            item[key]=point
+            if item["first"] is not None and item["last"] is not None:
+                break
         if item["first"] and item["last"]:
             # CUDA endpoint labels are not guaranteed to be chronological.
             # Correct the metadata before pixel checks, matching or video review.
