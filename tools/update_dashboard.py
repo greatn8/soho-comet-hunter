@@ -582,6 +582,29 @@ def realtime_archive_id(row):
 
 
 
+def realtime_is_expired(row, cutoff):
+    """Whether the last observed SOHO frame is at least age_hours old."""
+    last = frame_iso(row.get("last")) if isinstance(row, dict) else None
+    if not last:
+        return False
+    try:
+        return datetime.fromisoformat(last.replace("Z", "+00:00")) <= cutoff
+    except (TypeError, ValueError):
+        return False
+
+
+def realtime_has_review_video(source, row):
+    """Only actual locally retained annotated MP4 evidence can be archived."""
+    review_id = find_realtime_review_id(source, row)
+    if not review_id:
+        return False
+    video = Path(source) / "review" / review_id / "zoom_annotated.mp4"
+    try:
+        return video.is_file() and video.stat().st_size >= 1024
+    except OSError:
+        return False
+
+
 def find_realtime_review_id(source, row):
     explicit = clean(row.get("review_id"))
     if explicit:
@@ -708,14 +731,18 @@ def preserve_realtime_archive_media(source, data_dir, candidate, review_id):
         src, target = review_folder / filename, dest / filename
         if not target.is_file():
             try:
-                if not src.is_file() or src.stat().st_size > size_cap:
+                if not src.is_file() or not 1024 <= src.stat().st_size <= size_cap:
                     continue
                 dest.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, target)
             except OSError as exc:
                 print(f"[WARN] Could not preserve historical review media: {exc}")
                 continue
-        if target.is_file():
+        try:
+            usable = target.is_file() and target.stat().st_size >= 1024
+        except OSError:
+            usable = False
+        if usable:
             candidate[field] = f"./media/realtime_archive/{safe_id}/{filename}"
 
 
@@ -744,6 +771,8 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
     if not source.exists():
         return list(by_id.values())
     reset_at = realtime_view_reset_time(source)
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=age_hours)
 
     # Persist strong reviews until their 24-hour archive age, even when
     # subsequent GPU runs drop their candidate IDs from latest_candidates.
@@ -762,6 +791,10 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
         if str(row.get("review_class") or "").upper() != "STRONG_REVIEW":
             return
         if not realtime_row_visible(row, reset_at) or not frame_iso(row.get("last")):
+            return
+        # Aged reviews without a saved clip have expired and must not re-enter
+        # the pending queue on every publish of stale live-detector output.
+        if realtime_is_expired(row, cutoff) and not realtime_has_review_video(source, row):
             return
         key = realtime_archive_id(row)
         if key not in by_id:
@@ -794,9 +827,8 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
     for row in pending.values():
         rows.append((row, str(row.get("status") or "SEEN_ALREADY").upper()))
 
-    now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(hours=age_hours)
     promoted = 0
+    skipped_no_video = 0
 
     for row, status in rows:
         if not realtime_row_visible(row, reset_at):
@@ -819,6 +851,12 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
         # contact-sheet thumbnail in the permanent archive before they vanish.
         preserve_realtime_archive_media(source, data_dir, candidate, review_id)
         existing = by_id.get(candidate["id"])
+        # Never create a permanent historical card for a video-less
+        # unconfirmed detection. The expired review will leave the realtime
+        # display instead. Existing archived records are left untouched.
+        if existing is None and not candidate.get("video"):
+            skipped_no_video += 1
+            continue
 
         if existing:
             # A later known-report match should enrich an earlier unresolved archive row.
@@ -852,7 +890,10 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
 
     # Archive is permanent; the pending queue is only for not-yet-eligible
     # strong reviews and is removed once the record is archived.
-    pending = {key:row for key,row in pending.items() if key not in by_id}
+    pending = {
+        key: row for key, row in pending.items()
+        if key not in by_id and not realtime_is_expired(row, cutoff)
+    }
     pending_payload = {"pending":pending}
     try:
         previous_pending = json.loads(pending_path.read_text(encoding="utf-8"))
@@ -885,7 +926,9 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
     if promoted:
         print(f"[OK] Promoted {promoted} realtime candidate(s) into the permanent archive.")
     else:
-        print("[OK] No realtime candidates reached the archive age threshold this cycle.")
+        print("[OK] No video-backed realtime candidates reached the archive age threshold.")
+    if skipped_no_video:
+        print(f"[OK] Skipped {skipped_no_video} expired candidate(s) without permanent review video.")
 
     return candidates
 
@@ -920,7 +963,7 @@ def update_realtime_html_fallback(data_dir):
         print(f"[OK] Embedded latest realtime frame in dashboard HTML: {frame}")
 
 
-def publish_realtime_data(realtime_source, data_dir):
+def publish_realtime_data(realtime_source, data_dir, age_hours=24):
     output = data_dir / "realtime.json"
 
     if realtime_source is None:
@@ -973,6 +1016,7 @@ def publish_realtime_data(realtime_source, data_dir):
     heartbeat_path = source / "heartbeat.json"
     input_source_path = source / "input_source.json"
     reset_at = realtime_view_reset_time(source)
+    expire_cutoff = datetime.now(timezone.utc) - timedelta(hours=age_hours)
 
     latest_candidates = []
     if candidates_path.exists():
@@ -996,7 +1040,9 @@ def publish_realtime_data(realtime_source, data_dir):
     except (OSError, ValueError):
         archived_ids = set()
     latest_candidates = [
-        row for row in latest_candidates if realtime_archive_id(row) not in archived_ids
+        row for row in latest_candidates
+        if realtime_archive_id(row) not in archived_ids
+        and not realtime_is_expired(row, expire_cutoff)
     ]
 
     # Publish the original CUDA endpoint positions, not only image filenames.
@@ -1054,6 +1100,7 @@ def publish_realtime_data(realtime_source, data_dir):
                     if isinstance(row, dict)
                     and str(row.get("review_class") or "").upper() == "STRONG_REVIEW"
                     and realtime_archive_id(row) not in archived_ids
+                    and not realtime_is_expired(row, expire_cutoff)
                     and realtime_row_visible(row, reset_at)
                 ]
         except (OSError, ValueError, TypeError) as exc:
@@ -1071,7 +1118,7 @@ def publish_realtime_data(realtime_source, data_dir):
     for row in history_seed:
         if not realtime_row_visible(row, reset_at):
             continue
-        if realtime_archive_id(row) in archived_ids:
+        if realtime_archive_id(row) in archived_ids or realtime_is_expired(row, expire_cutoff):
             continue
         review_id = clean(row.get("review_id")) or find_realtime_review_id(source, row)
         key = review_id or "|".join(
@@ -1422,7 +1469,7 @@ def main():
     print(f"[OK] Wrote {data_dir / 'candidates.json'}")
     print(f"[OK] Wrote {data_dir / 'status.json'}")
 
-    publish_realtime_data(args.realtime_source, data_dir)
+    publish_realtime_data(args.realtime_source, data_dir, age_hours=args.realtime_promote_hours)
     update_realtime_html_fallback(data_dir)
 
 if __name__ == "__main__":
