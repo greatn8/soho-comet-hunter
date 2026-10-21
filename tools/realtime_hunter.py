@@ -454,13 +454,13 @@ def parse_candidates(output):
             pm=POINT_RE.search(line)
             if not pm:
                 continue
-            label=line.strip().lower()
-            if label.startswith("first:"):
-                key="first"
-            elif label.startswith("last:"):
-                key="last"
-            else:
+            # CUDA emits "first:" and "last :" (space before colon).
+            # Match only the label preceding the coordinate point, allowing
+            # both formats without accidentally reading another track.
+            label=re.fullmatch(r"(first|last)\s*:",line[:pm.start()].strip().lower())
+            if label is None:
                 continue
+            key=label.group(1)
             if item[key] is not None:
                 continue
             point={"file":pm.group("file"),"x":float(pm.group("x")),"y":float(pm.group("y")),"time":image_time(pm.group("file"))}
