@@ -14,6 +14,16 @@ HEIGHT = 512
 PIXELS = WIDTH * HEIGHT
 
 
+def configure_resolution(resolution):
+    """Set native image dimensions for both decoding and pixel sampling."""
+    global WIDTH, HEIGHT, PIXELS
+    resolution = int(resolution)
+    if resolution not in (512, 1024):
+        raise ValueError("Unsupported LASCO image resolution")
+    WIDTH = HEIGHT = resolution
+    PIXELS = resolution * resolution
+
+
 def _frame_time(path):
     name = Path(path).name
     from datetime import datetime, timezone
@@ -38,6 +48,9 @@ def _decode_gray(path, cache):
         cache[key] = None
         return None
 
+    # Keep decoded images bounded: 1024 frames occupy 1 MiB each.
+    if len(cache) >= 96:
+        cache.pop(next(iter(cache)))
     cache[key] = proc.stdout
     return proc.stdout
 
@@ -49,25 +62,27 @@ def _median(values):
 def _sample_signal(gray, x, y):
     cx = int(round(x))
     cy = int(round(y))
-    if cx < 11 or cy < 11 or cx >= WIDTH - 11 or cy >= HEIGHT - 11:
+    scale = WIDTH // 512
+    margin = 11 * scale
+    if cx < margin or cy < margin or cx >= WIDTH - margin or cy >= HEIGHT - margin:
         return None
 
     core = []
     annulus = []
     near = []
 
-    for dy in range(-10, 11):
+    for dy in range(-10 * scale, 10 * scale + 1):
         yy = cy + dy
         row = yy * WIDTH
-        for dx in range(-10, 11):
+        for dx in range(-10 * scale, 10 * scale + 1):
             xx = cx + dx
             r2 = dx * dx + dy * dy
             value = gray[row + xx]
-            if r2 <= 4:
+            if r2 <= 4 * scale * scale:
                 core.append(value)
-            elif r2 <= 16:
+            elif r2 <= 16 * scale * scale:
                 near.append(value)
-            elif 36 <= r2 <= 100:
+            elif 36 * scale * scale <= r2 <= 100 * scale * scale:
                 annulus.append(value)
 
     if len(core) < 9 or len(annulus) < 80:
@@ -227,10 +242,10 @@ def historical_recovery_profile(candidate):
 
     This is a safety fallback, not a definition of what a comet must be.
     """
-    speed = float(candidate.get("speed", 0.0))
-    rms = float(candidate.get("rms", 999.0))
+    speed = float(candidate.get("speed", 0.0)) / (WIDTH / 512.0)
+    rms = float(candidate.get("rms", 999.0)) / (WIDTH / 512.0)
     frames = int(candidate.get("frames", 0))
-    sunward = float(candidate.get("sunward", 0.0))
+    sunward = float(candidate.get("sunward", 0.0)) / (WIDTH / 512.0)
     radial_fraction = sunward / speed if speed > 0 else -1.0
     return (
         frames >= 8
@@ -267,6 +282,7 @@ def verify_temporal_motion(candidate, frame_paths, gray_cache=None, model="veloc
     Diagnostic only until measured against historical known-comet controls.
     """
     cache = gray_cache if gray_cache is not None else {}
+    min_separation_px *= WIDTH / 512.0
     first = candidate["first"]
     last = candidate["last"]
     t0, t1 = first["time"], last["time"]

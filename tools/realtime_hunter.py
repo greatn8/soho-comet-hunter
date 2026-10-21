@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from live_review import ensure_live_review
+import pixel_verify
 from pixel_verify import classify_for_review, verify_track_pixels, verify_temporal_motion
 from track_evidence import audit_track_frames, position_at
 
@@ -16,16 +17,18 @@ SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
 SUNGRAZER_REPORTS="https://sungrazer.nrl.navy.mil/index.php/plain-text-reports?items_per_page=100&order=field_report_date&sort=desc"
 USER_AGENT="CometHunterRealtime/1.0 (SOHO comet-hunting research)"
-IMAGE_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3_512\.jpg)",re.I)
+IMAGE_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3_(?:512|1024)\.jpg)",re.I)
 NRT_GIF_RE=re.compile(r"(?P<name>20\d{6}_\d{4}_c3\.gif)",re.I)
 DAY_DIR_RE=re.compile(r"(?P<day>20\d{6})/",re.I)
 CANDIDATE_RE=re.compile(r"^(?P<cid>C\d+) \[(?P<priority>HIGH|MEDIUM)\].*?frames=(?P<frames>\d+).*?speed=(?P<speed>-?[0-9.]+) px/h.*?vx=(?P<vx>-?[0-9.]+).*?vy=(?P<vy>-?[0-9.]+).*?RMS=(?P<rms>-?[0-9.]+).*?brightnessCV=(?P<cv>-?[0-9.]+).*?sunward=(?P<sunward>-?[0-9.]+) px/h.*?score=(?P<score>-?[0-9.]+)",re.I)
-POINT_RE=re.compile(r"(?P<file>20\d{6}_\d{4}_c3_512\.jpg)\s+\((?P<x>-?[0-9.]+),\s*(?P<y>-?[0-9.]+)\)")
+POINT_RE=re.compile(r"(?P<file>20\d{6}_\d{4}_c3_(?:512|1024)\.jpg)\s+\((?P<x>-?[0-9.]+),\s*(?P<y>-?[0-9.]+)\)")
 REPORT_ID_RE=re.compile(r"report_[a-z0-9]+_\d{14}",re.I)
 REPORT_POINT_RE=re.compile(r"(?m)^\s*(?P<t>\d{1,2}:\d{2}|\d{4})\s+(?P<x>\d{1,4})\s+(?P<y>\d{1,4})\s*$")
 DATE_RE=re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
 STOP=False
 HEARTBEAT_LOCK=threading.RLock()
+# Revalidate a cached frame only if its size or modification time changes.
+VALIDATED_FRAMES=set()
 
 def log(msg):
     stamp=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -56,8 +59,9 @@ def day_url(day):
 def year_c3_url(year):
     return f"{SOHO_BASE}/{int(year)}/c3/"
 
-def explicit_images(index_html):
-    return sorted(set(m.group("name") for m in IMAGE_RE.finditer(index_html)))
+def explicit_images(index_html, resolution=512):
+    suffix=f"_c3_{resolution}.jpg"
+    return sorted(set(m.group("name") for m in IMAGE_RE.finditer(index_html) if m.group("name").lower().endswith(suffix)))
 
 def explicit_nrt_gifs(index_html):
     return sorted(set(m.group("name") for m in NRT_GIF_RE.finditer(index_html)))
@@ -83,7 +87,7 @@ def discover_available_days(now,lookback_days=14):
                 found.add(day)
     return sorted(found)
 
-def discover_completed_frames(now,lookback_days=14):
+def discover_completed_frames(now,lookback_days=14,resolution=512):
     available_days=discover_available_days(now,lookback_days=lookback_days)
     if not available_days:
         return {}
@@ -96,7 +100,7 @@ def discover_completed_frames(now,lookback_days=14):
         except Exception as exc:
             log(f"WARN: could not read completed C3 directory {url}: {exc}")
             continue
-        for name in explicit_images(page):
+        for name in explicit_images(page,resolution=resolution):
             try:
                 when=image_time(name)
             except Exception:
@@ -104,7 +108,7 @@ def discover_completed_frames(now,lookback_days=14):
             found[name]={"time":when,"url":urljoin(url,name),"source":"completed"}
     return found
 
-def discover_nrt_frames(now,lookback_days=7):
+def discover_nrt_frames(now,lookback_days=7,resolution=512):
     cutoff=now-dt.timedelta(days=lookback_days)
     found={}
     url=SOHO_NRT_GIF_BASE
@@ -121,7 +125,7 @@ def discover_nrt_frames(now,lookback_days=7):
             continue
         if when<cutoff or when>now+dt.timedelta(hours=2):
             continue
-        target_name=gif_name[:-4]+"_512.jpg"
+        target_name=gif_name[:-4]+f"_{resolution}.jpg"
         found[target_name]={
             "time":when,
             "url":urljoin(url,gif_name),
@@ -130,9 +134,9 @@ def discover_nrt_frames(now,lookback_days=7):
         }
     return found
 
-def latest_cached_time(cache_dir):
+def latest_cached_time(cache_dir,resolution=512):
     latest=None
-    for p in cache_dir.glob("*_c3_512.jpg"):
+    for p in cache_dir.glob(f"*_c3_{resolution}.jpg"):
         try:
             when=image_time(p.name)
         except Exception:
@@ -158,25 +162,58 @@ def soho_gate_wait(state_dir,minimum_seconds):
         stamp_file.write_text(str(int(time.time())))
         fcntl.flock(lock.fileno(),fcntl.LOCK_UN)
 
-def write_nrt_jpeg(data,target):
-    tmp=target.with_name(target.name+".tmp.jpg")
-    proc=subprocess.run(
-        [
-            "ffmpeg","-hide_banner","-loglevel","error","-y",
-            "-i","pipe:0","-vf","scale=512:512:flags=lanczos",
-            "-frames:v","1","-q:v","2",str(tmp),
-        ],
-        input=data,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if proc.returncode!=0 or not tmp.exists() or tmp.stat().st_size<10000:
-        tmp.unlink(missing_ok=True)
-        detail=proc.stderr.decode("utf-8","replace").strip()
-        raise RuntimeError(detail or "ffmpeg could not convert realtime GIF")
-    tmp.replace(target)
+def write_nrt_jpeg(data,target,resolution=512):
+    """Convert the earliest official GIF, preserving native 1024 detail.
 
-def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,results_dir=None):
+    The 512 workflow stays unchanged. 1024 is never synthesized by
+    upsampling a smaller GIF: reject mismatches before decoding.
+    """
+    if resolution not in (512,1024):
+        raise ValueError("Unsupported realtime image resolution")
+    if resolution==1024:
+        probe=subprocess.run(
+            ["ffprobe","-v","error","-select_streams","v:0",
+             "-show_entries","stream=width,height","-of","csv=p=0",
+             "-i","pipe:0"],
+            input=data,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=20)
+        dimensions=probe.stdout.decode("utf-8","replace").strip().split(",")
+        if probe.returncode!=0 or dimensions!=["1024","1024"]:
+            raise ValueError(
+                "Near-realtime SOHO GIF is not native 1024x1024; "
+                f"received {probe.stdout.decode('utf-8','replace').strip()!r}. "
+                "Never upscale lower-resolution quicklook images.")
+    tmp=target.with_name(target.name+".tmp.jpg")
+    try:
+        command=["ffmpeg","-hide_banner","-loglevel","error","-y",
+                 "-i","pipe:0"]
+        if resolution==512:
+            command.extend(["-vf","scale=512:512:flags=lanczos"])
+        command.extend(["-frames:v","1","-q:v","2",str(tmp)])
+        proc=subprocess.run(
+            command,input=data,stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,timeout=90)
+        if proc.returncode!=0 or not tmp.exists() or tmp.stat().st_size<10000:
+            detail=proc.stderr.decode("utf-8","replace").strip()
+            raise RuntimeError(detail or "ffmpeg could not convert realtime GIF")
+        validate_source_resolution(tmp,resolution)
+        tmp.replace(target)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+def validate_source_resolution(path, resolution):
+    """Refuse mislabeled, corrupt, or upscaled image input."""
+    probe=subprocess.run(
+        ["ffprobe","-v","error","-select_streams","v:0",
+         "-show_entries","stream=width,height","-of","csv=p=0",str(path)],
+        capture_output=True,text=True,timeout=20)
+    if probe.returncode:
+        raise ValueError("ffprobe could not decode SOHO source image")
+    dims=probe.stdout.strip().split(",")
+    if dims != [str(resolution),str(resolution)]:
+        raise ValueError(f"Expected native {resolution}x{resolution}, found {probe.stdout.strip()}")
+
+
+def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,results_dir=None,resolution=512):
     soho_gate_wait(state_dir,poll_seconds)
     if STOP:return []
     now=dt.datetime.now(dt.timezone.utc)
@@ -184,8 +221,11 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
     # Discovery-first policy: inspect the official near-real-time quicklook
     # feed and the slower reprocessed archive in the same gated SOHO session.
     log("SOHO realtime session: checking near-real-time C3 feed and completed archive.")
-    nrt=discover_nrt_frames(now,lookback_days=7)
-    completed=discover_completed_frames(now,lookback_days=14)
+    # The official near-realtime C3 GIF feed carries native 1024 imagery.
+    # Probe each downloaded GIF before conversion so a lower-resolution
+    # quicklook can never be mislabeled as a genuine 1024 JPEG.
+    nrt=discover_nrt_frames(now,lookback_days=7,resolution=resolution)
+    completed=discover_completed_frames(now,lookback_days=14,resolution=resolution)
 
     latest_nrt=max((v["time"] for v in nrt.values()),default=None)
     latest_completed=max((v["time"] for v in completed.values()),default=None)
@@ -228,6 +268,7 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
     source_status={
         "checked_at":now.isoformat().replace("+00:00","Z"),
         "active_source":source_name,
+        "resolution":resolution,
         "active_latest_frame":latest_available.isoformat().replace("+00:00","Z"),
         "near_realtime_latest":latest_nrt.isoformat().replace("+00:00","Z") if latest_nrt else None,
         "completed_latest":latest_completed.isoformat().replace("+00:00","Z") if latest_completed else None,
@@ -252,10 +293,22 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
     )
 
     new=[]
-    needed=[
-        name for name in sorted(selected)
-        if not ((cache_dir/name).exists() and (cache_dir/name).stat().st_size>10000)
-    ]
+    needed=[]
+    for name in sorted(selected):
+        cached=cache_dir/name
+        if cached.exists() and cached.stat().st_size>10000:
+            try:
+                stat=cached.stat()
+                fingerprint=(str(cached),stat.st_size,stat.st_mtime_ns,resolution)
+                if fingerprint not in VALIDATED_FRAMES:
+                    validate_source_resolution(cached,resolution)
+                    if len(VALIDATED_FRAMES)>=12000:
+                        VALIDATED_FRAMES.clear()
+                    VALIDATED_FRAMES.add(fingerprint)
+                continue
+            except (OSError,ValueError):
+                cached.unlink(missing_ok=True)
+        needed.append(name)
     if results_dir is not None and needed:
         write_heartbeat(
             Path(results_dir),
@@ -272,13 +325,15 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
             if len(data)<10000:
                 raise ValueError(f"response too small ({len(data)} bytes)")
             if meta["source"]=="near_realtime":
-                write_nrt_jpeg(data,target)
+                write_nrt_jpeg(data,target,resolution=resolution)
             else:
                 tmp=target.with_suffix(".part")
                 tmp.write_bytes(data)
+                validate_source_resolution(tmp,resolution)
                 tmp.replace(target)
             new.append(target)
         except Exception as exc:
+            (target.with_suffix(".part")).unlink(missing_ok=True)
             log(f"WARN: failed {name} from {source_name}: {exc}")
 
         if results_dir is not None and (download_index==len(needed) or download_index%25==0):
@@ -302,9 +357,9 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
     )
     return new
 
-def prune_cache(cache_dir,hours):
-    files=sorted(cache_dir.glob("*_c3_512.jpg"))
-    newest=latest_cached_time(cache_dir)
+def prune_cache(cache_dir,hours,resolution=512):
+    files=sorted(cache_dir.glob(f"*_c3_{resolution}.jpg"))
+    newest=latest_cached_time(cache_dir,resolution)
     if newest is None:
         return []
     keep_after=newest-dt.timedelta(hours=hours)
@@ -419,12 +474,29 @@ def parse_candidates(output):
         item={k:m.group(k) for k in m.groupdict()}; item["frames"]=int(item["frames"])
         for k in ("speed","vx","vy","rms","cv","sunward","score"): item[k]=float(item[k])
         item["first"]=item["last"]=None
-        for j in range(i+1,min(i+5,len(lines))):
-            pm=POINT_RE.search(lines[j])
-            if not pm: continue
+        # A candidate owns only its own endpoint lines. Never scan into the
+        # next candidate: that previously replaced a missing C317 first point
+        # with C318 first, silently creating a fictitious moving trajectory.
+        for j in range(i+1,min(i+8,len(lines))):
+            line=lines[j]
+            if CANDIDATE_RE.search(line):
+                break
+            pm=POINT_RE.search(line)
+            if not pm:
+                continue
+            # CUDA emits "first:" and "last :" (space before colon).
+            # Match only the label preceding the coordinate point, allowing
+            # both formats without accidentally reading another track.
+            label=re.fullmatch(r"(first|last)\s*:",line[:pm.start()].strip().lower())
+            if label is None:
+                continue
+            key=label.group(1)
+            if item[key] is not None:
+                continue
             point={"file":pm.group("file"),"x":float(pm.group("x")),"y":float(pm.group("y")),"time":image_time(pm.group("file"))}
-            if "first:" in lines[j]: item["first"]=point
-            elif "last" in lines[j]: item["last"]=point
+            item[key]=point
+            if item["first"] is not None and item["last"] is not None:
+                break
         if item["first"] and item["last"]:
             # CUDA endpoint labels are not guaranteed to be chronological.
             # Correct the metadata before pixel checks, matching or video review.
@@ -441,7 +513,7 @@ def parse_candidates(output):
                     item["last"]["x"]-item["first"]["x"]-item["vx"]*span,
                     item["last"]["y"]-item["first"]["y"]-item["vy"]*span,
                 )
-                if displacement_error>max(12.0,span*1.5):
+                if displacement_error>max(12.0,span*1.5)*(1024/512 if "_c3_1024.jpg" in item["first"]["file"] else 1):
                     item["trajectory_warning"]="ENDPOINT_VELOCITY_MISMATCH"
             out.append(item)
         i+=1
@@ -450,11 +522,11 @@ def parse_candidates(output):
 def comet_filter_reasons(c):
     reasons=[]
     if c["frames"]<5: reasons.append("too_few_frames")
-    if c["rms"]>1.2: reasons.append("rms_too_high")
-    if c["speed"]<0.25: reasons.append("too_slow")
-    if abs(c["vx"])>12 or abs(c["vy"])>12: reasons.append("velocity_too_high")
+    if c["rms"]>1.2*c.get("resolution",512)/512.0: reasons.append("rms_too_high")
+    if c["speed"]<0.25*c.get("resolution",512)/512.0: reasons.append("too_slow")
+    if abs(c["vx"])>12*c.get("resolution",512)/512.0 or abs(c["vy"])>12*c.get("resolution",512)/512.0: reasons.append("velocity_too_high")
     if c["cv"]>1.2: reasons.append("brightness_cv_too_high")
-    if c["sunward"]<1.0: reasons.append("weak_or_outward_motion")
+    if c["sunward"]<1.0*c.get("resolution",512)/512.0: reasons.append("weak_or_outward_motion")
     radial_fraction=(c["sunward"]/c["speed"]) if c["speed"]>0 else -999.0
     if radial_fraction<0.35: reasons.append("weak_sunward_fraction")
     return reasons
@@ -471,10 +543,12 @@ def motion_family_size(c,candidates,velocity_radius=0.35):
 
 def annotate_motion_families(candidates,velocity_radius=0.35):
     for c in candidates:
-        c["motion_family_size"]=motion_family_size(c,candidates,velocity_radius)
+        c["motion_family_size"]=motion_family_size(c,candidates,velocity_radius * c.get("resolution",512)/512.0)
     return candidates
 
-def candidate_quadrant(c,center_x=256.0,center_y=256.0):
+def candidate_quadrant(c,center_x=None,center_y=None):
+    center_x = c.get("resolution",512)/2 if center_x is None else center_x
+    center_y = c.get("resolution",512)/2 if center_y is None else center_y
     """Quadrant of the candidate midpoint in image coordinates."""
     try:
         x=(float(c["first"]["x"])+float(c["last"]["x"]))/2.0
@@ -510,14 +584,19 @@ def velocity_sign_counts(candidates):
     return out
 
 def live_candidate_rank(c):
+    # Rank physical tracks identically at 512 and 1024 image resolution.
+    # Coordinates and pixel/hour velocities double in 1024 imagery.
+    scale=c.get("resolution",512)/512.0
+    sunward=c["sunward"]/scale
+    rms=c["rms"]/scale
     radial_fraction=(c["sunward"]/c["speed"]) if c["speed"]>0 else -1.0
     family_size=max(1,int(c.get("motion_family_size",1)))
     family_penalty=math.log2(family_size)*2.5
     return (
         min(c["frames"],20)*2.0
-        + max(0.0,min(c["sunward"],12.0))*4.0
+        + max(0.0,min(sunward,12.0))*4.0
         + max(0.0,min(radial_fraction,1.5))*15.0
-        - c["rms"]*12.0
+        - rms*12.0
         - c["cv"]*6.0
         - family_penalty
     )
@@ -577,7 +656,7 @@ def group_event_hypotheses(candidates):
             metrics=event_overlap_metrics(rep,c)
             if not metrics:
                 continue
-            if metrics["median_distance"]>12.0 or metrics["max_distance"]>20.0:
+            if metrics["median_distance"]>12.0*rep.get("resolution",512)/512.0 or metrics["max_distance"]>20.0*rep.get("resolution",512)/512.0:
                 continue
             key=(metrics["median_distance"],metrics["max_distance"])
             if best is None or key<best[0]:
@@ -641,11 +720,12 @@ def candidate_xy_1024(c,when,model="velocity"):
     first=c["first"]; last=c["last"]
     if model=="endpoints":
         span=(last["time"]-first["time"]).total_seconds()
-        if abs(span)<1:return 2*first["x"],2*first["y"]
+        if abs(span)<1:return (1024.0/c.get("resolution",512))*first["x"],(1024.0/c.get("resolution",512))*first["y"]
         frac=(when-first["time"]).total_seconds()/span
-        return 2*(first["x"]+(last["x"]-first["x"])*frac),2*(first["y"]+(last["y"]-first["y"])*frac)
+        return (1024.0/c.get("resolution",512))*(first["x"]+(last["x"]-first["x"])*frac),(1024.0/c.get("resolution",512))*(first["y"]+(last["y"]-first["y"])*frac)
     hours=(when-first["time"]).total_seconds()/3600
-    return 2*(first["x"]+c["vx"]*hours),2*(first["y"]+c["vy"]*hours)
+    scale=1024.0/c.get("resolution",512)
+    return scale*(first["x"]+c["vx"]*hours),scale*(first["y"]+c["vy"]*hours)
 
 def report_transforms_1024(r):
     if r.get("image_size") in (512,1024):
@@ -808,7 +888,7 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
                 except OSError:
                     target.symlink_to(original.resolve())
             cmd=[str(project/"comet_hunter_archive"),"--camera","c3",
-                 "--resolution","512","--input-dir",str(stage),
+                 "--resolution",str(getattr(args,"resolution",512)),"--input-dir",str(stage),
                  "--budget-minutes",str(budget),"--min-frames",
                  str(args.min_frames),"--max-candidates",str(effective_max_candidates)]
             if stationary_filter:
@@ -843,7 +923,7 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
 
 
 def run_detector(project,cache_dir,results_dir,args,force=False):
-    frames=prune_cache(cache_dir,max(args.window_hours,*args.search_windows))
+    frames=prune_cache(cache_dir,max(args.window_hours,*args.search_windows),resolution=args.resolution)
     if len(frames)<args.min_frames:
         log(f"Only {len(frames)} recent frame(s); waiting for at least {args.min_frames}."); return
     newest=frames[-1].name; last_run=results_dir/"last_detector_frame.txt"
@@ -853,7 +933,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         log("WARN: GPU remained busy; retry next cycle."); return
     binary=project/"comet_hunter_archive"
     run_id=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    log(f"Running multiscale CUDA detector on {len(frames)} cached frame(s).")
+    log(f"Running native {args.resolution}px multiscale CUDA detector on {len(frames)} cached frame(s).")
     raw_candidates,window_runs=run_multiscale_cuda(
         project,frames,results_dir,args,run_id,cache_dir
     )
@@ -870,6 +950,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         log(f"WARN: could not save latest processed frame preview: {exc}")
 
     for c in raw_candidates:
+        c["resolution"]=args.resolution
         audit_track_frames(c, frames)
     rejection_counts={}
     for c in raw_candidates:
@@ -976,7 +1057,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         "frames_scanned":len(frames),
         "window_runs":window_runs,
         "multiscale_window_hours":list(args.search_windows),
-        "source_resolution":512,
+        "source_resolution":args.resolution,
         "raw_tracks_parsed":len(raw_candidates),
         "raw_high":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="HIGH"),
         "raw_medium":sum(1 for c in raw_candidates if str(c.get("priority","")).upper()=="MEDIUM"),
@@ -1069,6 +1150,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     for c in candidates:
         track_rows.append({
             "candidate":c["cid"],
+            "resolution":args.resolution,
             "source_window_hours":c.get("source_window_hours"),
             "source_candidate_id":c.get("source_candidate_id"),
             "trajectory_warning":c.get("trajectory_warning",""),
@@ -1100,6 +1182,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     for c in rejected_representatives:
         rejected_rows.append({
             "candidate":c["cid"],
+            "resolution":args.resolution,
             "source_window_hours":c.get("source_window_hours"),
             "priority":c["priority"],
             "review_class":c.get("review_class"),
@@ -1125,7 +1208,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         log(f"Parsed {len(reports)} recent C3 Sungrazer reports.")
     except Exception as exc:
         reports=[]; log(f"WARN: Sungrazer duplicate check unavailable: {exc}")
-    seen_file=results_dir/"seen_tracks.json"; seen=load_json(seen_file,[])
+    seen_file=results_dir/("seen_tracks_1024.json" if args.resolution==1024 else "seen_tracks.json"); seen=load_json(seen_file,[])
     if not isinstance(seen,list):seen=[]
     rows=[]
     newest_time=image_time(newest)
@@ -1155,6 +1238,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             log(f"WARN: live review media failed for {c['cid']}: {exc}")
         rows.append({
             "candidate":c["cid"],
+            "resolution":args.resolution,
             "source_window_hours":c.get("source_window_hours"),
             "status":status,
             "report_id":rid,
@@ -1214,7 +1298,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             [run_id,c["cid"],c["priority"],c["frames"],c["speed"],c["vx"],c["vy"],c["rms"],c["sunward"],c["score"],c["first"]["file"],c["first"]["x"],c["first"]["y"],c["last"]["file"],c["last"]["x"],c["last"]["y"],"no_recent_match" if reports else "check_unavailable"]
         )
         pixel=c.get("pixel_verification",{})
-        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - PIXEL-VERIFIED HIGH-PRIORITY EVENT\n"+f"Candidate: {c['cid']} raw_class={c['priority']} review_class={c.get('review_class')} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Pixel evidence: hits={pixel.get('hits',0)}/{pixel.get('samples',0)} hit_fraction={pixel.get('hit_fraction',0):.2f} peak_snr={pixel.get('peak_snr',0):.2f} longest_run={pixel.get('longest_hit_run',0)}\n"+f"Event group: {c.get('event_group')} members={c.get('event_members',1)}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [512]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [512]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
+        alert="\n"+"!"*72+"\nREALTIME COMET ALERT - PIXEL-VERIFIED HIGH-PRIORITY EVENT\n"+f"Candidate: {c['cid']} raw_class={c['priority']} review_class={c.get('review_class')} frames={c['frames']} RMS={c['rms']:.2f}\n"+f"Motion: speed={c['speed']:.2f} px/h vx={c['vx']:.2f} vy={c['vy']:.2f} sunward={c['sunward']:.2f}\n"+f"Pixel evidence: hits={pixel.get('hits',0)}/{pixel.get('samples',0)} hit_fraction={pixel.get('hit_fraction',0):.2f} peak_snr={pixel.get('peak_snr',0):.2f} longest_run={pixel.get('longest_hit_run',0)}\n"+f"Event group: {c.get('event_group')} members={c.get('event_members',1)}\n"+f"Motion family: {c.get('motion_family_size',1)} track(s) within 0.35 px/h\n"+f"First: {c['first']['file']} ({c['first']['x']:.1f},{c['first']['y']:.1f}) [{args.resolution}]\n"+f"Last : {c['last']['file']} ({c['last']['x']:.1f},{c['last']['y']:.1f}) [{args.resolution}]\nACTION: visually inspect and verify independently before reporting.\n"+"!"*72
         log(alert); (results_dir/"latest_alert.txt").write_text(alert+"\n",encoding="utf-8")
     seen_file.write_text(json.dumps(seen[-1000:],indent=2),encoding="utf-8")
     (results_dir/"latest_candidates.json").write_text(json.dumps(rows,indent=2),encoding="utf-8")
@@ -1228,6 +1312,7 @@ def main():
     p.add_argument("--reprocess-cache-once",action="store_true",help="Rerun cached CUDA frames without any SOHO requests; then exit.")
     p.add_argument("--search-windows",default="12,48,336",
                    help="Comma-separated independent CUDA search windows in hours.")
+    p.add_argument("--resolution",type=int,choices=(512,1024),default=512)
     p.add_argument("--short-budget-minutes",type=int,default=2)
     p.add_argument("--medium-budget-minutes",type=int,default=3)
     args=p.parse_args()
@@ -1242,7 +1327,8 @@ def main():
         p.error("Search windows must be within --window-hours")
     if min(args.short_budget_minutes,args.medium_budget_minutes,args.compute_minutes)<1:
         p.error("All CUDA budgets must be positive")
-    project=Path(args.project).expanduser().resolve(); state_dir=project/"state"; results_dir=project/"results"/"realtime"; cache_dir=Path("/dev/shm")/f"comet_realtime_{os.environ.get('USER','user')}_c3_512"
+    project=Path(args.project).expanduser().resolve(); state_dir=project/"state"; results_dir=project/"results"/"realtime"; cache_dir=Path("/dev/shm")/f"comet_realtime_{os.environ.get('USER','user')}_c3_{args.resolution}"
+    pixel_verify.configure_resolution(args.resolution)
     for d in (state_dir,results_dir,cache_dir):d.mkdir(parents=True,exist_ok=True)
     signal.signal(signal.SIGINT,on_signal); signal.signal(signal.SIGTERM,on_signal)
     heartbeat_stop=threading.Event()
@@ -1251,7 +1337,7 @@ def main():
         name="soho-heartbeat",daemon=True
     )
     heartbeat_thread.start()
-    log("Realtime hunter starting."); log(f"Project: {project}");
+    log("Realtime hunter starting."); log(f"Project: {project}"); log(f"Native C3 resolution: {args.resolution}")
     log("Experimental CUDA stationary filter: "
         + ("ENABLED" if (state_dir/"realtime_cuda_stationary_enabled").is_file() else "disabled")); log(f"Rolling cache: {cache_dir}"); log(f"Multiscale CUDA windows={args.search_windows}h budgets={args.short_budget_minutes},{args.medium_budget_minutes},{args.compute_minutes}m max_candidates_per_pass={args.max_candidates}."); log("Do not run an independent SOHO archive/verifier fetcher in parallel.")
     cleanup=prune_realtime_reviews(results_dir)
@@ -1269,8 +1355,8 @@ def main():
         start=time.time()
         try:
             write_heartbeat(results_dir,status="checking",phase="Checking official SOHO C3 sources")
-            new=download_live_frames(cache_dir,state_dir,args.poll_seconds,args.bootstrap_hours,results_dir=results_dir)
-            prune_cache(cache_dir,max(args.window_hours,args.bootstrap_hours))
+            new=download_live_frames(cache_dir,state_dir,args.poll_seconds,args.bootstrap_hours,results_dir=results_dir,resolution=args.resolution)
+            prune_cache(cache_dir,max(args.window_hours,args.bootstrap_hours),resolution=args.resolution)
             if new:
                 write_heartbeat(
                     results_dir,

@@ -1,0 +1,137 @@
+"""CPU-only 512/1024 regression checks for SOHO comet pipeline."""
+import datetime as dt
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+import pixel_verify
+import realtime_hunter
+import comet_github_alert
+import extract_submission_frames
+
+
+class ResolutionTests(unittest.TestCase):
+    def tearDown(self):
+        pixel_verify.configure_resolution(512)
+
+    def test_native_parser(self):
+        for size in (512, 1024):
+            filename = f"20261021_0930_c3_{size}.jpg"
+            self.assertEqual(
+                realtime_hunter.explicit_images(
+                    f'<a href="{filename}">{filename}</a>', resolution=size),
+                [filename])
+            self.assertEqual(comet_github_alert.utc_of_frame(filename).hour, 9)
+            self.assertEqual(extract_submission_frames.image_time(filename).minute, 30)
+
+    def test_sample_size(self):
+        for size in (512, 1024):
+            pixel_verify.configure_resolution(size)
+            self.assertEqual(pixel_verify.PIXELS, size * size)
+            gray = bytes([100]) * (size * size)
+            m = pixel_verify._sample_signal(gray, size // 2, size // 2)
+            self.assertIsNotNone(m)
+            self.assertAlmostEqual(m["contrast"], 0.0)
+            self.assertIsNone(pixel_verify._sample_signal(gray, 0, 0))
+
+    def test_same_scale_sungrazer_projection(self):
+        when = dt.datetime(2026, 10, 21, 9, 30, tzinfo=dt.timezone.utc)
+        for size in (512, 1024):
+            scale = size / 512.0
+            c = {"first":{"x":100*scale,"y":150*scale,"time":when},
+                 "last":{"x":101*scale,"y":151*scale,"time":when+dt.timedelta(hours=1)},
+                 "vx":2*scale,"vy":3*scale,"resolution":size}
+            x,y = realtime_hunter.candidate_xy_1024(c,when)
+            self.assertAlmostEqual(x,200)
+            self.assertAlmostEqual(y,300)
+
+    def test_candidate_endpoints_never_bleed_across_blocks(self):
+        header = lambda n: (
+            f"C{n} [MEDIUM] | pass=deep-03 | frames=5 | speed=5.00 px/h "
+            "| vx=1.00 | vy=1.00 | RMS=0.79 | brightnessCV=0.42 "
+            "| sunward=3.00 px/h | score=51.46"
+        )
+        # A malformed/incomplete candidate must be skipped, not combined
+        # with the next candidate's perfectly valid first/last positions.
+        output = "\n".join([
+            header("316"),
+            "    first: 20260730_0142_c3_1024.jpg (698.00, 82.00)",
+            "    last : 20260730_0306_c3_1024.jpg (699.00, 83.00)",
+            header("317"),
+            "    last : 20260730_0630_c3_1024.jpg (723.00, 56.00)",
+            header("318"),
+            "    first: 20260730_0406_c3_1024.jpg (308.00, 913.00)",
+            "    last : 20260730_0630_c3_1024.jpg (309.00, 926.00)",
+        ])
+        parsed = realtime_hunter.parse_candidates(output)
+        self.assertEqual([c["cid"] for c in parsed], ["C316", "C318"])
+        self.assertEqual(parsed[-1]["first"]["x"], 308.0)
+
+    def test_valid_native_endpoints_stay_together(self):
+        output = "\n".join([
+            "C317 [MEDIUM] | pass=deep-03 | frames=5 | speed=7.40 px/h | vx=5.03 | vy=-5.43 | RMS=0.79 | brightnessCV=0.42 | sunward=5.00 px/h | score=51.46",
+            "    first: 20260730_0142_c3_1024.jpg (698.00, 82.00)",
+            "    last : 20260730_0630_c3_1024.jpg (723.00, 56.00)",
+        ])
+        parsed = realtime_hunter.parse_candidates(output)
+        self.assertEqual(len(parsed), 1)
+        self.assertEqual((parsed[0]["first"]["x"], parsed[0]["first"]["y"]), (698.0, 82.0))
+        self.assertEqual((parsed[0]["last"]["x"], parsed[0]["last"]["y"]), (723.0, 56.0))
+
+    def test_cross_resolution_alert_deduplication(self):
+        when = "20261021_0930"
+        older = {"last":when+"_c3_512.jpg", "resolution":512,
+                 "track":{"last_x":200,"last_y":100,"vx":2,"vy":-1}}
+        newer = {"last":when+"_c3_1024.jpg", "resolution":1024,
+                 "track":{"last_x":400,"last_y":200,"vx":4,"vy":-2}}
+        self.assertTrue(comet_github_alert.same_physical_object(older,newer))
+        newer["track"]["last_x"] = 600
+        self.assertFalse(comet_github_alert.same_physical_object(older,newer))
+
+    def test_realtime_1024_gif_is_not_upscaled(self):
+        import shutil
+        import subprocess
+        import tempfile
+        if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+            self.skipTest("ffmpeg and ffprobe required")
+        with tempfile.TemporaryDirectory() as directory:
+            for size in (512,1024):
+                gif = subprocess.run(
+                    ["ffmpeg","-hide_banner","-loglevel","error","-f","lavfi",
+                     "-i",f"color=c=white:s={size}x{size}:d=0.1",
+                     "-frames:v","1","-f","gif","pipe:1"],
+                    stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True).stdout
+                target = Path(directory)/f"20261021_0930_c3_1024_{size}.jpg"
+                if size==512:
+                    with self.assertRaises(ValueError):
+                        realtime_hunter.write_nrt_jpeg(gif,target,resolution=1024)
+                    self.assertFalse(target.exists())
+                else:
+                    realtime_hunter.write_nrt_jpeg(gif,target,resolution=1024)
+                    realtime_hunter.validate_source_resolution(target,1024)
+                    self.assertTrue(target.exists())
+
+    def test_candidate_ranking_is_resolution_invariant(self):
+        baseline={"frames":10,"sunward":3.0,"speed":5.0,"rms":0.7,
+                  "cv":0.3,"motion_family_size":2,"resolution":512}
+        high=dict(baseline, resolution=1024, sunward=6.0,
+                  speed=10.0, rms=1.4)
+        self.assertAlmostEqual(realtime_hunter.live_candidate_rank(baseline),
+                               realtime_hunter.live_candidate_rank(high))
+
+    def test_alert_endpoint_bounds(self):
+        for size in (512,1024):
+            c = {"first":f"20261021_0930_c3_{size}.jpg",
+                 "last":f"20261021_0954_c3_{size}.jpg",
+                 "resolution":size,
+                 "track":{"first_x":size-10,"first_y":size-20,
+                          "last_x":size-9,"last_y":size-19}}
+            rows = comet_github_alert.report_position_rows(c)
+            self.assertEqual(len(rows),2)
+            self.assertEqual(rows[0]["x"],size-10)
+            _,body = comet_github_alert.issue_details(c)
+            self.assertIn(f"{size}x{size}",body)
+
+if __name__ == "__main__":
+    unittest.main()
