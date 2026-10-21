@@ -213,6 +213,20 @@ def validate_source_resolution(path, resolution):
         raise ValueError(f"Expected native {resolution}x{resolution}, found {probe.stdout.strip()}")
 
 
+def prioritize_new_frames(needed,resolution,max_live_batch=90):
+    """Fill the freshest native 1024 frames first without delaying CUDA.
+
+    Existing 512 cache behaviour remains unchanged. The remaining archive
+    context is filled incrementally during subsequent SOHO polling sessions,
+    keeping the 12/48/336-hour search windows available as they accumulate.
+    """
+    if resolution==1024:
+        if max_live_batch<5:
+            raise ValueError("Native 1024 batch must allow >=5 frames")
+        return sorted(needed,reverse=True)[:max_live_batch]
+    return sorted(needed)
+
+
 def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,results_dir=None,resolution=512):
     soho_gate_wait(state_dir,poll_seconds)
     if STOP:return []
@@ -309,6 +323,15 @@ def download_live_frames(cache_dir,state_dir,poll_seconds,bootstrap_hours,result
             except (OSError,ValueError):
                 cached.unlink(missing_ok=True)
         needed.append(name)
+    # A fresh 14-day 1024 cache can require thousands of JPEG requests.
+    # Process the newest live frames in the FIRST cycle instead of blocking
+    # detection while downloading older historical frames for hours.
+    total_needed=len(needed)
+    needed=prioritize_new_frames(needed,resolution)
+    if resolution==1024 and total_needed>len(needed):
+        log(f"Native 1024 freshness priority: fetching {len(needed)} newest frame(s) "
+            f"this cycle; deferring {total_needed-len(needed)} older frame(s) "
+            "to later 15-minute sessions.")
     if results_dir is not None and needed:
         write_heartbeat(
             Path(results_dir),
