@@ -78,6 +78,9 @@ def candidate_line(candidate):
                         ("first_x","first_y","last_x","last_y"))
         if not all(math.isfinite(v) for v in (x0,y0,x1,y1)):
             return None
+        resolution = int(candidate.get("resolution") or (1024 if "_c3_1024.jpg" in candidate["first"] else 512))
+        scale = 512.0 / resolution
+        x0,y0,x1,y1 = (v*scale for v in (x0,y0,x1,y1))
         hours = (b-a).total_seconds()/3600.
         return {"first":a,"last":b,"x0":x0,"y0":y0,
                 "vx":(x1-x0)/hours,"vy":(y1-y0)/hours}
