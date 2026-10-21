@@ -141,11 +141,15 @@ def watch(project, interval, age_hours, test):
                 tracks = read_json(results/"latest_tracks.json", [])
                 if not isinstance(candidates, list) or not isinstance(tracks, list):
                     raise ValueError("Hunter candidate and track files must be JSON arrays")
-                by_id = {x.get("candidate"): x for x in tracks if isinstance(x, dict)}
+                by_event = {
+                    (x.get("candidate"), x.get("first"), x.get("last")): x
+                    for x in tracks if isinstance(x, dict)
+                }
                 for raw in candidates:
                     if not isinstance(raw, dict):
                         continue
-                    candidate = normalize(raw, by_id.get(raw.get("candidate")))
+                    key = (raw.get("candidate"), raw.get("first"), raw.get("last"))
+                    candidate = normalize(raw, by_event.get(key))
                     if not is_recent_strong(candidate, age_hours):
                         continue
                     if any(same_physical_object(old, candidate) or
