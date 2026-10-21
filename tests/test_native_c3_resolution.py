@@ -79,6 +79,16 @@ class ResolutionTests(unittest.TestCase):
         self.assertEqual((parsed[0]["first"]["x"], parsed[0]["first"]["y"]), (698.0, 82.0))
         self.assertEqual((parsed[0]["last"]["x"], parsed[0]["last"]["y"]), (723.0, 56.0))
 
+    def test_cross_resolution_alert_deduplication(self):
+        when = "20261021_0930"
+        older = {"last":when+"_c3_512.jpg", "resolution":512,
+                 "track":{"last_x":200,"last_y":100,"vx":2,"vy":-1}}
+        newer = {"last":when+"_c3_1024.jpg", "resolution":1024,
+                 "track":{"last_x":400,"last_y":200,"vx":4,"vy":-2}}
+        self.assertTrue(comet_github_alert.same_physical_object(older,newer))
+        newer["track"]["last_x"] = 600
+        self.assertFalse(comet_github_alert.same_physical_object(older,newer))
+
     def test_alert_endpoint_bounds(self):
         for size in (512,1024):
             c = {"first":f"20261021_0930_c3_{size}.jpg",
