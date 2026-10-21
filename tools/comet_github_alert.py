@@ -277,7 +277,7 @@ def issue_details(candidate, test=False):
     if endpoint_track_valid(track):
         endpoints = (
             f"- First CUDA fitted XY ({resolution}, top-left): ({track['first_x']}, {track['first_y']})\n"
-            f"- Last CUDA fitted XY (512, top-left): ({track['last_x']}, {track['last_y']})\n"
+            f"- Last CUDA fitted XY ({resolution}, top-left): ({track['last_x']}, {track['last_y']})\n"
         )
     report_check = candidate.get("official_report_check") or {}
     status_check = str(report_check.get("status") or "CHECK_UNAVAILABLE")
