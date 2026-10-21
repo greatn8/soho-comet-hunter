@@ -120,6 +120,12 @@ class ResolutionTests(unittest.TestCase):
         self.assertAlmostEqual(realtime_hunter.live_candidate_rank(baseline),
                                realtime_hunter.live_candidate_rank(high))
 
+    def test_native_1024_prioritizes_recent_input_and_preserves_512(self):
+        files=[f"20261021_{hour:02d}00_c3_1024.jpg" for hour in range(20)]
+        selected=realtime_hunter.prioritize_new_frames(files,1024,max_live_batch=8)
+        self.assertEqual(selected,sorted(files,reverse=True)[:8])
+        self.assertEqual(realtime_hunter.prioritize_new_frames(files,512),sorted(files))
+
     def test_alert_endpoint_bounds(self):
         for size in (512,1024):
             c = {"first":f"20261021_0930_c3_{size}.jpg",
