@@ -500,6 +500,23 @@ function realtimeReviewGroups(rows) {
   return { primary, diagnostics };
 }
 
+function realtimeFrameKey(value) {
+  // SOHO frames are named YYYYMMDD_HHMM_c3_1024.jpg or ..._512.jpg.
+  // Their UTC timestamps sort correctly as strings; malformed dates go last.
+  const match = String(value || "").match(/^(\d{8}_\d{4})_c3_(?:512|1024)\.jpg$/i);
+  return match ? match[1] : "";
+}
+
+function sortRealtimeReviews(rows) {
+  const statusRank = { UNMATCHED: 0, KNOWN_REPORT: 1, SEEN_ALREADY: 2 };
+  return [...rows].sort((a, b) =>
+    realtimeFrameKey(b.last).localeCompare(realtimeFrameKey(a.last)) ||
+    realtimeFrameKey(b.first).localeCompare(realtimeFrameKey(a.first)) ||
+    (statusRank[String(a.status || "").toUpperCase()] ?? 9) -
+      (statusRank[String(b.status || "").toUpperCase()] ?? 9)
+  );
+}
+
 function renderRealtime(payload) {
   state.realtime = payload || null;
 
@@ -642,11 +659,10 @@ function renderRealtime(payload) {
     return;
   }
 
-  const ordered = [...rowsToDisplay].sort((a, b) => {
-    const rank = { UNMATCHED: 0, KNOWN_REPORT: 1, SEEN_ALREADY: 2 };
-    return (rank[String(a.status || "").toUpperCase()] ?? 9) -
-      (rank[String(b.status || "").toUpperCase()] ?? 9);
-  });
+  // Newest reviews first, regardless of whether they are unmatched or
+  // already seen. Most detections share the same last C3 frame, so use the
+  // first observed frame as the next tie-breaker.
+  const ordered = sortRealtimeReviews(rowsToDisplay);
 
   const visible = Math.min(state.liveReviewVisible || 8, ordered.length);
   const more = visible < ordered.length
