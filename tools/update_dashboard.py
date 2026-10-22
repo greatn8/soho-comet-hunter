@@ -1117,7 +1117,7 @@ def publish_realtime_data(realtime_source, data_dir, age_hours=24):
     if alert_text_path.is_file():
         try:
             alert_text = alert_text_path.read_text(encoding="utf-8", errors="replace")
-            alert_match = re.search(r"(?m)^Candidate:\\s*(C\\d+)\\b", alert_text, re.IGNORECASE)
+            alert_match = re.search(r"(?m)^Candidate:\s*(C\d+)\b", alert_text, re.IGNORECASE)
             if alert_match:
                 wanted = alert_match.group(1).upper()
                 alert_candidate = next((
