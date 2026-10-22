@@ -417,6 +417,11 @@ function frameDisplay(value) {
   return `${raw}<small>${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]} UTC</small>`;
 }
 
+function realtimeFrameUtc(value) {
+  const match = String(value || "").match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})_c3_(?:512|1024)\.jpg$/i);
+  if (!match) return "—";
+  return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]} UTC`;
+}
 function realtimeStatusClass(payload) {
   if (!payload || !payload.available) return "waiting";
   const updated = new Date(payload.hunter_heartbeat_at || payload.source_updated_at || 0).getTime();
@@ -466,6 +471,10 @@ function realtimeCandidateCard(c) {
       <div class="realtime-candidate-top">
         <strong>${escapeHtml(c.candidate || "Candidate")}</strong>
         <span>${escapeHtml(prettyClass(status))}</span>
+      </div>
+      <div class="realtime-observed-times">
+        <span>First seen <strong>${escapeHtml(realtimeFrameUtc(c.first))}</strong></span>
+        <span>Last seen <strong>${escapeHtml(realtimeFrameUtc(c.last))}</strong></span>
       </div>
       ${media}
       ${trajectoryWarning}
