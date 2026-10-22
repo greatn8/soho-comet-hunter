@@ -3,7 +3,7 @@ import unittest,sys
 from collections import defaultdict
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
-from image_star_motion import extract_compact_sources,evidence_for_velocity
+from image_star_motion import extract_compact_sources,evidence_for_velocity,estimate_field_motion
 
 
 def images(res):
@@ -61,6 +61,26 @@ class ImageStarTests(unittest.TestCase):
         missing=build_reference(frames,{},decode,512,when,
             end_frame="20261021_2230_c3_512.jpg")
         self.assertEqual(missing["reason"],"END_FRAME_NOT_CACHED")
+
+    def test_independent_motion_estimate(self):
+        import math
+        for resolution in (512,1024):
+            a,b=images(resolution)
+            first=extract_compact_sources(a,resolution)
+            last=extract_compact_sources(b,resolution)
+            from collections import defaultdict
+            scale=resolution/512
+            cell=8*scale
+            index=defaultdict(list)
+            for x,y,c in last:
+                index[(int(x//cell),int(y//cell))].append((x,y))
+            reference={"status":"READY","hours":4,"resolution":resolution,
+                       "sources":first,"index":index,"cell":cell}
+            estimated=estimate_field_motion(reference)
+            self.assertEqual(estimated["status"],"READY")
+            candidates=estimated["hypotheses"]
+            self.assertTrue(any(math.hypot(m["vx_512"]-1.75,
+                m["vy_512"]+0.75)<0.4 for m in candidates),candidates)
 
     def test_missing_reference_does_not_reject(self):
         self.assertEqual(evidence_for_velocity(
