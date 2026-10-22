@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pixel_verify
-from image_star_motion import build_reference, evidence_for_velocity
+from image_star_motion import build_reference, evidence_for_velocity, estimate_field_motion
 from realtime_hunter import image_time
 
 
@@ -50,6 +50,8 @@ def run(cache, results, resolution, dashboard=None, candidate_id=None,
         reference=references[end_frame]
         visible={key:value for key,value in reference.items()
                  if key not in ("sources","index")}
+        if candidate_id or review_id:
+            visible["independent_field_motion"]=estimate_field_motion(reference)
         report["reference"]=visible
         try:
             evidence=evidence_for_velocity(row,reference)
