@@ -39,6 +39,29 @@ class ImageStarTests(unittest.TestCase):
             self.assertEqual(real["status"],"STAR_LIKE")
             self.assertNotEqual(other["status"],"STAR_LIKE")
 
+
+    def test_time_aligned_frame_pair(self):
+        import datetime as dt
+        from pathlib import Path
+        from image_star_motion import build_reference
+        base=dt.datetime(2026,10,22,0,tzinfo=dt.timezone.utc)
+        frames=[Path((base+dt.timedelta(hours=h)).strftime(
+            "%Y%m%d_%H%M")+"_c3_512.jpg") for h in range(10)]
+        g1,g2=images(512)
+        def decode(path,cache):
+            return g1 if path.name.startswith("20261022_02") else g2
+        def when(name):
+            return dt.datetime.strptime(name[:13],"%Y%m%d_%H%M").replace(
+                tzinfo=dt.timezone.utc)
+        ref=build_reference(frames,{},decode,512,when,target_hours=2,
+            end_frame=frames[4].name)
+        self.assertEqual(ref["status"],"READY")
+        self.assertEqual(ref["first_file"],frames[2].name)
+        self.assertEqual(ref["last_file"],frames[4].name)
+        missing=build_reference(frames,{},decode,512,when,
+            end_frame="20261021_2230_c3_512.jpg")
+        self.assertEqual(missing["reason"],"END_FRAME_NOT_CACHED")
+
     def test_missing_reference_does_not_reject(self):
         self.assertEqual(evidence_for_velocity(
             {"vx":3,"vy":-1},{"status":"UNAVAILABLE","reason":"NO_FRAMES"})
