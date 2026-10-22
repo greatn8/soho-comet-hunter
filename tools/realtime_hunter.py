@@ -13,6 +13,7 @@ import pixel_verify
 from pixel_verify import classify_for_review, verify_track_pixels, verify_temporal_motion
 from track_evidence import audit_track_frames, position_at
 from star_field import annotate_star_field
+from edge_review import edge_review_evidence
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
@@ -1055,6 +1056,21 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         else:
             verified_representatives.append(c)
 
+    # 1024 CUDA still uses a 24-pixel edge mask from the 512 profile.
+    # Border-confined tracks are retained for human review but must not
+    # issue automatic high-priority comet alerts without independent evidence.
+    edge_downgraded=0
+    for c in event_representatives:
+        c["edge_review"]=edge_review_evidence(c)
+        if (c.get("review_class")=="STRONG_REVIEW"
+                and c["edge_review"]["status"]=="BORDER_CONFINED"
+                and args.resolution==1024):
+            c["review_class"]="SECONDARY"
+            c["edge_review_downgraded"]=True
+            edge_downgraded+=1
+    log(f"1024 edge-parity triage: downgraded {edge_downgraded} border-confined "
+        "strong review events; all detections preserved.")
+
     # Compare independent pixel-supported tracks to find shared star motion.
     # Keep raw hypotheses and videos; only star-like strong alerts are triaged.
     annotate_star_field(event_representatives)
@@ -1123,6 +1139,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         "pixel_verified_events":len(verified_representatives),
         "star_field_consensus_events":sum(c.get("star_field",{}).get("status")=="STAR_LIKE" for c in event_representatives),
         "star_field_review_downgraded":star_like_count,
+        "edge_review_downgraded":edge_downgraded,
         "temporal_motion_measured":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("status")=="MEASURED" for c in event_representatives),
         "temporal_motion_supported":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("supported",0) >= 3 for c in event_representatives),
         "pixel_rejected_events":len(rejected_representatives),
@@ -1229,6 +1246,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
             "pixel_verification":c.get("pixel_verification",{}),
             "star_field":c.get("star_field",{}),
+            "edge_review":c.get("edge_review",{}),
             "event_group":c.get("event_group"),
             "members":c.get("event_members",1),
             "member_ids":c.get("event_member_ids",[c["cid"]]),
@@ -1288,6 +1306,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
             "pixel_verification":c.get("pixel_verification",{}),
             "star_field":c.get("star_field",{}),
+            "edge_review":c.get("edge_review",{}),
             "first":c["first"]["file"],
             "last":c["last"]["file"],
             "frames":c["frames"],
