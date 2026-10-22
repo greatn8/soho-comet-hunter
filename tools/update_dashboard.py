@@ -1108,7 +1108,29 @@ def publish_realtime_data(realtime_source, data_dir, age_hours=24):
         except (OSError, ValueError, TypeError) as exc:
             print(f"[WARN] Could not restore pending strong reviews to realtime display: {exc}")
     pending_strong.sort(key=lambda row: str(row.get("last") or ""), reverse=True)
-    history_seed = pending_strong + list(latest_candidates)
+
+    # The alert banner refers to one specific candidate. A 100-item cap can
+    # otherwise evict that candidate's video even while its alert remains.
+    # Prioritize the matching CURRENT unmatched strong review, but never
+    # restore a stale/downgraded alert or extend the bounded live-media list.
+    alert_candidate = None
+    if alert_text_path.is_file():
+        try:
+            alert_text = alert_text_path.read_text(encoding="utf-8", errors="replace")
+            alert_match = re.search(r"(?m)^Candidate:\\s*(C\\d+)\\b", alert_text, re.IGNORECASE)
+            if alert_match:
+                wanted = alert_match.group(1).upper()
+                alert_candidate = next((
+                    row for row in latest_candidates
+                    if str(row.get("candidate") or "").upper() == wanted
+                    and str(row.get("status") or "").upper() == "UNMATCHED"
+                    and str(row.get("review_class") or "").upper() == "STRONG_REVIEW"
+                    and (row.get("edge_review") or {}).get("status") != "BORDER_CONFINED"
+                ), None)
+        except OSError:
+            pass
+
+    history_seed = ([alert_candidate] if alert_candidate else []) + pending_strong + list(latest_candidates)
     old_history = previous_payload.get("review_candidates")
     if not isinstance(old_history, list):
         old_history = previous_payload.get("latest_candidates")
@@ -1241,6 +1263,8 @@ def publish_realtime_data(realtime_source, data_dir, age_hours=24):
             str(row.get("candidate") or "").upper()
             for row in latest_candidates
             if str(row.get("status") or "").upper() == "UNMATCHED"
+            and str(row.get("review_class") or "").upper() == "STRONG_REVIEW"
+            and (row.get("edge_review") or {}).get("status") != "BORDER_CONFINED"
         }
         if not alert_match or alert_match.group(1).upper() not in current_ids:
             latest_alert = None
