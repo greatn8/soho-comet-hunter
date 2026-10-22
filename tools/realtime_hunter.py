@@ -13,6 +13,7 @@ import pixel_verify
 from pixel_verify import classify_for_review, verify_track_pixels, verify_temporal_motion
 from track_evidence import audit_track_frames, position_at
 from star_field import annotate_star_field
+from image_star_motion import build_reference, evidence_for_velocity
 from edge_review import edge_review_evidence
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
@@ -1074,6 +1075,21 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     # Compare independent pixel-supported tracks to find shared star motion.
     # Keep raw hypotheses and videos; only star-like strong alerts are triaged.
     annotate_star_field(event_representatives)
+    # Compare compact sources in cached SOHO images without suppressing
+    # candidates until this approach is validated on known comets.
+    try:
+        image_reference=build_reference(
+            frames,gray_cache,pixel_verify._decode_gray,args.resolution,image_time)
+    except Exception as exc:
+        image_reference={"status":"UNAVAILABLE","reason":str(exc)}
+    log(f"Cached-image star-motion reference: {image_reference.get('status')} "
+        f"first={image_reference.get('first_sources',0)} "
+        f"last={image_reference.get('last_sources',0)}.")
+    for c in event_representatives:
+        try:
+            c["image_star_motion"]=evidence_for_velocity(c,image_reference)
+        except Exception as exc:
+            c["image_star_motion"]={"status":"UNAVAILABLE","reason":str(exc)}
     star_like_count=0
     for c in event_representatives:
         if (c.get("star_field",{}).get("status")=="STAR_LIKE"
@@ -1138,6 +1154,9 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         },
         "pixel_verified_events":len(verified_representatives),
         "star_field_consensus_events":sum(c.get("star_field",{}).get("status")=="STAR_LIKE" for c in event_representatives),
+        "image_star_reference":{k:v for k,v in image_reference.items() if k not in ("sources","index")},
+        "image_star_motion_events":sum(c.get("image_star_motion",{}).get("status")=="STAR_LIKE" for c in event_representatives),
+        "image_star_motion_downgraded":0,
         "star_field_review_downgraded":star_like_count,
         "edge_review_downgraded":edge_downgraded,
         "temporal_motion_measured":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("status")=="MEASURED" for c in event_representatives),
@@ -1246,6 +1265,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
             "pixel_verification":c.get("pixel_verification",{}),
             "star_field":c.get("star_field",{}),
+            "image_star_motion":c.get("image_star_motion",{}),
             "edge_review":c.get("edge_review",{}),
             "event_group":c.get("event_group"),
             "members":c.get("event_members",1),
@@ -1306,6 +1326,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
             "pixel_verification":c.get("pixel_verification",{}),
             "star_field":c.get("star_field",{}),
+            "image_star_motion":c.get("image_star_motion",{}),
             "edge_review":c.get("edge_review",{}),
             "first":c["first"]["file"],
             "last":c["last"]["file"],
