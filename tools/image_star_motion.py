@@ -160,3 +160,87 @@ def evidence_for_velocity(candidate,reference):
             "matches":n,"max_control_matches":max_control,
             "field_tiles":tiles,"spread_512":round(spread,1),
             "tested_hours":round(hours,2),"method":"two_frame_compact_sources"}
+
+
+def estimate_field_motion(reference, max_velocity_512=8.0, max_hypotheses=8):
+    """Find candidate sky motions without supplying a comet velocity.
+
+    Compact-source displacement votes propose translations. Independent
+    one-to-one spatial matching scores them. This is an exploratory diagnostic
+    and does not certify a star or change candidate review classifications.
+    """
+    if reference.get("status")!="READY":
+        return {"status":"UNAVAILABLE","reason":reference.get("reason","NO_REFERENCE")}
+    scale=reference["resolution"]/512
+    hours=float(reference["hours"])
+    if hours<=0:
+        return {"status":"UNAVAILABLE","reason":"INVALID_TIME_INTERVAL"}
+    cell=reference["cell"]
+    index=reference["index"]
+    radius=max_velocity_512*hours*scale
+    radius2=radius*radius
+    votes=defaultdict(int)
+    # Use image point correspondences, not the detector's candidate velocity.
+    for x,y,_ in reference["sources"]:
+        x0=int((x-radius)//cell)
+        x1=int((x+radius)//cell)
+        y0=int((y-radius)//cell)
+        y1=int((y+radius)//cell)
+        for cy in range(y0,y1+1):
+            for cx in range(x0,x1+1):
+                for ox,oy in index.get((cx,cy),()):
+                    dx=ox-x
+                    dy=oy-y
+                    if dx*dx+dy*dy>radius2:
+                        continue
+                    ix=int(round(dx/scale))
+                    iy=int(round(dy/scale))
+                    votes[(ix,iy)]+=1
+    if not votes:
+        return {"status":"NO_HYPOTHESES","pairs_within_range":0,
+                "hypotheses":[]}
+    # Neighbour smoothing permits the genuine translation to lie between
+    # integer normalized pixels instead of on a single vote-bin centre.
+    peaks=sorted(
+        ((sum(votes.get((ix+ox,iy+oy),0)
+              for ox in (-1,0,1) for oy in (-1,0,1)),ix,iy)
+         for ix,iy in votes),
+        reverse=True)
+    modes=[]
+    for smoothed,ix,iy in peaks:
+        if any(math.hypot(ix-px,iy-py)<4 for px,py in modes):
+            continue
+        modes.append((ix,iy))
+        if len(modes)>=max_hypotheses:
+            break
+    estimates=[]
+    for ix,iy in modes:
+        # Refine the peak against distinct point-to-point matches.
+        trials=[]
+        for sx in (ix-1,ix,ix+1):
+            for sy in (iy-1,iy,iy+1):
+                shift_x=sx*scale
+                shift_y=sy*scale
+                points=_matches(reference,shift_x,shift_y,2.1*scale)
+                trials.append((len(points),sx,sy,points))
+        n,bx,by,points=max(trials,key=lambda t:t[0])
+        tiles=len({(int(x//(75*scale)),int(y//(75*scale)))
+                   for x,y in points})
+        spread=max((math.hypot(ax-bx0,ay-by0)
+                    for i,(ax,ay) in enumerate(points)
+                    for bx0,by0 in points[i+1:]),default=0)/scale
+        estimates.append({
+            "vx_512":round(bx/hours,3),
+            "vy_512":round(by/hours,3),
+            "dx_512":bx,
+            "dy_512":by,
+            "matches":n,
+            "field_tiles":tiles,
+            "spread_512":round(spread,1),
+        })
+    estimates.sort(key=lambda r:r["matches"],reverse=True)
+    return {"status":"READY","method":"blind_two_frame_compact_source_modes",
+            "tested_hours":round(hours,2),
+            "sources":len(reference["sources"]),
+            "candidate_pairs":sum(votes.values()),
+            "hypotheses":estimates}
