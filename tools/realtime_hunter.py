@@ -12,6 +12,7 @@ from live_review import ensure_live_review
 import pixel_verify
 from pixel_verify import classify_for_review, verify_track_pixels, verify_temporal_motion
 from track_evidence import audit_track_frames, position_at
+from star_field import annotate_star_field
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
@@ -1054,6 +1055,20 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         else:
             verified_representatives.append(c)
 
+    # Compare independent pixel-supported tracks to find shared star motion.
+    # Keep raw hypotheses and videos; only star-like strong alerts are triaged.
+    annotate_star_field(event_representatives)
+    star_like_count=0
+    for c in event_representatives:
+        if (c.get("star_field",{}).get("status")=="STAR_LIKE"
+                and c.get("review_class")=="STRONG_REVIEW"):
+            c["review_class"]="SECONDARY"
+            c["star_field_review_downgraded"]=True
+            star_like_count+=1
+    if star_like_count:
+        log(f"Star-field consensus: downgraded {star_like_count} strong events "
+            "to SECONDARY; retained every original track and video.")
+
     # Discovery-first safety net: the pixel verifier has not yet been
     # benchmarked against all historical known-comet recoveries. Retain the
     # highest-ranked visually weak event hypotheses for human review instead
@@ -1106,6 +1121,8 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "low_support":velocity_sign_counts(rejected_representatives),
         },
         "pixel_verified_events":len(verified_representatives),
+        "star_field_consensus_events":sum(c.get("star_field",{}).get("status")=="STAR_LIKE" for c in event_representatives),
+        "star_field_review_downgraded":star_like_count,
         "temporal_motion_measured":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("status")=="MEASURED" for c in event_representatives),
         "temporal_motion_supported":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("supported",0) >= 3 for c in event_representatives),
         "pixel_rejected_events":len(rejected_representatives),
@@ -1211,6 +1228,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "review_class":c.get("review_class"),
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
             "pixel_verification":c.get("pixel_verification",{}),
+            "star_field":c.get("star_field",{}),
             "event_group":c.get("event_group"),
             "members":c.get("event_members",1),
             "member_ids":c.get("event_member_ids",[c["cid"]]),
@@ -1269,6 +1287,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "review_class":c.get("review_class"),
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
             "pixel_verification":c.get("pixel_verification",{}),
+            "star_field":c.get("star_field",{}),
             "first":c["first"]["file"],
             "last":c["last"]["file"],
             "frames":c["frames"],
