@@ -503,7 +503,7 @@ function realtimeReviewGroups(rows) {
 function realtimeFrameKey(value) {
   // SOHO frames are named YYYYMMDD_HHMM_c3_1024.jpg or ..._512.jpg.
   // Their UTC timestamps sort correctly as strings; malformed dates go last.
-  const match = String(value || "").match(/^(\\d{8}_\\d{4})_c3_(?:512|1024)\\.jpg$/i);
+  const match = String(value || "").match(/^(\d{8}_\d{4})_c3_(?:512|1024)\.jpg$/i);
   return match ? match[1] : "";
 }
 
