@@ -19,7 +19,8 @@ const state = {
   markedOnly: false,
   sort: "verified",
   liveReviewVisible: 8,
-  showLowSupportRealtime: false
+  showLowSupportRealtime: false,
+  showSeenAlreadyRealtime: false
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -509,6 +510,25 @@ function realtimeReviewGroups(rows) {
   return { primary, diagnostics };
 }
 
+// SEEN_ALREADY is a probable repeat from position/motion matching, not proof
+// that two reviews are exactly the same object. Hide only in the browser;
+// preserve every published review and its videos for optional inspection.
+function visiblePrimaryReviews(rows, showPreviouslySeen) {
+  return showPreviouslySeen
+    ? rows
+    : rows.filter(row => normalizeClass(row.status) !== "SEEN_ALREADY");
+}
+
+function attachPreviouslySeenToggle(payload) {
+  const toggle = $("#toggleSeenRealtime");
+  if (!toggle) return;
+  toggle.addEventListener("click", () => {
+    state.showSeenAlreadyRealtime = !state.showSeenAlreadyRealtime;
+    state.liveReviewVisible = 8;
+    renderRealtime(payload);
+  });
+}
+
 function realtimeFrameKey(value) {
   // SOHO frames are named YYYYMMDD_HHMM_c3_1024.jpg or ..._512.jpg.
   // Their UTC timestamps sort correctly as strings; malformed dates go last.
@@ -629,6 +649,8 @@ function renderRealtime(payload) {
     ? payload.review_candidates
     : currentRows;
   const { primary, diagnostics } = realtimeReviewGroups(reviewRows);
+  const seenCount = primary.filter(c => normalizeClass(c.status) === "SEEN_ALREADY").length;
+  const visiblePrimary = visiblePrimaryReviews(primary, state.showSeenAlreadyRealtime);
   // Never leave an active discovery dashboard visually empty when the only
   // results are unverified. Show a *small* preview of CURRENT weak tracks,
   // clearly labelled, while retaining the full diagnostic toggle. Do not
@@ -637,8 +659,8 @@ function renderRealtime(payload) {
     ? currentRows.filter(isRealtimeDiagnosticOnly).slice(0, 3)
     : [];
   const rowsToDisplay = state.showLowSupportRealtime
-    ? [...primary, ...diagnostics]
-    : [...primary, ...currentDiagnosticPreviews];
+    ? [...visiblePrimary, ...diagnostics]
+    : [...visiblePrimary, ...currentDiagnosticPreviews];
   const diagnosticNotice = currentDiagnosticPreviews.length
     ? '<div class="realtime-empty"><strong>No evidence-supported candidates in the published review set.</strong> Showing ' +
       currentDiagnosticPreviews.length +
@@ -650,6 +672,13 @@ function renderRealtime(payload) {
     return;
   }
 
+  const seenControls = seenCount ? `<div class="realtime-review-more">
+    <small>${seenCount} previously seen review(s) retained. These matches are approximate and may contain useful follow-up observations.</small>
+    <button type="button" id="toggleSeenRealtime">${state.showSeenAlreadyRealtime
+      ? "Hide previously seen reviews"
+      : `Show ${seenCount} previously seen reviews`}</button>
+  </div>` : "";
+
   const diagnosticControls = diagnostics.length ? `<div class="realtime-review-more">
     <small>${diagnostics.length} low-support / inconsistent track(s) retained for engineering diagnostics, not validated comets.</small>
     <button type="button" id="toggleWeakRealtime">
@@ -658,7 +687,12 @@ function renderRealtime(payload) {
   </div>` : "";
 
   if (!rowsToDisplay.length) {
-    candidatesEl.innerHTML = '<div class="realtime-empty">No evidence-supported realtime candidates yet. The detector is running, but its current tracks have not passed review.</div>' + diagnosticControls;
+    candidatesEl.innerHTML = '<div class="realtime-empty">' +
+      (seenCount && !state.showSeenAlreadyRealtime
+        ? "No new unmatched reviews in this retained set. Previously seen reviews are hidden below."
+        : "No evidence-supported realtime candidates yet. The detector is running, but its current tracks have not passed review.") +
+      '</div>' + seenControls + diagnosticControls;
+    attachPreviouslySeenToggle(payload);
     const toggle = $("#toggleWeakRealtime");
     if (toggle) toggle.addEventListener("click", () => {
       state.showLowSupportRealtime = !state.showLowSupportRealtime;
@@ -668,9 +702,8 @@ function renderRealtime(payload) {
     return;
   }
 
-  // Newest reviews first, regardless of whether they are unmatched or
-  // already seen. Most detections share the same last C3 frame, so use the
-  // first observed frame as the next tie-breaker.
+  // Keep newest-first ordering among the reviews currently shown.
+  // Repeated detections can be revealed without changing stored reviews.
   const ordered = sortRealtimeReviews(rowsToDisplay);
 
   const visible = Math.min(state.liveReviewVisible || 8, ordered.length);
@@ -679,10 +712,11 @@ function renderRealtime(payload) {
     : "";
 
   candidatesEl.innerHTML =
-    diagnosticNotice +
+    diagnosticNotice + seenControls +
     ordered.slice(0, visible).map(realtimeCandidateCard).join("") +
     more + diagnosticControls;
 
+  attachPreviouslySeenToggle(payload);
   const toggle = $("#toggleWeakRealtime");
   if (toggle) toggle.addEventListener("click", () => {
     state.showLowSupportRealtime = !state.showLowSupportRealtime;
