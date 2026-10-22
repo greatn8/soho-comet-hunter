@@ -60,14 +60,19 @@ def extract_compact_sources(gray, size, max_sources=750):
 
 
 def build_reference(frame_paths, gray_cache, decode, resolution, time_of_frame,
-                    target_hours=4):
-    """Decode a two-frame star reference around the newest observed image."""
+                    target_hours=4, end_frame=None):
+    """Decode a two-frame reference, optionally ending at a candidate frame."""
     if len(frame_paths)<4:
         return {"status":"UNAVAILABLE","reason":"TOO_FEW_FRAMES"}
-    newest=frame_paths[-1]
+    if end_frame is None:
+        newest=frame_paths[-1]
+    else:
+        newest=next((p for p in frame_paths if p.name==end_frame),None)
+        if newest is None:
+            return {"status":"UNAVAILABLE","reason":"END_FRAME_NOT_CACHED"}
     end=time_of_frame(newest.name)
     candidates=[(abs((end-time_of_frame(p.name)).total_seconds()/3600-target_hours),p)
-                for p in frame_paths[:-1] if
+                for p in frame_paths if p!=newest and
                 2<=(end-time_of_frame(p.name)).total_seconds()/3600<=8]
     if not candidates:
         return {"status":"UNAVAILABLE","reason":"NO_SEPARATED_FRAME_PAIR"}
