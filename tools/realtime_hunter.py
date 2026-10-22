@@ -13,6 +13,7 @@ import pixel_verify
 from pixel_verify import classify_for_review, verify_track_pixels, verify_temporal_motion
 from track_evidence import audit_track_frames, position_at
 from star_field import annotate_star_field
+from bright_artifact import artifact_proximity
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
@@ -1055,6 +1056,25 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         else:
             verified_representatives.append(c)
 
+    # Broad saturated moving artifacts can fool compact pixel verification.
+    # Only downgrade repeated extended brightness around (not inside) the
+    # candidate core; preserve tracks and review media for manual inspection.
+    artifact_downgraded=0
+    for c in event_representatives:
+        if c.get("review_class")!="STRONG_REVIEW":
+            continue
+        try:
+            c["bright_artifact"]=artifact_proximity(
+                c,frames,gray_cache,pixel_verify._decode_gray,image_time)
+        except Exception as exc:
+            c["bright_artifact"]={"status":"UNAVAILABLE","error":str(exc)}
+        if c["bright_artifact"].get("status")=="ARTIFACT_ADJACENT":
+            c["review_class"]="SECONDARY"
+            c["artifact_review_downgraded"]=True
+            artifact_downgraded+=1
+    log(f"Bright-artifact proximity: downgraded {artifact_downgraded} "
+        "pixel-strong event(s) to SECONDARY; original detections preserved.")
+
     # Compare independent pixel-supported tracks to find shared star motion.
     # Keep raw hypotheses and videos; only star-like strong alerts are triaged.
     annotate_star_field(event_representatives)
@@ -1123,6 +1143,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         "pixel_verified_events":len(verified_representatives),
         "star_field_consensus_events":sum(c.get("star_field",{}).get("status")=="STAR_LIKE" for c in event_representatives),
         "star_field_review_downgraded":star_like_count,
+        "bright_artifact_review_downgraded":artifact_downgraded,
         "temporal_motion_measured":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("status")=="MEASURED" for c in event_representatives),
         "temporal_motion_supported":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("supported",0) >= 3 for c in event_representatives),
         "pixel_rejected_events":len(rejected_representatives),
@@ -1229,6 +1250,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
             "pixel_verification":c.get("pixel_verification",{}),
             "star_field":c.get("star_field",{}),
+            "bright_artifact":c.get("bright_artifact",{}),
             "event_group":c.get("event_group"),
             "members":c.get("event_members",1),
             "member_ids":c.get("event_member_ids",[c["cid"]]),
@@ -1288,6 +1310,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "historical_recovery_profile":c.get("historical_recovery_profile",False),
             "pixel_verification":c.get("pixel_verification",{}),
             "star_field":c.get("star_field",{}),
+            "bright_artifact":c.get("bright_artifact",{}),
             "first":c["first"]["file"],
             "last":c["last"]["file"],
             "frames":c["frames"],
