@@ -1062,7 +1062,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     # Independently match bright compact points between actual SOHO frames.
     # The old representative-only consensus frequently had no references.
     image_reference=build_reference(
-        frames,gray_cache,_decode_gray,args.resolution,image_time)
+        frames,gray_cache,pixel_verify._decode_gray,args.resolution,image_time)
     log(f"Image star-motion reference: {image_reference.get('status')} "
         f"first={image_reference.get('first_sources',0)} "
         f"last={image_reference.get('last_sources',0)}.")
