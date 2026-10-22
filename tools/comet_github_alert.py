@@ -68,9 +68,12 @@ def normalize(candidate, track=None):
 
 
 def is_recent_strong(candidate, hours=12):
-    if candidate.get("review_class") != "STRONG_REVIEW":
+    if str(candidate.get("review_class") or "").upper() != "STRONG_REVIEW":
         return False
-    if candidate.get("status") == "KNOWN_REPORT":
+    # A seen-again or known-report candidate is NOT a new discovery lead.
+    # Both the local dispatch watcher and GitHub push fallback use this gate.
+    # Missing/unknown status is deliberately ineligible for email alerts.
+    if str(candidate.get("status") or "").upper() != "UNMATCHED":
         return False
     try:
         age = (dt.datetime.now(dt.timezone.utc) - utc_of_frame(candidate["last"])).total_seconds()/3600.0
@@ -398,16 +401,11 @@ def run_issue(event_path, event_name, token, age_hours):
             if issue_number and row_count > prior_count:
                 github_api("PATCH", f"/repos/{REPO}/issues/{issue_number}",
                            token, {"body": body})
-                github_api("POST", f"/repos/{REPO}/issues/{issue_number}/comments",
-                           token, {"body":
-                                   f"@{ASSIGNEE} Position table updated: {row_count} "
-                                   "candidate coordinates are now included above. "
-                                   "Open the issue to inspect the frame times, X/Y "
-                                   "values and evidence basis. Verify all positions "
-                                   "on the original SOHO images before submission."})
+                # Editing an existing issue preserves improved coordinates
+                # without generating another @mention/comment notification.
                 matching["position_row_count"] = row_count
                 upgraded += 1
-                print(f"Upgraded existing alert issue #{issue_number}: "
+                print(f"Silently enriched existing alert issue #{issue_number}: "
                       f"{row_count} coordinate rows")
             continue
         issue = github_api("POST", f"/repos/{REPO}/issues", token,
@@ -417,7 +415,7 @@ def run_issue(event_path, event_name, token, age_hours):
         old.append({**candidate, "_issue_number": issue.get("number"),
                     "position_row_count": row_count})
         created += 1
-    print(f"New strong-review notification issues: {created}; enriched: {upgraded}")
+    print(f"New strong-review notification issues: {created}; silently enriched: {upgraded}")
 
 
 def main():
