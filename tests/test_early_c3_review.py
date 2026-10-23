@@ -30,6 +30,8 @@ def sample(now):
         "track":{"last_x":400,"last_y":500,"vx":-2,"vy":-3},
         "early_alert_reasons":[],"report_check_status":"CHECKED_RECENT_LIST"
     }
+    row["track"]={"first_x":400,"first_y":500,"last_x":398,"last_y":497,
+                  "vx":-2.0,"vy":-3.0}
     return row
 
 class EarlyReviewTests(unittest.TestCase):
