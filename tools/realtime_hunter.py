@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from live_review import ensure_live_review
+from early_c3_review import process_early_tracks
 import pixel_verify
 from pixel_verify import classify_for_review, verify_track_pixels, verify_temporal_motion
 from track_evidence import audit_track_frames, position_at
@@ -940,6 +941,20 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
             # CUDA C01 etc. is scoped to one pass. Keep global IDs numeric
             # so dashboard and alert format continue to work unchanged.
             c["cid"]=f"C{window_hours:03d}{int(c['cid'][1:]):04d}"
+        # Independent early assessment, before long CUDA passes.
+        # Opt-in marker persists across watchdog recovery. Never block C3.
+        if window_hours==args.search_windows[0] and (project/"state"/"realtime_early_review_enabled").is_file():
+            try:
+                early=process_early_tracks(
+                    parsed,frames,results_dir,args,run_id,
+                    hunter=__import__(__name__),
+                    notify_enabled=True,
+                )
+                log(f"Early C3 review: {early['strong_pixel_tracks']} supported, "
+                    f"{early['early_alert_ready']} fresh candidate(s) eligible for manual review; "
+                    f"report check={early['report_check_status']}.")
+            except Exception as exc:
+                log(f"WARN: early C3 review failed safely: {exc}")
         info["status"]="OK"
         info["parsed_tracks"]=len(parsed)
         info["consistent_tracks"]=sum(not c.get("trajectory_warning") for c in parsed)
