@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
 import early_c3_review as early
-import watch_early_c3 as notify
+import watch_early_c3_email as notify
 
 UTC=dt.timezone.utc
 def sample(now):
@@ -74,15 +74,17 @@ class EarlyReviewTests(unittest.TestCase):
         row["status"]="EARLY_ALERT_READY"
         payload={"mode":"EARLY_REVIEW_UNCONFIRMED",
                  "report_check_status":"CHECKED_RECENT_LIST",
+                 "report_count":15,
                  "notify_enabled":True,
                  "generated_at":now.isoformat(),"candidates":[row]}
-        self.assertEqual(len(notify.due_alerts(payload,[],now)),1)
-        self.assertEqual(notify.due_alerts(payload,[row],now),[])
+        self.assertEqual(len(notify.due_for_dispatch(payload,[],now)),1)
+        self.assertEqual(notify.due_for_dispatch(payload,[row],now),[])
         payload["report_check_status"]="UNAVAILABLE"
-        self.assertEqual(notify.due_alerts(payload,[],now),[])
+        self.assertEqual(notify.due_for_dispatch(payload,[],now),[])
         payload["report_check_status"]="CHECKED_RECENT_LIST"
         row["report_id"]="report_known"
-        self.assertEqual(notify.due_alerts(payload,[],now),[])
+        self.assertEqual(notify.due_for_dispatch(payload,[],now),[])
+
     def test_reporting_failure_prevents_eligibility(self):
         now=dt.datetime(2026,10,23,14,0,tzinfo=UTC)
         with tempfile.TemporaryDirectory() as temp:
