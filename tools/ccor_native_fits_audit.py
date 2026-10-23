@@ -238,11 +238,26 @@ def main():
             frames.append(frame)
         except Exception as exc:
             issues.append(f"{path.name}: {type(exc).__name__}: {exc}")
+    # A successful directory index is not proof of a successful FITS download.
+    # Include manifest status so a missing dependency / failed HTTP response
+    # cannot be mistaken for absent comet signal.
+    manifest_path=base/"download_manifest.json"
+    manifest_status={}
+    if manifest_path.exists():
+        try:
+            manifest=json.loads(manifest_path.read_text(encoding="utf-8"))
+            for case in manifest.get("cases",[]):
+                for item in case.get("files",[]):
+                    status=str(item.get("status") or "UNKNOWN")
+                    manifest_status[status]=manifest_status.get(status,0)+1
+        except (OSError,ValueError,TypeError) as exc:
+            issues.append(f"Could not parse download manifest: {exc}")
     report={
         "mode":"NATIVE_CCOR_FITS_COORDINATE_AUDIT_NOT_COMET_RECOVERY",
         "files_read":len(paths),
         "frames_loaded":len(frames),
         "problems":issues,
+        "manifest_file_status_counts":manifest_status,
         "production_modified":False,
         "cases":[report_for_case(case,frames) for case in
                  dict.fromkeys(args.case or list(CASES))],
@@ -254,7 +269,24 @@ def main():
               "/",case["report_observations"],"native frames,",
               "comet recovered: UNKNOWN")
     print("Wrote",args.output)
+    print(f"Input files found: {len(paths)}; readable 2D camera FITS frames: {len(frames)}")
+    if manifest_status:
+        print("Downloader statuses:",", ".join(
+            f"{status}={count}" for status,count in sorted(manifest_status.items())))
+    if issues:
+        print(f"FITS input problems ({len(issues)}):")
+        for problem in issues[:12]:
+            print("  -",problem)
+        if len(issues)>12:
+            print(f"  ... and {len(issues)-12} more; see {args.output}")
+    if not frames:
+        print("ERROR: No usable native FITS arrays were loaded. "
+              "This is a dependency/download/metadata problem, NOT a negative comet result.")
     print("No source files or running hunters were modified.")
+    if not frames or not any(case["matched_native_frames"] for case in report["cases"]):
+        print("ERROR: No report-times aligned with readable native FITS frames. "
+              "Inspect the FITS problems and DATE-OBS values above.")
+        raise SystemExit(2)
 
 if __name__=="__main__":
     main()
