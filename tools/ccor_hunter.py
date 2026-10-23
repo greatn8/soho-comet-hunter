@@ -246,19 +246,92 @@ def track_points(frames, times, sizes, camera):
                     return results
     return results
 
+def track_quality(row):
+    """Prefer repeated, longer, lower-error evidence; not a comet probability."""
+    try:
+        start=dt.datetime.fromisoformat(row["first"].replace("Z","+00:00"))
+        end=dt.datetime.fromisoformat(row["last"].replace("Z","+00:00"))
+        hours=max(0.0,(end-start).total_seconds()/3600.0)
+    except (KeyError,TypeError,ValueError):
+        hours=0.0
+    return (min(int(row.get("frames") or 0),20),
+            min(hours,8.0),
+            -float(row.get("rms_px") or 1000),
+            row.get("last") or "")
+
+
 def integrate_events(previous, detected, camera, now):
-    retained = [r for r in previous
-                if r.get("camera")==camera
-                and r.get("last","") >= iso(now-dt.timedelta(hours=48))]
+    """Consolidate only same-camera hypotheses, retaining stable unique IDs.
+
+    Older versions accidentally allowed multiple rows sharing an ID. No
+    pixel coordinates are ever compared between CCOR1 and CCOR2.
+    """
+    cutoff=iso(now-dt.timedelta(hours=48))
+    retained=[]
+    id_index={}
+    for row in previous:
+        if row.get("camera")!=camera or row.get("last","")<cutoff:
+            continue
+        ident=row.get("id")
+        if not ident:
+            continue
+        if ident in id_index:
+            pos=id_index[ident]
+            if track_quality(row)>track_quality(retained[pos]):
+                retained[pos]=dict(row)
+            continue
+        id_index[ident]=len(retained)
+        retained.append(dict(row))
     for row in detected:
-        match = next((old for old in retained if match_track(old,row,None,None)),None)
-        if match:
-            row["id"] = match["id"]
-            if row["frames"] >= match.get("frames",0) or row["last"] > match["last"]:
-                match.update(row)
-        else:
-            retained.append(row)
-    return sorted(retained, key=lambda x:x["last"],reverse=True)[:100]
+        match_index=next((i for i,old in enumerate(retained)
+                          if match_track(old,row,None,None)),None)
+        if match_index is not None:
+            prior=retained[match_index]
+            if track_quality(row)>track_quality(prior):
+                revised=dict(row)
+                revised["id"]=prior["id"]
+                retained[match_index]=revised
+            continue
+        ident=row.get("id")
+        if ident in id_index:
+            pos=id_index[ident]
+            if track_quality(row)>track_quality(retained[pos]):
+                retained[pos]=dict(row)
+            continue
+        id_index[ident]=len(retained)
+        retained.append(dict(row))
+    return sorted(retained,key=lambda x:x.get("last",""),reverse=True)[:100]
+
+
+def review_shortlist(tracks, limit_per_camera=12):
+    """Balanced display priority only; preserve ALL other stored hypotheses."""
+    selected=[]
+    for camera in CAMERAS:
+        rows=sorted((r for r in tracks if r.get("camera")==camera),
+                    key=track_quality,reverse=True)
+        chosen=[]
+        counts={}
+        for row in rows:
+            shape=row.get("processing_shape") or [512,512]
+            try:
+                column=min(3,max(0,int(4*float(row["x_first"])/float(shape[0]))))
+                quadrant=min(3,max(0,int(4*float(row["y_first"])/float(shape[1]))))
+                cell=(column,quadrant)
+            except (KeyError,TypeError,ValueError,ZeroDivisionError):
+                cell=(-1,-1)
+            if counts.get(cell,0)>=2:
+                continue
+            chosen.append(row)
+            counts[cell]=counts.get(cell,0)+1
+            if len(chosen)>=limit_per_camera:
+                break
+        if len(chosen)<limit_per_camera:
+            ids={r["id"] for r in chosen}
+            chosen.extend(r for r in rows if r.get("id") not in ids
+                          and len(chosen)<limit_per_camera)
+        selected.extend(r["id"] for r in chosen)
+    return selected
+
 
 def atomic_json(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -276,6 +349,17 @@ def run_once(project, now=None, fetch=get, offline=False):
         except (OSError,ValueError):
             pass
     prior = previous.get("tracks", [])
+    # Preserve a once-only copy of pre-fix hypotheses, including duplicate IDs.
+    # These may contain alternate fits from the same seed, so do not destroy
+    # the historical evidence when consolidating dashboard identities.
+    if out.exists() and any(
+        len([r for r in prior if r.get("camera")==camera]) !=
+        len({r.get("id") for r in prior if r.get("camera")==camera})
+        for camera in CAMERAS
+    ):
+        backup=out.with_name("ccor_pre_identity_fix.json")
+        if not backup.exists():
+            backup.write_bytes(out.read_bytes())
     instrument_states = {}
     tracks = []
     for camera in CAMERAS:
@@ -293,12 +377,16 @@ def run_once(project, now=None, fetch=get, offline=False):
         detected=track_points(images,times,sizes,camera)
         retained=integrate_events(prior,detected,camera,now)
         tracks.extend(retained)
+        prior_rows=[r for r in prior if r.get("camera")==camera]
+        prior_repeated_ids=len(prior_rows)-len({r.get("id") for r in prior_rows})
         instrument_states[camera]={
             "camera":camera,"new_images":new,"indexed_images":len(listed),
             "cached_recent_frames":len(images),
             "last_frame":iso(times[-1]) if times else None,
             "detected_this_cycle":len(detected),
             "retained_review_tracks":len(retained),
+            "duplicate_identity_rows_in_prior_output":prior_repeated_ids,
+            "detector_hit_40_hypothesis_cap":len(detected)==40,
             "status":"FEED_ERROR" if errors and not images else
                      "INSUFFICIENT_FRAMES" if len(images)<6 else "REVIEW_ONLY",
             "errors":errors[-5:]
@@ -317,6 +405,8 @@ def run_once(project, now=None, fetch=get, offline=False):
         "mode":"EXPERIMENTAL_REVIEW_ONLY", "automatic_email_alerts":False,
         "independently_confirmed":False,
         "instruments":instrument_states,"tracks":tracks,
+        "review_shortlist_ids":review_shortlist(tracks),
+        "review_shortlist_policy":"Ranking and 4x4 spatial diversity for display only; no hypothesis rejected",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }
