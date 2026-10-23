@@ -113,7 +113,7 @@ def bounded_download(url,destination,max_bytes=MAX_FILE_BYTES):
     finally:
         tmp.unlink(missing_ok=True)
 
-def download_cases(cases,root,context=1,max_files=20,fetch_index=None,download=bounded_download):
+def download_cases(cases,root,context=1,max_files=24,fetch_index=None,download=bounded_download):
     root.mkdir(parents=True,exist_ok=True)
     report={"mode":"CCOR_NATIVE_FITS_REFERENCE_DOWNLOAD",
             "production_modified":False,"cases":[],"downloaded":0,
@@ -172,7 +172,7 @@ def main():
     p.add_argument("--output-dir",type=Path,required=True)
     p.add_argument("--case",choices=tuple(CASES),action="append")
     p.add_argument("--context",type=int,default=1)
-    p.add_argument("--max-files",type=int,default=20)
+    p.add_argument("--max-files",type=int,default=24)
     args=p.parse_args()
     if not 0<=args.context<=2:
         p.error("--context must be 0..2")
