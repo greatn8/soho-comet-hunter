@@ -838,7 +838,10 @@ async function refreshCCOR() {
       box.innerHTML = '<div class="realtime-empty">No CCOR motion hypotheses available yet.</div>';
       return;
     }
-    box.innerHTML = tracks.slice(0,12).map(row => (
+    const chosen = Array.isArray(payload.review_shortlist_ids)
+      ? payload.review_shortlist_ids.map(id => tracks.find(row => row.id === id)).filter(Boolean)
+      : tracks.slice(0,12);
+    box.innerHTML = chosen.slice(0,24).map(row => (
       '<article class="realtime-candidate">' +
       '<div class="realtime-candidate-top"><strong>' + safe(row.id) + '</strong>' +
       '<span>UNVERIFIED MOTION / ' + safe((row.camera || "").toUpperCase()) + '</span></div>' +

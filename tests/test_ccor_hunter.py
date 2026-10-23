@@ -28,6 +28,28 @@ class CCORTests(unittest.TestCase):
         self.assertEqual(len(found),1)
         self.assertEqual(found[0]["id"],"CCOR1-123")
         self.assertEqual(found[0]["frames"],7)
+    def test_duplicate_prior_ids_are_consolidated_without_losing_best_fit(self):
+        now=dt.datetime(2026,10,23,12,tzinfo=dt.timezone.utc)
+        base={"id":"CCOR1-same","camera":"ccor1","first":"2026-10-23T10:00:00Z",
+              "last":"2026-10-23T11:00:00Z","frames":4,"rms_px":1.2,
+              "x_first":140,"y_first":120,"vx_px_h":1,"vy_px_h":1}
+        better={**base,"frames":8,"rms_px":0.3}
+        got=ch.integrate_events([base,better],[],"ccor1",now)
+        self.assertEqual(len(got),1)
+        self.assertEqual(got[0]["frames"],8)
+
+    def test_review_shortlist_keeps_spatially_distinct_track(self):
+        common={"camera":"ccor1","first":"2026-10-23T10:00:00Z",
+                "last":"2026-10-23T11:00:00Z","frames":5,"rms_px":0.8,
+                "processing_shape":[512,512]}
+        crowded=[{**common,"id":f"crowded-{i}","x_first":150,"y_first":420}
+                 for i in range(10)]
+        distinct={**common,"id":"distinct","x_first":430,"y_first":120}
+        picked=ch.review_shortlist(crowded+[distinct],limit_per_camera=5)
+        self.assertEqual(len(picked),5)
+        self.assertIn("distinct",picked)
+        self.assertEqual(len(set(picked)),5)
+
     def test_offline_writes_no_alerts(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload=ch.run_once(Path(tmp),now=dt.datetime(2026,10,23,12,tzinfo=dt.timezone.utc),offline=True)
