@@ -24,6 +24,14 @@ class TestCCORControls(unittest.TestCase):
   r=c.residual_measurement(frames,3,(58,60))
   self.assertEqual(r["status"],"MEASURED")
   self.assertGreater(r["peak_snr"],5)
+ def test_tiny_native_units_still_measurable(self):
+  rng=np.random.default_rng(33)
+  frames=[rng.normal(0,1e-17,(120,120)).astype("float64") for _ in range(7)]
+  for i,a in enumerate(frames):
+   a[59:62,39+i*6:42+i*6]+=7e-16
+  r=c.residual_measurement(frames,3,(58,60))
+  self.assertEqual(r["status"],"MEASURED")
+  self.assertGreater(r["peak_snr"],5)
  def test_out_of_bounds(self):
   a=[np.ones((100,100),dtype="float32") for _ in range(5)]
   self.assertIsNone(c.residual_measurement(a,2,(5,5)))
