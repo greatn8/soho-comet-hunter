@@ -56,7 +56,9 @@ def robust_sigma(values):
         return None
     med=float(np.median(finite))
     mad=1.4826*float(np.median(np.abs(finite-med)))
-    return (med,mad) if math.isfinite(mad) and mad>1e-12 else None
+    # CCOR FITS values may be calibrated radiance far below 1e-12.
+    # Do not impose an arbitrary absolute amplitude floor on the native units.
+    return (med,mad) if math.isfinite(mad) and mad>0 else None
 
 def residual_measurement(frame_arrays,index,point,half=HALF):
     """Subtract temporal median from other FITS at identical array pixels."""
@@ -79,7 +81,13 @@ def residual_measurement(frame_arrays,index,point,half=HALF):
     annulus=residual[(radius>=12)&(radius<=half-2)]
     noise=robust_sigma(annulus)
     if noise is None:
-        return {"status":"BAD_BACKGROUND","residual":residual}
+        finite=annulus[np.isfinite(annulus)]
+        return {
+            "status":"INSUFFICIENT_FINITE_BACKGROUND" if finite.size<40 else "ZERO_LOCAL_SCATTER",
+            "background_finite_pixels":int(finite.size),
+            "background_total_pixels":int(annulus.size),
+            "residual":residual,
+        }
     center,scale=noise
     def local_snr(dy,dx):
         block=residual[half+dy-1:half+dy+2,half+dx-1:half+dx+2]
@@ -94,7 +102,7 @@ def residual_measurement(frame_arrays,index,point,half=HALF):
         "status":"MEASURED","center_snr":round(center_snr,3),
         "peak_snr":round(peak_snr,3),
         "peak_offset":[peak_dx,peak_dy],
-        "local_sigma":round(scale,9),
+        "local_sigma":scale,
         "residual":residual,
     }
 
@@ -117,7 +125,7 @@ def load_frames(input_dir,camera,max_files=24):
                     continue
                 when,source=timestamp_from_headers(headers,path.name)
                 frames.append({"time":when,"filename":path.name,
-                    "data":np.asarray(part.data,dtype=np.float32).copy(),
+                    "data":np.asarray(part.data,dtype=np.float64).copy(),
                     "time_source":source,
                     "processing_level":next((str(header.get(key))
                         for header in headers for key in
@@ -165,10 +173,15 @@ def score_geometry(frames,case,geometry,include_images=False):
         if include_images:
             residuals.append((stamp,measured.get("residual"),record))
     measured=[p for p in obs if p["status"]=="MEASURED"]
+    status_counts={}
+    for record in obs:
+        status=record.get("status","UNKNOWN")
+        status_counts[status]=status_counts.get(status,0)+1
     peaks=[p["peak_snr"] for p in measured]
     controls=[p["control_peak_max"] for p in measured if p["control_peak_max"] is not None]
     return {
         "geometry":geometry,"observations":obs,
+        "status_counts":status_counts,
         "measured_frames":len(measured),
         "median_center_snr":round(float(np.median([p["center_snr"] for p in measured])),3) if measured else None,
         "median_nearby_peak_snr":round(float(np.median(peaks)),3) if peaks else None,
@@ -256,7 +269,8 @@ def run(input_dir,output,cases,contact_sheets=True):
                   f" median-center={g['median_center_snr']}"
                   f" median-local-peak={g['median_nearby_peak_snr']}"
                   f" peak>=4sigma={g['frames_with_peak_at_least_4sigma']}"
-                  f" beating-controls={g['frames_peak_beats_all_offset_controls']}",
+                  f" beating-controls={g['frames_peak_beats_all_offset_controls']}"
+                  f" statuses={g['status_counts']}",
                   flush=True)
         print("  Contact sheet:",item.get("contact_sheet","disabled"),flush=True)
     dest=output/"temporal_control_audit.json"
