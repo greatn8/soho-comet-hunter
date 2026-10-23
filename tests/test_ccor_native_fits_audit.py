@@ -16,6 +16,10 @@ class CCORNativeFitsAuditTests(unittest.TestCase):
         self.assertEqual(a["matched_native_frames"],0)
         self.assertIsNone(a["confirmed_comet_recovery"])
         self.assertEqual(a["observation_results"][-1]["report_time_utc"],"2026-10-23T01:15:00Z")
+    def test_ruan_followup_has_five_observations(self):
+        result=audit.report_for_case("ccor1-20261022-ruan",[])
+        self.assertEqual(result["report_observations"],5)
+        self.assertEqual(result["observation_results"][-1]["report_time_utc"],"2026-10-22T13:30:00Z")
     def test_native_origin_flip(self):
         self.assertEqual(audit.native_pixel(1820,1718,(1920,2048),"upper_left"),(1718,1820))
         self.assertEqual(audit.native_pixel(1820,1718,(1920,2048),"lower_left"),(201,1820))
