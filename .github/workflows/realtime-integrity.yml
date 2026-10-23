@@ -11,9 +11,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install CCOR test dependencies
+        run: python -m pip install numpy pillow
       - name: Check watchdog Bash syntax
         run: bash -n tools/ensure_realtime_running.sh watch_dashboard_publish.sh
       - name: Check Python syntax
-        run: python -m py_compile tools/realtime_hunter.py tools/live_review.py tools/pixel_verify.py tools/update_dashboard.py tools/benchmark_known_comets.py tools/recover_known_comet_frames.py
+        run: python -m py_compile tools/realtime_hunter.py tools/live_review.py tools/pixel_verify.py tools/update_dashboard.py tools/benchmark_known_comets.py tools/recover_known_comet_frames.py tools/ccor_hunter.py
       - name: Run regression tests
         run: python -m unittest discover -s tests -v
