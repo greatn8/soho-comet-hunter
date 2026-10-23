@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
-import inspect
 import json
 from pathlib import Path
 
@@ -131,11 +130,8 @@ def acquire_frames(case, cache, *, no_download=False, fetch=None,
 
 
 def detector_fingerprint():
-    # Fingerprint of the true production routines (not a reimplementation).
-    code = "\n".join(inspect.getsource(method)
-                     for method in (hunter.load_frames, hunter.peaks,
-                                    hunter.track_points, hunter.track_quality))
-    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+    # Fingerprint the actual production source file, not a mockable function.
+    return hashlib.sha256(Path(hunter.__file__).read_bytes()).hexdigest()
 
 
 def blind_detect(case_name, output_dir, no_download=False, fetch=None):
