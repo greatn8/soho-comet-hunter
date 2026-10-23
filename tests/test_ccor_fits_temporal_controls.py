@@ -20,7 +20,7 @@ class TestCCORControls(unittest.TestCase):
   rng=np.random.default_rng(22)
   frames=[rng.normal(100,1,(120,120)).astype("float32") for _ in range(7)]
   for i,a in enumerate(frames):
-   a[60,40+i*6]+=70
+   a[59:62,39+i*6:42+i*6]+=70
   r=c.residual_measurement(frames,3,(58,60))
   self.assertEqual(r["status"],"MEASURED")
   self.assertGreater(r["peak_snr"],5)
