@@ -116,9 +116,10 @@ def compare_path_against_nulls(arrays,observations,geometry,offsets=CONTROL_OFFS
                    if r["status"]=="MEASURED"}
     # The controls must be evaluated against the SAME timestamps, without
     # favouring an offset with only one unusually bright valid frame.
-    if len(valid_indices)<4:
+    if len(valid_indices)<3:
         return {"geometry":geometry,"status":"INSUFFICIENT_MEASURED_FRAMES",
                 "target":target,"control_paths_valid":0}
+    limited_power=len(valid_indices)<4
     controls=[]
     for dx,dy in offsets:
         r=measure_path(arrays,observations,geometry,offset=(dx,dy),
@@ -144,7 +145,7 @@ def compare_path_against_nulls(arrays,observations,geometry,offsets=CONTROL_OFFS
     # Because four geometries were examined, do not quote 1/(N+1) as a
     # detection probability without accounting for model selection.
     return {
-        "geometry":geometry,"status":"RANKED_UNCALIBRATED",
+        "geometry":geometry,"status":"RANKED_UNCALIBRATED_LOW_POWER" if limited_power else "RANKED_UNCALIBRATED",
         "target":target,"reversed_path":reverse,
         "control_paths_valid":len(controls),
         "controls_at_or_above_target":outrank,
@@ -189,7 +190,7 @@ def run(input_dir,output,cases):
                   f"fraction={result.get('local_empirical_upper_tail_fraction','N/A')}",
                   flush=True)
         ranked=[g for g in entry["geometry_results"]
-                if g["status"]=="RANKED_UNCALIBRATED"]
+                if g["status"] in ("RANKED_UNCALIBRATED","RANKED_UNCALIBRATED_LOW_POWER")]
         entry["lowest_local_tail_geometry"]=min(
             ranked,key=lambda g:g["local_empirical_upper_tail_fraction"])["geometry"] if ranked else None
         report["cases"].append(entry)
@@ -209,8 +210,8 @@ def main():
     report=run(args.input_dir.expanduser().resolve(),
                args.output.expanduser().resolve(),
                list(dict.fromkeys(args.case or CASES)))
-    if any(r["interpolated_frames"]<4 for r in report["cases"]):
-        raise SystemExit("Not enough FITS frames within reported track; no decision.")
+    if any(r["interpolated_frames"]<3 for r in report["cases"]):
+        raise SystemExit("Fewer than three FITS frames in a reference case; incomplete audit.")
 
 
 if __name__=="__main__":
