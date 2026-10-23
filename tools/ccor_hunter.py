@@ -176,9 +176,33 @@ def match_track(a, b, time_a, time_b, tolerance=4.0):
     except (KeyError, TypeError, ValueError):
         return False
 
-def track_points(frames, times, sizes, camera):
+def track_points(frames, times, sizes, camera, *, complete_search=False,
+                 return_diagnostics=False):
+    """Run the established CCOR seed finder.
+
+    Legacy calls retain the original first-40 behavior exactly. Opt-in
+    complete_search processes all selected peaks first, then globally ranks
+    and returns only the best 40. It NEVER increases dashboard/alert volume.
+    A finite 5000-hypothesis safety budget returns scan_completed=False; the
+    caller must not publish those partially ranked results as complete.
+    """
+    stats = {"complete_search": bool(complete_search),
+             "scan_completed": False, "stop_reason": None,
+             "seed_pairs_examined": 0, "distinct_hypotheses": 0,
+             "selected_hypotheses": 0, "per_frame_peak_cap": 70,
+             "distinct_hypothesis_budget": 5000 if complete_search else 40}
+
+    def result(rows, complete, reason=None):
+        stats["scan_completed"] = complete
+        stats["stop_reason"] = reason
+        stats["distinct_hypotheses"] = len(rows)
+        chosen = (sorted(rows, key=track_quality, reverse=True)[:40]
+                  if complete_search else rows)
+        stats["selected_hypotheses"] = len(chosen)
+        return (chosen, stats) if return_diagnostics else chosen
+
     if len(frames) < 6:
-        return []
+        return result([], True)
     baseline = np.median(np.stack(frames), axis=0)
     # Search recent frames only; the current window is independently rechecked.
     start = max(0, len(frames)-16)
@@ -193,6 +217,7 @@ def track_points(frames, times, sizes, camera):
             continue
         for x0,y0,v0 in spots[i]:
             for x1,y1,v1 in spots[i+1]:
+                stats["seed_pairs_examined"] += 1
                 speed = math.hypot(x1-x0,y1-y0)/step
                 if not 0.7 <= speed <= 35:
                     continue
@@ -242,9 +267,11 @@ def track_points(frames, times, sizes, camera):
                 }
                 if not any(match_track(old,row,None,None) for old in results):
                     results.append(row)
-                if len(results) >= 40:
-                    return results
-    return results
+                if not complete_search and len(results) >= 40:
+                    return result(results, False, "LEGACY_FIRST_40")
+                if complete_search and len(results) >= 5000:
+                    return result(results, False, "COMPLETE_SEARCH_BUDGET_EXCEEDED")
+    return result(results, True)
 
 def track_quality(row):
     """Prefer repeated, longer, lower-error evidence; not a comet probability."""
@@ -339,7 +366,7 @@ def atomic_json(path, payload):
     temp.write_text(json.dumps(payload,indent=2)+"\n",encoding="utf-8")
     temp.replace(path)
 
-def run_once(project, now=None, fetch=get, offline=False):
+def run_once(project, now=None, fetch=get, offline=False, complete_search=False):
     now = now or utcnow()
     out = project/"results"/"ccor"/"ccor.json"
     previous = {}
@@ -374,7 +401,16 @@ def run_once(project, now=None, fetch=get, offline=False):
         else:
             listed,new=[],0
         images,times,sizes=load_frames(cache,camera,now)
-        detected=track_points(images,times,sizes,camera)
+        detected, search_info = track_points(
+            images,times,sizes,camera,complete_search=complete_search,
+            return_diagnostics=True)
+        if complete_search and not search_info["scan_completed"]:
+            # An exhausted search must never be labelled globally ranked.
+            # Preserve original first-40 behavior and expose the fallback.
+            detected=track_points(images,times,sizes,camera)
+            search_info["fell_back_to_legacy"] = True
+        else:
+            search_info["fell_back_to_legacy"] = False
         retained=integrate_events(prior,detected,camera,now)
         tracks.extend(retained)
         prior_rows=[r for r in prior if r.get("camera")==camera]
@@ -386,7 +422,9 @@ def run_once(project, now=None, fetch=get, offline=False):
             "detected_this_cycle":len(detected),
             "retained_review_tracks":len(retained),
             "duplicate_identity_rows_in_prior_output":prior_repeated_ids,
-            "detector_hit_40_hypothesis_cap":len(detected)==40,
+            "detector_hit_40_hypothesis_cap":(
+                not complete_search and search_info["stop_reason"]=="LEGACY_FIRST_40"),
+            "detector_search":search_info,
             "status":"FEED_ERROR" if errors and not images else
                      "INSUFFICIENT_FRAMES" if len(images)<6 else "REVIEW_ONLY",
             "errors":errors[-5:]
@@ -418,6 +456,8 @@ def main():
     ap.add_argument("--project",required=True,type=Path)
     ap.add_argument("--once",action="store_true")
     ap.add_argument("--offline",action="store_true",help="Use cached JPEGs only")
+    ap.add_argument("--complete-search",action="store_true",
+                    help="Opt in to complete selected-peak search and globally rank best 40")
     ap.add_argument("--poll-seconds",type=int,default=920)
     args=ap.parse_args()
     if args.poll_seconds < 900:
@@ -430,7 +470,8 @@ def main():
     signal.signal(signal.SIGINT,stop)
     while not STOP:
         try:
-            payload=run_once(project,offline=args.offline)
+            payload=run_once(project,offline=args.offline,
+                             complete_search=args.complete_search)
             print(f"[{payload['generated_at']}] CCOR "
                   +", ".join(f"{c} {s['status']} {s['retained_review_tracks']} review"
                              for c,s in payload["instruments"].items()),flush=True)
