@@ -811,3 +811,47 @@ $("#candidateDialog").addEventListener("click", e => {
 
 loadData();
 setInterval(refreshRealtime, 60 * 1000);
+
+
+// Experimental NOAA CCOR screening is intentionally separate from LASCO C3.
+async function refreshCCOR() {
+  const status = document.getElementById("ccorStatus");
+  const box = document.getElementById("ccorCandidates");
+  if (!status || !box) return;
+  try {
+    const response = await fetch("./data/ccor.json?t=" + Date.now(), {cache: "no-store"});
+    if (!response.ok) {
+      status.textContent = "CCOR feed is not active. C3 detection is unaffected.";
+      return;
+    }
+    const payload = await response.json();
+    const states = payload.instruments || {};
+    status.textContent = ["ccor1","ccor2"].map(camera => {
+      const state = states[camera] || {};
+      return camera.toUpperCase() + ": " + (state.status || "NOT_STARTED") +
+        " · frames " + (state.cached_recent_frames || 0) +
+        " · candidates " + (state.retained_review_tracks || 0);
+    }).join(" | ") + " · Last check: " + (payload.generated_at || "unknown");
+    const tracks = Array.isArray(payload.tracks) ? payload.tracks : [];
+    const safe = value => escapeHtml(String(value == null ? "" : value));
+    if (!tracks.length) {
+      box.innerHTML = '<div class="realtime-empty">No CCOR motion hypotheses available yet.</div>';
+      return;
+    }
+    box.innerHTML = tracks.slice(0,12).map(row => (
+      '<article class="realtime-candidate">' +
+      '<div class="realtime-candidate-top"><strong>' + safe(row.id) + '</strong>' +
+      '<span>UNVERIFIED MOTION / ' + safe((row.camera || "").toUpperCase()) + '</span></div>' +
+      '<div class="realtime-candidate-meta">' +
+      '<div><span>First</span><strong>' + safe(row.first) + '</strong></div>' +
+      '<div><span>Last</span><strong>' + safe(row.last) + '</strong></div>' +
+      '<div><span>Frames</span><strong>' + safe(row.frames) + '</strong></div>' +
+      '<div><span>RMS (px)</span><strong>' + safe(row.rms_px) + '</strong></div>' +
+      '</div></article>'
+    )).join("");
+  } catch (error) {
+    status.textContent = "Unable to read experimental CCOR data; C3 is unaffected.";
+  }
+}
+refreshCCOR();
+setInterval(refreshCCOR, 60 * 1000);
