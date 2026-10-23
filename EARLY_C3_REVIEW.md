@@ -51,25 +51,37 @@ Check:
 
 The check only creates early review records; no new phone alerts are started.
 
-## Optional phone notifications
+## Optional early EMAIL notifications (GitHub)
 
-Only after reviewing the first several early candidate batches and verifying
-they are useful, launch the **separate** notifier:
+The user's notification channel is EMAIL ONLY. The early C3 watcher dispatches
+a GitHub Actions event; the existing strong-review workflow creates an
+assigned GitHub issue, which sends the user's usual GitHub email.
+There is NO ntfy notifier or phone-notification requirement.
 
-    tmux new-session -d -s comet_early_alerts \
-      "bash -lc 'cd ~/comethunting/soho-comet-hunter-publish && exec python3 tools/watch_early_c3.py --project ~/comethunting/comet_hunter_native_cuda_v7_archive --interval 45 >> ~/comethunting/comet_hunter_native_cuda_v7_archive/logs/early_c3_alerts.log 2>&1'"
+**Enable only after** inspecting early_candidates.json and confirming the
+short-window candidate filtering is working. The repository must be current on
+Bourbaki and the GitHub CLI must already be authenticated as for the existing
+`comet_github_alert.py` watcher.
 
-This notifier uses the existing configured `comet_ntfy_topic.txt`, but has
-its own durable deduplication history. The notification says **EARLY
-UNCONFIRMED REVIEW**, never new discovery, and invites verification against
-original SOHO frames and current Sungrazer reports. No alerts on a failed
-report fetch or a known report match. It never sends on ordinary `SEEN_ALREADY`
-candidates.
+    PROJECT=~/comethunting/comet_hunter_native_cuda_v7_archive
+    cd ~/comethunting/soho-comet-hunter-publish
+    python3 tools/watch_early_c3_email.py --project "$PROJECT" --once --dry-run
+    tmux new-session -d -s comet_early_email \
+      "bash -lc 'cd ~/comethunting/soho-comet-hunter-publish && exec python3 tools/watch_early_c3_email.py --project ~/comethunting/comet_hunter_native_cuda_v7_archive --interval 30 >> ~/comethunting/comet_hunter_native_cuda_v7_archive/logs/early_c3_email.log 2>&1'"
+
+Unlike existing strong-review emails, early emails are eligible after the
+12-hour CUDA pass before the longer passes. The GitHub receiver **fetches
+official reports again** and fails closed on source errors, empty reports,
+known matches, suspicious near-matches, or stale/weak candidates.
+
+A local dispatch is not proof an email was actually delivered: check GitHub
+Actions and notification settings. No direct email credentials or SMTP
+configuration are added. All notices prominently say **UNCONFIRMED**.
 
 ## Disable
 
     rm -f ~/comethunting/comet_hunter_native_cuda_v7_archive/state/realtime_early_review_enabled
-    tmux kill-session -t comet_early_alerts 2>/dev/null || true
+    tmux kill-session -t comet_early_email 2>/dev/null || true
 
 The original C3 CUDA pipeline continues regardless.
 
