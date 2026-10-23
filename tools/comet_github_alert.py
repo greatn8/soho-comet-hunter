@@ -82,6 +82,12 @@ def is_recent_strong(candidate, hours=12):
         return False
 
 
+def early_eligible_normalized(candidate):
+    from early_c3_review import eligibility
+    if candidate.get("status")!="EARLY_ALERT_READY" or candidate.get("report_check_status")!="CHECKED_RECENT_LIST" or candidate.get("report_id") or candidate.get("early_alert_reasons")!=[]:
+        return False
+    return not eligibility({**candidate,"status":"UNMATCHED"},reports_ok=True,now=dt.datetime.now(dt.timezone.utc))
+
 def unique_key(candidate):
     # Review ID stays stable for repeated processing of the same endpoints.
     return candidate.get("review_id") or (
@@ -116,8 +122,8 @@ def same_physical_object(a, b):
         return False
 
 
-def cli_dispatch(candidate=None, test=False):
-    payload = {"event_type": "soho-strong-review", "client_payload": (
+def cli_dispatch(candidate=None, test=False, event_type="soho-strong-review"):
+    payload = {"event_type": event_type, "client_payload": (
         {"test": True} if test else {"candidate": candidate}
     )}
     result = subprocess.run(
@@ -373,13 +379,18 @@ def run_issue(event_path, event_name, token, age_hours):
     else:
         published = read_json(Path("docs/data/realtime.json"), {})
         choices = (published.get("review_candidates") or published.get("latest_candidates") or [])
+    early_event = (event_name=="repository_dispatch" and event.get("action")=="soho-early-review")
     recent = [normalize(c) for c in choices
-              if isinstance(c, dict) and is_recent_strong(c, age_hours)]
+              if isinstance(c,dict) and (early_eligible_normalized(c) if early_event else is_recent_strong(c,age_hours))]
     # Dashboard-push fallback performs its own report check too.
     from check_recent_sungrazer_reports import fetch_and_check
     for candidate in recent:
         if not candidate.get("official_report_check"):
             candidate["official_report_check"] = fetch_and_check(candidate)
+    if early_event:
+        recent=[c for c in recent if
+                (c.get("official_report_check") or {}).get("status")=="NO_CLOSE_POSITIONAL_MATCH"
+                and int((c.get("official_report_check") or {}).get("reports_parsed") or 0)>0]
     old = existing_alerts(token)
     created = 0
     upgraded = 0
@@ -388,6 +399,10 @@ def run_issue(event_path, event_name, token, age_hours):
                          same_physical_object(prior, candidate) or
                          unique_key(prior) == unique_key(candidate)), None)
         title, body = issue_body_and_metadata(candidate)
+        if early_event:
+            title = "SOHO EARLY REVIEW (UNCONFIRMED): " + candidate["candidate"]
+            body = body.replace("**Investigate promptly — candidate, NOT confirmed discovery.**",
+                                "**EARLY UNCONFIRMED REVIEW, not a discovery claim.**")
         row_count = len(report_position_rows(candidate))
         if matching:
             try:
