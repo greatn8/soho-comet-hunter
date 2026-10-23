@@ -25,12 +25,17 @@ CASES = {
     "ccor1-20261022-ruan": {
         "camera": "ccor1",
         "report": "https://sungrazer.nrl.navy.mil/index.php/report/reportjr20261022092046",
+        "followup_report": "https://sungrazer.nrl.navy.mil/index.php/report/reportjr20261022101108",
+        "followup_class": "Additional Observations; same contributor and spatially continuous path",
         "kind": "Endorsed potential Kreutz comet (not confirmed)",
         "native_shape": [2048,1920],
         "points": [
             ("2026-10-22T12:30:00Z",1530,1208),
             ("2026-10-22T12:45:00Z",1520,1203),
             ("2026-10-22T13:00:00Z",1510,1200),
+            # Published in Jiangao Ruan's 2026-10-22 follow-up report.
+            ("2026-10-22T13:15:00Z",1501,1196),
+            ("2026-10-22T13:30:00Z",1492,1194),
         ],
     },
     "ccor2-20261022-wage": {

@@ -14,6 +14,10 @@ class CCORReplayTests(unittest.TestCase):
         self.assertEqual(times[0].date(),dt.date(2026,10,22))
         self.assertEqual(times[-1].date(),dt.date(2026,10,23))
         self.assertEqual([int((b-a).total_seconds()/60) for a,b in zip(times,times[1:])],[45,30,15])
+    def test_ruan_followup_track(self):
+        case=benchmark.CASES["ccor1-20261022-ruan"]
+        self.assertEqual(len(case["points"]),5)
+        self.assertEqual(case["points"][-1],("2026-10-22T13:30:00Z",1492,1194))
     def test_calibration_is_required(self):
         case=benchmark.CASES["ccor1-20261022-ruan"]
         with self.assertRaises(ValueError):
