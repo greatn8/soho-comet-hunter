@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 
 import numpy as np
 from ccor_motion_consistency import annotated_track
+from ccor_background_motion import estimate_common_motion, annotate_background_motion
 from PIL import Image
 
 BASE = "https://services.swpc.noaa.gov/products"
@@ -543,7 +544,8 @@ def review_shortlist(tracks, limit_per_camera=12):
     for camera in CAMERAS:
         rows=sorted((r for r in tracks if r.get("camera")==camera and
                      (r.get("motion_consistency") or {}).get("status") != "IRREGULAR_MOTION"
-                     and review_motion_evidence(r)["status"] == "MEASURABLE_MOTION"),
+                     and review_motion_evidence(r)["status"] == "MEASURABLE_MOTION"
+                     and (r.get("background_motion") or {}).get("status") != "LIKELY_BACKGROUND_STAR_MOTION"),
                     key=track_quality,reverse=True)
         chosen=[]
         counts={}
@@ -619,6 +621,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
     instrument_states = {}
     frame_manifests = {}
     tracks = []
+    common_background_motion = {}
     for camera in CAMERAS:
         cache=project/"cache"/"ccor"/camera
         errors=[]
@@ -668,6 +671,9 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         retained=[annotated_track(row) for row in integrate_events(prior,detected,camera,now)]
         for track in retained:
             track["review_motion_evidence"] = review_motion_evidence(track)
+        common = estimate_common_motion(retained, camera)
+        common_background_motion[camera] = common or {"status":"INSUFFICIENT_INDEPENDENT_REFERENCE_TRACKS"}
+        retained = annotate_background_motion(retained, camera, common)
         # Exact source filenames are discovered from cached JPEGs, not inferred.
         # Keep CCOR image review entirely separate from existing C3 media.
         frame_manifests[camera] = source_frame_manifest(cache, camera, now)
@@ -696,6 +702,10 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             "irregular_motion_review_tracks":sum(
                 row["motion_consistency"]["status"] == "IRREGULAR_MOTION"
                 for row in retained),
+            "likely_background_star_motion_tracks":sum(
+                row["background_motion"]["status"] == "LIKELY_BACKGROUND_STAR_MOTION"
+                for row in retained),
+            "background_motion_consensus":common_background_motion[camera],
             "limited_motion_review_tracks":sum(
                 row["review_motion_evidence"]["status"] != "MEASURABLE_MOTION"
                 for row in retained),
@@ -721,8 +731,9 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "independently_confirmed":False,
         "instruments":instrument_states,"tracks":tracks,
         "frame_manifests":frame_manifests,
+        "common_background_motion":common_background_motion,
         "review_shortlist_ids":review_shortlist(tracks),
-        "review_shortlist_policy":"Camera support arms and NOAA date/time overlays excluded; shortlist requires >=6 px net displacement in 512px images across >=1.5 hours and >=5 measured frames; irregular or shorter tracks remain in full review",
+        "review_shortlist_policy":"Masks and measurable-motion review thresholds; tracks co-moving with independently sampled background are displayed in full diagnostics, not shortlisted; no star or comet identity is asserted",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }
