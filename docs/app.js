@@ -1187,12 +1187,18 @@ function ccorRenderCards() {
     '<article class="realtime-candidate">' +
     '<div class="realtime-candidate-top"><strong>' + escapeHtml(t.id) +
     '</strong><span>UNVERIFIED / ' + escapeHtml(t.camera.toUpperCase()) + '</span></div>' +
+    (t.review_motion_evidence?.status === "LIMITED_MOTION_EVIDENCE" ?
+      '<div class="realtime-media-missing">Limited motion evidence: short displacement, duration, or too few observations. Full review only.</div>' : '') +
     (t.motion_consistency?.status === "IRREGULAR_MOTION" ?
       '<div class="realtime-media-missing">Irregular motion: abrupt trajectory change; diagnostic review only, not shortlisted.</div>' : '') +
 
     '<div class="realtime-candidate-meta"><div><span>First</span><strong>' + escapeHtml(t.first) +
     '</strong></div><div><span>Last</span><strong>' + escapeHtml(t.last) +
     '</strong></div><div><span>Frames</span><strong>' + escapeHtml(t.frames) +
+    '</strong></div><div><span>Movement (px / 512)</span><strong>' +
+    escapeHtml(t.review_motion_evidence?.displacement_px_512 ?? "—") +
+    '</strong></div><div><span>Duration (h)</span><strong>' +
+    escapeHtml(t.review_motion_evidence?.duration_hours ?? "—") +
     '</strong></div><div><span>RMS (px)</span><strong>' + escapeHtml(t.rms_px) +
     '</strong></div></div><button type="button" class="ccor-inspect" data-ccor-id="' +
     escapeHtml(t.id) + '">Inspect NOAA frames ↗</button></article>'
