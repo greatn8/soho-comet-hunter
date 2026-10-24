@@ -982,7 +982,7 @@ def update_realtime_html_fallback(data_dir):
         print(f"[OK] Embedded latest realtime frame in dashboard HTML: {frame}")
 
 
-def publish_realtime_data(realtime_source, data_dir, age_hours=24):
+def publish_realtime_data(realtime_source, data_dir, age_hours=48):
     output = data_dir / "realtime.json"
 
     if realtime_source is None:
