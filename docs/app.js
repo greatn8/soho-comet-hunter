@@ -931,7 +931,11 @@ function ccorDraw() {
 function ccorOpen(id) {
   const row = ccorPayload?.tracks?.find(t => t.id === id);
   if (!row) return;
-  ccorClose();
+  // Switching candidates keeps the modal open; closing/reopening it
+  // would schedule a close event that could clear the next candidate.
+  if (ccorPlayback) clearInterval(ccorPlayback);
+  ccorPlayback = null;
+  document.getElementById("ccorReviewPlay").textContent = "▶ Play";
   ccorCurrent = row;
   ccorFrameIndex = 0;
   const viewer = document.getElementById("ccorVisualViewer");
