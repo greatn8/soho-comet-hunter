@@ -70,8 +70,10 @@ for entry in pathlib.Path("/proc").glob("[0-9]*/cmdline"):
         continue
     if not args or not os.path.basename(args[0]).startswith("python"):
         continue
-    if not any(os.path.realpath(arg)==hunter for arg in args[1:5]
-               if arg.endswith(".py")):
+    # Project identity is stable across publishing checkout migrations.
+    # Recognise the already running hunter from the old checkout too.
+    if not any(os.path.basename(arg)=="realtime_hunter.py"
+               for arg in args[1:5] if arg.endswith(".py")):
         continue
     if "--project" in args:
         index=args.index("--project")
