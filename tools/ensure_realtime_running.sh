@@ -83,6 +83,17 @@ sys.exit(1)
 PY
 }
 
+# Migration preflight: report whether the exact CUDA project's hunter is
+# already active, but never start or stop a process in this mode.
+if [[ "${1:-}" == "--check-only" ]]; then
+  if hunter_running; then
+    echo "[OK] Existing realtime hunter detected; no restart performed."
+    exit 0
+  fi
+  echo "[WARN] No matching realtime hunter detected; no restart performed." >&2
+  exit 1
+fi
+
 if hunter_running; then
   echo "[OK] Realtime hunter Python process is running; no restart needed."
   exit 0
