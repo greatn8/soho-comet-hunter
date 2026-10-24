@@ -988,8 +988,8 @@ GITHUB_C3_ISSUES_URL = (
     "?state=all&sort=created&direction=desc&per_page=100"
 )
 GITHUB_C3_ALERT_MARKER = "<!-- SOHO_STRONG_REVIEW_ALERT "
-GITHUB_C3_REVIEW_RE = re.compile(r"^RT\\d{8}T\\d{4}_[A-Za-z0-9]+$")
-GITHUB_C3_FRAME_RE = re.compile(r"^20\\d{6}_\\d{4}_c3_(?:512|1024)\\.jpg$", re.I)
+GITHUB_C3_REVIEW_RE = re.compile(r"^RT\d{8}T\d{4}_[A-Za-z0-9]+$")
+GITHUB_C3_FRAME_RE = re.compile(r"^20\d{6}_\d{4}_c3_(?:512|1024)\.jpg$", re.I)
 
 
 def normalize_github_email_issues(issues):
@@ -1002,7 +1002,7 @@ def normalize_github_email_issues(issues):
         body = issue.get("body")
         if not isinstance(body, str) or not body.startswith(GITHUB_C3_ALERT_MARKER):
             continue
-        line = body.split("\\n", 1)[0]
+        line = body.split("\n", 1)[0]
         if not line.endswith(" -->"):
             continue
         try:
@@ -1016,7 +1016,7 @@ def normalize_github_email_issues(issues):
             datetime.fromisoformat(created.replace("Z", "+00:00"))
         except (ValueError, KeyError, TypeError, AttributeError):
             continue
-        if not re.fullmatch(r"C\\d+", candidate, re.I):
+        if not re.fullmatch(r"C\d+", candidate, re.I):
             continue
         if not GITHUB_C3_FRAME_RE.fullmatch(first) or not GITHUB_C3_FRAME_RE.fullmatch(last):
             continue
