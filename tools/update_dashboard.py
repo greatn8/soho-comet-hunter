@@ -719,6 +719,19 @@ def preserve_realtime_archive_media(source, data_dir, candidate, review_id):
     """Copy bounded review evidence into stable historical dashboard media."""
     if not review_id or not str(review_id).startswith("RT"):
         return
+    # Only retain known/report-matched comet evidence permanently in main.
+    # Unconfirmed clips are available from the bounded rolling live-media
+    # branch during review, and expire with the 48-hour dashboard window.
+    # Existing unconfirmed archive media is pruned by the retention policy.
+    if not (
+        str(candidate.get("review_class") or "").upper()
+        in {"KNOWN_REPORT", "CONFIRMED_COMET", "KNOWN_COMET", "VERIFIED_COMET"}
+        or clean(candidate.get("known_object"))
+        or bool(candidate.get("starred"))
+        or bool(candidate.get("review_locked"))
+        or bool(candidate.get("star_locked"))
+    ):
+        return
     safe_id = norm_id(candidate.get("id"))
     if not safe_id:
         return
@@ -857,9 +870,9 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
         # contact-sheet thumbnail in the permanent archive before they vanish.
         preserve_realtime_archive_media(source, data_dir, candidate, review_id)
         existing = by_id.get(candidate["id"])
-        # Never create a permanent historical card for a video-less
-        # unconfirmed detection. The expired review will leave the realtime
-        # display instead. Existing archived records are left untouched.
+        # Do not permanently archive unconfirmed reviews or their videos.
+        # They remain in the rolling live review (48 hours) instead; only
+        # known-report or explicitly protected comets are permanent.
         if existing is None and not candidate.get("video"):
             skipped_no_video += 1
             continue
