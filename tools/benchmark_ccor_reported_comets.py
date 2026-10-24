@@ -22,24 +22,6 @@ import ccor_hunter as ch
 
 UTC = dt.timezone.utc
 CASES = {
-    # Independent, endorsed report posted 2026-10-24. Use as a
-    # positive-control comet-like source for isolated CCOR2 replay.
-    # Coordinate recovery remains unverified without native-JPEG registration.
-    "ccor2-20261024-cerati": {
-        "camera": "ccor2",
-        "report": "https://sungrazer.nrl.navy.mil/index.php/reports",
-        "report_id": "report_gc_20261024054621",
-        "kind": "Endorsed potential Kreutz comet (not confirmed)",
-        "native_shape": [2048,1920],
-        "points": [
-            ("2026-10-24T07:45:00Z",1706,1663),
-            ("2026-10-24T08:00:00Z",1701,1659),
-            ("2026-10-24T08:15:00Z",1696,1655),
-            ("2026-10-24T08:30:00Z",1691,1651),
-            ("2026-10-24T08:45:00Z",1686,1646),
-            ("2026-10-24T09:00:00Z",1681,1642),
-        ],
-    },
     "ccor1-20261022-ruan": {
         "camera": "ccor1",
         "report": "https://sungrazer.nrl.navy.mil/index.php/report/reportjr20261022092046",
