@@ -568,8 +568,6 @@ function githubEmailForReview(row, publishedIssues) {
 }
 function sortEmailAlertReviews(rows, publishedIssues) {
   const latestFirst = sortRealtimeReviews(rows);
-  const alerts = new Map((publishedIssues || []).map((issue, i) =>
-    [String(issue.review_id || ""), i]));
   return latestFirst.sort((a, b) => {
     const ea = githubEmailForReview(a, publishedIssues);
     const eb = githubEmailForReview(b, publishedIssues);
