@@ -146,7 +146,7 @@ def tracked_expired_media(docs,expired_ids,protected_ids,cutoff):
         raise RuntimeError("Cannot inspect tracked realtime archive media: "
                            +result.stderr.decode("utf-8","replace"))
     matches=[]
-    for raw in result.stdout.split(b"\\0"):
+    for raw in result.stdout.split(bytes([0])):
         if not raw:
             continue
         name=raw.decode("utf-8","surrogateescape")
