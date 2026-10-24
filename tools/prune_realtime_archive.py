@@ -170,10 +170,10 @@ def plan(docs,now,age_hours=DEFAULT_HOURS):
                 continue
             parsed=media_timestamp(folder.name)
             if (parsed is None or parsed>cutoff or
-                    folder.name in protected_ids):
+                    folder.name in protected_ids or folder.name not in expired_ids):
                 continue
-            # Old orphaned realtime review folders can be removed even if
-            # their metadata was discarded in an earlier publisher cycle.
+            # Fail closed: never remove unlinked folders, which could have
+            # been protected by metadata unavailable in this snapshot.
             for f in folder.iterdir():
                 if f.is_symlink() or not f.is_file() or f.name not in ALLOWED_FILES:
                     retained_orphan_count+=1
