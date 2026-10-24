@@ -70,8 +70,10 @@ for entry in pathlib.Path("/proc").glob("[0-9]*/cmdline"):
         continue
     if not args or not os.path.basename(args[0]).startswith("python"):
         continue
-    if not any(os.path.realpath(arg)==hunter for arg in args[1:5]
-               if arg.endswith(".py")):
+    # Project identity is stable across publishing checkout migrations.
+    # Recognise the already running hunter from the old checkout too.
+    if not any(os.path.basename(arg)=="realtime_hunter.py"
+               for arg in args[1:5] if arg.endswith(".py")):
         continue
     if "--project" in args:
         index=args.index("--project")
@@ -80,6 +82,17 @@ for entry in pathlib.Path("/proc").glob("[0-9]*/cmdline"):
 sys.exit(1)
 PY
 }
+
+# Migration preflight: report whether the exact CUDA project's hunter is
+# already active, but never start or stop a process in this mode.
+if [[ "${1:-}" == "--check-only" ]]; then
+  if hunter_running; then
+    echo "[OK] Existing realtime hunter detected; no restart performed."
+    exit 0
+  fi
+  echo "[WARN] No matching realtime hunter detected; no restart performed." >&2
+  exit 1
+fi
 
 if hunter_running; then
   echo "[OK] Realtime hunter Python process is running; no restart needed."

@@ -90,7 +90,7 @@ fi
 # Remove obsolete dashboard copies created by older publishers.
 rm -rf docs/media/realtime_reviews docs/media/realtime_previews
 
-git add -A docs
+git add -A --sparse docs
 # Never allow temporary/unconfirmed review clips to enter permanent Git history.
 python3 tools/guard_archive_git_media.py
 

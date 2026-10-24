@@ -19,6 +19,7 @@ import fcntl
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 
 UTC=dt.timezone.utc
@@ -127,6 +128,43 @@ def write_atomic(path,data):
         temp.unlink(missing_ok=True)
 
 
+def tracked_expired_media(docs,expired_ids,protected_ids,cutoff):
+    """Find index-only archive files omitted by sparse checkout.
+
+    Only rows explicitly selected as expired in the archive metadata qualify.
+    This avoids deleting the known-comet videos still hosted from main.
+    """
+    root=docs.parent
+    result=subprocess.run(
+        ["git","-C",str(root),"ls-files","-z","--",
+         "docs/media/realtime_archive/"],
+        capture_output=True,check=False,
+    )
+    if result.returncode:
+        if b"not a git repository" in result.stderr:
+            return []
+        raise RuntimeError("Cannot inspect tracked realtime archive media: "
+                           +result.stderr.decode("utf-8","replace"))
+    matches=[]
+    for raw in result.stdout.split(bytes([0])):
+        if not raw:
+            continue
+        name=raw.decode("utf-8","surrogateescape")
+        path=Path(name)
+        parts=path.parts
+        if (len(parts)!=5 or parts[:3] !=
+                ("docs","media","realtime_archive") or
+                parts[4] not in ALLOWED_FILES):
+            continue
+        ident=parts[3]
+        stamp=media_timestamp(ident)
+        if (stamp is not None and stamp<=cutoff
+                and ident in expired_ids
+                and ident not in protected_ids):
+            matches.append(name)
+    return matches
+
+
 def plan(docs,now,age_hours=DEFAULT_HOURS):
     docs=Path(docs).resolve()
     data=docs/"data"
@@ -179,8 +217,10 @@ def plan(docs,now,age_hours=DEFAULT_HOURS):
                     retained_orphan_count+=1
                     continue
                 delete.append(f)
+    index_paths=tracked_expired_media(docs,expired_ids,protected_ids,cutoff)
     return {
         "docs":docs,"archive":archive,"candidates":candidates,
+        "git_index_removals":index_paths,
         "archive_path":archive_path,"candidates_path":candidates_path,
         "archive_keep":archive_keep,"cards_keep":cards_keep,
         "archive_deleted":drop_archive,"cards_deleted":drop_cards,
@@ -204,6 +244,7 @@ def execute(docs,*,apply=False,now=None,age_hours=DEFAULT_HOURS):
     print(f"Expired unconfirmed historical cards: {len(p['cards_deleted'])}")
     print(f"Protected archive records: {p['protected_rows']}")
     print(f"Old archive media files: {len(p['assets_to_delete'])}")
+    print(f"Tracked Git media paths to remove: {len(p['git_index_removals'])}")
     print(f"Approximate reclaim from working files: {p['asset_bytes']/1024**2:.1f} MiB")
     if p["retained_unrecognized_assets"]:
         print(f"Preserved unrecognized/special files: {p['retained_unrecognized_assets']}")
@@ -222,6 +263,15 @@ def execute(docs,*,apply=False,now=None,age_hours=DEFAULT_HOURS):
             f.parent.rmdir()
         except OSError:
             pass
+    # Sparse clones do not have media files in their working directory.
+    # Stage removals explicitly in the index so GitHub actually loses the
+    # expired files from the current tree. Never rewrite history.
+    if p["git_index_removals"]:
+        subprocess.run(
+            ["git","-C",str(p["docs"].parent),"rm","--cached","--sparse",
+             "-f","--",*p["git_index_removals"]],
+            check=True,stdout=subprocess.DEVNULL,
+        )
     if p["archive_deleted"]:
         payload=dict(p["archive"])
         payload["candidates"]=p["archive_keep"]
