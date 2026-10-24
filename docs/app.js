@@ -825,20 +825,45 @@ function renderRealtime(payload) {
   const emailRows = reviewRows.filter(row => githubEmailForReview(row, githubIssues));
   const quickNav = $("#realtimeEmailQuickNav");
   if (quickNav) {
-    const top = sortEmailAlertReviews(emailRows, githubIssues).slice(0, 8);
-    quickNav.classList.toggle("hidden", !top.length);
-    quickNav.innerHTML = top.length
-      ? '<strong>Recent C3 email-alert reviews</strong><div class="c3-email-chip-row">' +
-        top.map(row => {
-          const issue = githubEmailForReview(row, githubIssues);
-          return '<button type="button" class="c3-email-chip" data-c3-jump="' +
-            escapeHtml(row.review_id || row.candidate) + '" title="GitHub alert #' +
-            escapeHtml(issue?.issue_number || "") + '">' +
-            escapeHtml(row.candidate) + '</button>';
+    // The earlier list silently truncated to eight alerts. A batch of nine
+    // GitHub Actions issues therefore hid the oldest issue in that batch
+    // (e.g. C0120469, issue #924) even though its review was published.
+    // Render ALL recently issued alert identities as compact jump controls.
+    // They are inexpensive links, not video cards or detector alerts.
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+    const recentIssues = githubIssues.filter(issue => {
+      const timestamp = Date.parse(issue.created_at || "");
+      return Number.isFinite(timestamp) && timestamp >= cutoff;
+    });
+    const matchedCount = recentIssues.filter(issue =>
+      reviewRows.some(row => githubEmailForReview(row, [issue]))).length;
+    quickNav.classList.toggle("hidden", !recentIssues.length);
+    quickNav.innerHTML = recentIssues.length
+      ? '<strong>Recent C3 email-alert reviews (' + matchedCount +
+          ' ready / ' + recentIssues.length + ' GitHub issues)</strong>' +
+        '<small>All alerts from the last 48 hours, newest issue first. ' +
+          'Select a candidate to jump to its video. Issues without retained ' +
+          'review media link to GitHub instead.</small>' +
+        '<div class="c3-email-chip-row">' +
+        recentIssues.map(issue => {
+          const row = reviewRows.find(candidate =>
+            githubEmailForReview(candidate, [issue]));
+          const label = escapeHtml(issue.candidate || "Unknown");
+          const title = escapeHtml("Issue #" + issue.issue_number +
+            " · " + (issue.created_at || ""));
+          return row
+            ? '<button type="button" class="c3-email-chip" data-c3-jump="' +
+              escapeHtml(row.review_id || row.candidate) +
+              '" title="' + title + '">' + label + '</button>'
+            : '<a class="c3-email-chip c3-email-issue-only" href="' +
+              escapeHtml(issue.issue_url) +
+              '" target="_blank" rel="noopener noreferrer" title="' + title +
+              ' · Review not in retained dashboard data">' + label + ' ↗</a>';
         }).join("") + '</div>'
       : "";
     quickNav.querySelectorAll("[data-c3-jump]").forEach(button =>
-      button.addEventListener("click", () => c3OpenReview(button.dataset.c3Jump, payload)));
+      button.addEventListener("click", () =>
+        c3OpenReview(button.dataset.c3Jump, payload)));
   }
 
   const seenCount = primary.filter(c => normalizeClass(c.status) === "SEEN_ALREADY").length;
