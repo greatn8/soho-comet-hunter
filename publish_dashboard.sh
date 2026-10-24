@@ -79,6 +79,14 @@ if [[ -d "$LIVE_MEDIA_STAGE" ]] && find "$LIVE_MEDIA_STAGE" -type f -print -quit
   trap cleanup_lock EXIT INT TERM
 fi
 
+# Keep only 48 hours of unconfirmed realtime archive reviews; preserve
+# known/confirmed and manually locked comet evidence indefinitely.
+# The publisher already holds .dashboard_publish.lock.
+if [[ -f docs/data/realtime_archive.json && -f docs/data/candidates.json ]]; then
+  python3 tools/prune_realtime_archive.py --docs-dir docs --hours 48 \
+    --apply --publisher-lock-held
+fi
+
 # Remove obsolete dashboard copies created by older publishers.
 rm -rf docs/media/realtime_reviews docs/media/realtime_previews
 
