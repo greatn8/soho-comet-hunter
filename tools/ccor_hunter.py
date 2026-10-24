@@ -360,6 +360,26 @@ def review_shortlist(tracks, limit_per_camera=12):
     return selected
 
 
+def source_frame_manifest(cache, camera, now, hours=14, limit=96):
+    """Publish observed NOAA JPEG URLs; never guess names from timestamps.
+
+    URLs are display-only. No additional NOAA polling or image downloading.
+    """
+    earliest = now - dt.timedelta(hours=hours)
+    frames = []
+    for path in cache.glob(f"*_{camera}_*by*.jpg"):
+        match = STAMP_RE.fullmatch(path.name)
+        if not match or match.group(2).lower() != camera:
+            continue
+        when = stamp(path.name)
+        if earliest <= when <= now:
+            frames.append({
+                "time": iso(when),
+                "image_url": urljoin(f"{BASE}/{camera}/jpegs/", path.name),
+            })
+    return sorted(frames, key=lambda row: row["time"])[-limit:]
+
+
 def atomic_json(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_suffix(".json.tmp")
@@ -388,6 +408,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         if not backup.exists():
             backup.write_bytes(out.read_bytes())
     instrument_states = {}
+    frame_manifests = {}
     tracks = []
     for camera in CAMERAS:
         cache=project/"cache"/"ccor"/camera
@@ -412,6 +433,15 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         else:
             search_info["fell_back_to_legacy"] = False
         retained=integrate_events(prior,detected,camera,now)
+        # Exact source filenames are discovered from cached JPEGs, not inferred.
+        # Keep CCOR image review entirely separate from existing C3 media.
+        frame_manifests[camera] = source_frame_manifest(cache, camera, now)
+        by_time = {frame["time"]: frame["image_url"]
+                   for frame in frame_manifests[camera]}
+        for track in retained:
+            for point in track.get("points", []):
+                if point.get("time") in by_time:
+                    point["image_url"] = by_time[point["time"]]
         tracks.extend(retained)
         prior_rows=[r for r in prior if r.get("camera")==camera]
         prior_repeated_ids=len(prior_rows)-len({r.get("id") for r in prior_rows})
@@ -443,6 +473,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "mode":"EXPERIMENTAL_REVIEW_ONLY", "automatic_email_alerts":False,
         "independently_confirmed":False,
         "instruments":instrument_states,"tracks":tracks,
+        "frame_manifests":frame_manifests,
         "review_shortlist_ids":review_shortlist(tracks),
         "review_shortlist_policy":"Ranking and 4x4 spatial diversity for display only; no hypothesis rejected",
         "temporal_overlaps_not_duplicates":overlaps[:40],
