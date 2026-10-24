@@ -91,6 +91,8 @@ fi
 rm -rf docs/media/realtime_reviews docs/media/realtime_previews
 
 git add -A docs
+# Never allow temporary/unconfirmed review clips to enter permanent Git history.
+python3 tools/guard_archive_git_media.py
 
 if git diff --cached --quiet; then
   echo "No dashboard changes to publish."
