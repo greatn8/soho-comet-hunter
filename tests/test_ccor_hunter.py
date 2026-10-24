@@ -50,6 +50,37 @@ class CCORTests(unittest.TestCase):
         self.assertIn("distinct",picked)
         self.assertEqual(len(set(picked)),5)
 
+    def test_short_trails_remain_retained_but_not_shortlisted(self):
+        now=dt.datetime(2026,10,24,12,tzinfo=dt.timezone.utc)
+        base={"camera":"ccor1","first":"2026-10-24T09:00:00Z",
+              "last":"2026-10-24T12:00:00Z","frames":8,"rms_px":0.3,
+              "processing_shape":[512,512]}
+        tiny={**base,"id":"tiny","x_first":100,"y_first":100,
+              "x_last":103,"y_last":100}
+        moving={**base,"id":"moving","x_first":340,"y_first":240,
+                "x_last":355,"y_last":241}
+        self.assertEqual(ch.review_motion_evidence(tiny)["status"],"LIMITED_MOTION_EVIDENCE")
+        self.assertEqual(ch.review_motion_evidence(moving)["status"],"MEASURABLE_MOTION")
+        self.assertEqual(ch.review_shortlist([tiny,moving],limit_per_camera=5),["moving"])
+        self.assertEqual(len([tiny,moving]),2)
+
+    def test_short_duration_and_low_frame_count_not_shortlisted(self):
+        base={"camera":"ccor2","first":"2026-10-24T10:00:00Z",
+              "last":"2026-10-24T10:45:00Z","frames":4,
+              "rms_px":0.3,"processing_shape":[512,512],
+              "x_first":360,"y_first":290,"x_last":400,"y_last":295}
+        self.assertEqual(ch.review_motion_evidence(base)["status"],"LIMITED_MOTION_EVIDENCE")
+
+    def test_normalized_displacement_and_irregular_veto(self):
+        base={"camera":"ccor1","first":"2026-10-24T09:00:00Z",
+              "last":"2026-10-24T12:00:00Z","frames":8,
+              "rms_px":0.3,"processing_shape":[1024,1024],
+              "x_first":300,"y_first":300,"x_last":318,"y_last":300}
+        self.assertEqual(ch.review_motion_evidence(base)["displacement_px_512"],9)
+        self.assertEqual(ch.review_motion_evidence(base)["status"],"MEASURABLE_MOTION")
+        irregular={**base,"id":"jump","motion_consistency":{"status":"IRREGULAR_MOTION"}}
+        self.assertEqual(ch.review_shortlist([irregular],limit_per_camera=5),[])
+
     def test_manifest_uses_only_existing_cached_filenames(self):
         with tempfile.TemporaryDirectory() as tmp:
             cache = Path(tmp)
