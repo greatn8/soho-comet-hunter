@@ -23,7 +23,7 @@ CROP = (90, 123, 1024, 960)  # provisional; NOT an astrometric calibration
 UTC = dt.timezone.utc
 
 
-def crop_frame(path, original_size, crop=CROP):
+def crop_frame(path, original_size, crop=CROP, match_full_scale=False):
     left, top, width, height = crop
     with Image.open(path) as image:
         if image.size != tuple(original_size):
@@ -33,7 +33,9 @@ def crop_frame(path, original_size, crop=CROP):
         gray = image.convert("L").crop(
             (left, top, left + width, top + height)
         )
-        factor = min(1.0, 512.0 / width)
+        # A true controlled crop keeps the same source-pixel scale as the full
+        # NOAA canvas. Without this, speed/match thresholds change by ~18%.
+        factor = min(1.0, 512.0 / (original_size[0] if match_full_scale else width))
         output_size = (round(width * factor), round(height * factor))
         result = np.asarray(
             gray.resize(output_size, Image.Resampling.BOX), dtype=np.float32
@@ -41,7 +43,7 @@ def crop_frame(path, original_size, crop=CROP):
     return result
 
 
-def load_pair(directory, camera, hours):
+def load_pair(directory, camera, hours, match_full_scale=False):
     """Use production's image list, timestamps, resizing for the baseline."""
     filenames = sorted(directory.glob(f"*_{camera}_*by*.jpg"))
     if not filenames:
@@ -60,7 +62,8 @@ def load_pair(directory, camera, hours):
         path_by_stamp[when] = path
     selected = [path_by_stamp[when] for when in times]
     cropped = [
-        crop_frame(path, source_sizes[i]) for i, path in enumerate(selected)
+        crop_frame(path, source_sizes[i], match_full_scale=match_full_scale)
+        for i, path in enumerate(selected)
     ]
     if len({tuple(arr.shape) for arr in cropped}) != 1:
         raise ValueError("Cropped frames have inconsistent shapes")
@@ -81,11 +84,11 @@ def within_crop(row, source_size, mode, crop=CROP):
     w = float(shape[0])
     h = float(shape[1])
     def native(x, y):
+        # Use actual rounded array dimensions in both axes, not the nominal
+        # resize factor. Otherwise mapping drifts across scales and aspect ratios.
         if mode == "full":
-            factor = min(1.0, 512.0 / native_width)
-            return x / factor, y / factor
-        factor = min(1.0, 512.0 / width)
-        return left + x / factor, top + y / factor
+            return x * native_width / w, y * native_height / h
+        return left + x * width / w, top + y * height / h
     points = [native(float(row[kx]), float(row[ky]))
               for kx, ky in (("x_first", "y_first"), ("x_last", "y_last"))]
     return all(left <= x < left + width and top <= y < top + height
@@ -145,9 +148,9 @@ def make_preview(path, dest, crop=CROP):
     img.save(dest)
 
 
-def run_camera(source_dir, output_dir, camera, hours):
+def run_camera(source_dir, output_dir, camera, hours, match_full_scale=False):
     original, cropped, times, sizes, frames, end = load_pair(
-        source_dir / camera, camera, hours
+        source_dir / camera, camera, hours, match_full_scale=match_full_scale
     )
     print(f"{camera}: evaluating {len(original)} verified cached frames "
           f"ending {hunter.iso(end)}", flush=True)
@@ -171,6 +174,7 @@ def run_camera(source_dir, output_dir, camera, hours):
         "source_dir": str(source_dir / camera),
         "crop_xywh": list(CROP),
         "crop_calibrated": False,
+        "crop_scale_matched_to_full_jpeg": match_full_scale,
         "same_input_frames": True,
         "frame_count": len(original),
         "first_frame_utc": hunter.iso(times[0]),
@@ -206,6 +210,8 @@ def main():
                     help="New directory OUTSIDE production project and cached images")
     ap.add_argument("--camera", action="append", choices=hunter.CAMERAS)
     ap.add_argument("--hours", type=float, default=5.0)
+    ap.add_argument("--match-full-scale", action="store_true",
+                    help="Controlled crop retaining full-JPEG pixels-per-source-pixel; disables scale confound")
     a = ap.parse_args()
     source = a.source_dir.expanduser().resolve()
     output = a.output_dir.expanduser().resolve()
@@ -223,7 +229,8 @@ def main():
     errors = 0
     for camera in dict.fromkeys(a.camera or hunter.CAMERAS):
         try:
-            row = run_camera(source, output, camera, a.hours)
+            row = run_camera(source, output, camera, a.hours,
+                             match_full_scale=a.match_full_scale)
             if (row["crop"]["complete_search_status"] != "COMPLETE"
                     or row["full"]["complete_search_status"] != "COMPLETE"):
                 errors += 1
