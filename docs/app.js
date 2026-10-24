@@ -475,7 +475,7 @@ function realtimeCandidateCard(c, emailIssue = null) {
         escapeHtml(emailIssue.issue_number) + '</a></div>'
     : '';
   return `
-    <article class="realtime-candidate ${statusClass} ${emailIssue ? "c3-email-alerted" : ""}">${emailMarker}
+    <article id="c3-review-${escapeHtml(c.review_id || `${c.candidate}-${c.first}`)}" class="realtime-candidate ${statusClass} ${emailIssue ? "c3-email-alerted" : ""}">${emailMarker}
       <div class="realtime-candidate-top">
         <strong>${escapeHtml(c.candidate || "Candidate")}</strong>
         <span>${escapeHtml(prettyClass(status))}</span>
@@ -579,6 +579,47 @@ function sortEmailAlertReviews(rows, publishedIssues) {
   });
 }
 
+function c3ReviewKey(row) {
+  return String(row?.review_id || "") ||
+    [row?.candidate, row?.first, row?.last].map(x => String(x || "")).join("|");
+}
+function c3FindReview(payload, identifier) {
+  const rows = payload?.review_candidates?.length ? payload.review_candidates : (payload?.latest_candidates || []);
+  const query = String(identifier || "").trim().toUpperCase();
+  return rows.find(row => String(row.review_id || "").toUpperCase() === query) ||
+    rows.find(row => String(row.candidate || "").toUpperCase() === query);
+}
+function c3OpenReview(identifier, payload = state.realtime) {
+  const row = c3FindReview(payload, identifier);
+  const status = $("#realtimeFindStatus");
+  if (!row) {
+    if (status) status.textContent = "No retained review for " + identifier +
+      ". It may be awaiting publication or older than the live retention window. Check the GitHub alert issue.";
+    return false;
+  }
+  state.liveReviewVisible = 1000;
+  renderRealtime(payload);
+  const id = "c3-review-" + (row.review_id || row.candidate + "-" + row.first);
+  const target = document.getElementById(id);
+  if (target) {
+    target.scrollIntoView({behavior:"smooth",block:"start"});
+    target.classList.add("c3-jump-highlight");
+    if (status) status.textContent = "Showing " + row.candidate + " (" + (row.review_id || "no review ID") + ").";
+    return true;
+  }
+  if (status) status.textContent = "Candidate exists but its review card could not be displayed.";
+  return false;
+}
+function c3HashTarget() {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return params.get("c3");
+}
+function c3TryHashTarget(payload) {
+  const target = c3HashTarget();
+  if (target && !c3OpenReview(target,payload)) {
+    $("#realtimePanel")?.scrollIntoView({behavior:"auto",block:"start"});
+  }
+}
 function renderRealtime(payload) {
   state.realtime = payload || null;
 
@@ -686,7 +727,28 @@ function renderRealtime(payload) {
     payload.github_email_alert_issues : [];
   // Keep an alerted candidate accessible even if an older classification
   // would otherwise put it in the diagnostics or previously-seen filter.
-  const emailRows = reviewRows.filter(row => githubEmailForReview(row, githubIssues));
+  const recentAlerts = Array.isArray(payload.recent_alerts) ? payload.recent_alerts : [];
+  const recentKeys = new Set(recentAlerts.filter(a => a.candidate && a.first && a.last)
+    .map(a => [a.candidate, a.first, a.last].join("|")));
+  const latestAlertId = String(latestAlert.match(/(?:^|\\n)Candidate:\\s*(C\\d+)/i)?.[1] || "").toUpperCase();
+  const latestAlertRow = reviewRows.find(row => String(row.candidate || "").toUpperCase() === latestAlertId &&
+    String(row.review_class || "").toUpperCase() === "STRONG_REVIEW");
+  const emailRows = reviewRows.filter(row => githubEmailForReview(row, githubIssues) ||
+    (row.candidate && recentKeys.has([row.candidate,row.first,row.last].join("|"))));
+  const quickNav = $("#realtimeEmailQuickNav");
+  if (quickNav) {
+    const top = [...emailRows].sort((a,b) => {
+      const ia=githubEmailForReview(a,githubIssues),ib=githubEmailForReview(b,githubIssues);
+      return String(ib?.created_at || "").localeCompare(String(ia?.created_at || ""));
+    }).slice(0,8);
+    quickNav.classList.toggle("hidden", !top.length);
+    quickNav.innerHTML = top.length ? '<strong>Recent C3 email-alert reviews</strong><div class="c3-email-chip-row">' +
+      top.map(row => '<button type="button" class="c3-email-chip" data-c3-jump="' +
+      escapeHtml(row.review_id || row.candidate) + '">' + escapeHtml(row.candidate) + '</button>').join("") +
+      '</div>' : "";
+    quickNav.querySelectorAll("[data-c3-jump]").forEach(button =>
+      button.addEventListener("click",() => c3OpenReview(button.dataset.c3Jump,payload)));
+  }
 
   const seenCount = primary.filter(c => normalizeClass(c.status) === "SEEN_ALREADY").length;
   const visiblePrimary = visiblePrimaryReviews(primary, state.showSeenAlreadyRealtime);
@@ -700,7 +762,7 @@ function renderRealtime(payload) {
   const baseRows = state.showLowSupportRealtime
     ? [...visiblePrimary, ...diagnostics]
     : [...visiblePrimary, ...currentDiagnosticPreviews];
-  const rowsToDisplay = [...emailRows, ...baseRows.filter(row =>
+  const rowsToDisplay = [...(latestAlertRow ? [latestAlertRow] : []), ...emailRows, ...baseRows.filter(row =>
     !emailRows.some(alerted => (alerted.review_id && alerted.review_id === row.review_id) ||
       (!alerted.review_id && alerted.candidate === row.candidate &&
        alerted.first === row.first && alerted.last === row.last)))];
@@ -747,7 +809,8 @@ function renderRealtime(payload) {
 
   // Keep newest-first ordering among the reviews currently shown.
   // Repeated detections can be revealed without changing stored reviews.
-  const ordered = sortEmailAlertReviews(rowsToDisplay, githubIssues);
+  const ordered = sortEmailAlertReviews([...new Map(rowsToDisplay.map(row => [c3ReviewKey(row),row])).values()], githubIssues);
+  if (latestAlertRow) ordered.sort((a,b) => (c3ReviewKey(a) === c3ReviewKey(latestAlertRow) ? -1 : c3ReviewKey(b) === c3ReviewKey(latestAlertRow) ? 1 : 0));
 
   const visible = Math.min(state.liveReviewVisible || 8, ordered.length);
   const more = visible < ordered.length
@@ -779,7 +842,9 @@ async function refreshRealtime() {
   try {
     const response = await fetch(`./data/realtime.json?t=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) return;
-    renderRealtime(await response.json());
+    const payload = await response.json();
+    renderRealtime(payload);
+    if (c3HashTarget()) c3TryHashTarget(payload);
   } catch (error) {
     console.warn("Realtime refresh failed:", error);
   }
@@ -803,6 +868,7 @@ async function loadData() {
       : { available: false };
     state.candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
     renderRealtime(realtime);
+    if (c3HashTarget()) c3TryHashTarget(realtime);
 
     $("#demoBanner").classList.toggle("hidden", !payload.demo);
     $("#candidateCount").textContent = state.candidates.length;
@@ -1096,3 +1162,9 @@ document.addEventListener("keydown", event => {
 });
 refreshCCOR();
 setInterval(refreshCCOR, 60 * 1000);
+
+document.getElementById("realtimeFindForm")?.addEventListener("submit", event => {
+  event.preventDefault();
+  c3OpenReview(document.getElementById("realtimeFindId").value);
+});
+window.addEventListener("hashchange", () => { if(state.realtime) c3TryHashTarget(state.realtime); });

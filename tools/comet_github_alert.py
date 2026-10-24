@@ -283,6 +283,8 @@ def issue_details(candidate, test=False):
     motion = pixel.get("temporal_motion") or {}
     candidate_id = candidate.get("candidate") or "UNKNOWN"
     review_id = candidate.get("review_id") or ""
+    from urllib.parse import quote
+    review_page = DASHBOARD + "#c3=" + quote(review_id or candidate_id, safe="")
     link = DASHBOARD
     if review_id:
         link = (f"https://raw.githubusercontent.com/{REPO}/live-media/"
@@ -346,7 +348,7 @@ def issue_details(candidate, test=False):
         f"- Temporal-motion support: {motion.get('supported')}/{motion.get('tested')}\n"
         + endpoints + report_text + row_text +
         f"\n[Watch review video]({link}) (may not be published yet)\n"
-        f"[Open live dashboard]({DASHBOARD})\n\n"
+        f"[Open this candidate on dashboard]({review_page})\n\n"
         "Check actual SOHO images and existing Sungrazer reports before claiming discovery.\n"
     )
     return (f"☄ SOHO STRONG_REVIEW: {candidate_id}", body)
