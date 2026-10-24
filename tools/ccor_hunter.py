@@ -482,12 +482,68 @@ def integrate_events(previous, detected, camera, now):
     return sorted(retained,key=lambda x:x.get("last",""),reverse=True)[:100]
 
 
+# A short track can be a comet. These limits are DISPLAY-ONLY and do
+# not delete detections or constitute a physical comet classification.
+# In 512-pixel detector coordinates, sub-5-pixel apparent displacement
+# is hard to distinguish from quantization and slowly drifting stars.
+REVIEW_MIN_DISPLACEMENT_PX_512 = 6.0
+REVIEW_MIN_DURATION_HOURS = 1.5
+REVIEW_MIN_OBSERVATIONS = 5
+
+
+def review_motion_evidence(row):
+    """Time span and endpoint displacement for display-only CCOR triage.
+
+    The pixel coordinates are normalized to 512-wide image plane so the
+    evidence thresholds remain consistent if a resized working width changes.
+    Missing or inconsistent data is never invented.
+    """
+    try:
+        shape = row.get("processing_shape") or [512, 512]
+        width = float(shape[0])
+        if not math.isfinite(width) or width <= 0:
+            raise ValueError("Bad processing image width")
+        x0 = float(row["x_first"])
+        y0 = float(row["y_first"])
+        x1 = float(row["x_last"])
+        y1 = float(row["y_last"])
+        displacement = math.hypot(x1 - x0, y1 - y0) * 512.0 / width
+        start = dt.datetime.fromisoformat(str(row["first"]).replace("Z", "+00:00"))
+        end = dt.datetime.fromisoformat(str(row["last"]).replace("Z", "+00:00"))
+        if start.tzinfo is None or end.tzinfo is None:
+            raise ValueError("Missing UTC time zone")
+        hours = (end - start).total_seconds() / 3600.0
+        count = int(row["frames"])
+        if not math.isfinite(displacement) or hours < 0 or count < 0:
+            raise ValueError("Invalid displacement, elapsed hours or frame count")
+    except (ValueError, KeyError, TypeError, IndexError, OverflowError):
+        return {
+            "status": "UNASSESSABLE", "displacement_px_512": None,
+            "duration_hours": None, "minimum_displacement_px_512":
+                REVIEW_MIN_DISPLACEMENT_PX_512,
+        }
+
+    measurable = (displacement >= REVIEW_MIN_DISPLACEMENT_PX_512 and
+                  hours >= REVIEW_MIN_DURATION_HOURS and
+                  count >= REVIEW_MIN_OBSERVATIONS)
+    return {
+        "status": "MEASURABLE_MOTION" if measurable else "LIMITED_MOTION_EVIDENCE",
+        "displacement_px_512": round(displacement, 2),
+        "duration_hours": round(hours, 2),
+        "observation_count": count,
+        "minimum_displacement_px_512": REVIEW_MIN_DISPLACEMENT_PX_512,
+        "minimum_duration_hours": REVIEW_MIN_DURATION_HOURS,
+        "minimum_observations": REVIEW_MIN_OBSERVATIONS,
+    }
+
+
 def review_shortlist(tracks, limit_per_camera=12):
     """Balanced display priority only; preserve ALL other stored hypotheses."""
     selected=[]
     for camera in CAMERAS:
         rows=sorted((r for r in tracks if r.get("camera")==camera and
-                     (r.get("motion_consistency") or {}).get("status") != "IRREGULAR_MOTION"),
+                     (r.get("motion_consistency") or {}).get("status") != "IRREGULAR_MOTION"
+                     and review_motion_evidence(r)["status"] == "MEASURABLE_MOTION"),
                     key=track_quality,reverse=True)
         chosen=[]
         counts={}
@@ -610,6 +666,8 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             if out.exists() and not backup.exists():
                 backup.write_bytes(out.read_bytes())
         retained=[annotated_track(row) for row in integrate_events(prior,detected,camera,now)]
+        for track in retained:
+            track["review_motion_evidence"] = review_motion_evidence(track)
         # Exact source filenames are discovered from cached JPEGs, not inferred.
         # Keep CCOR image review entirely separate from existing C3 media.
         frame_manifests[camera] = source_frame_manifest(cache, camera, now)
@@ -638,6 +696,9 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             "irregular_motion_review_tracks":sum(
                 row["motion_consistency"]["status"] == "IRREGULAR_MOTION"
                 for row in retained),
+            "limited_motion_review_tracks":sum(
+                row["review_motion_evidence"]["status"] != "MEASURABLE_MOTION"
+                for row in retained),
             "detector_hit_40_hypothesis_cap":(
                 not complete_search and search_info["stop_reason"]=="LEGACY_FIRST_40"),
             "detector_search":search_info,
@@ -661,7 +722,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "instruments":instrument_states,"tracks":tracks,
         "frame_manifests":frame_manifests,
         "review_shortlist_ids":review_shortlist(tracks),
-        "review_shortlist_policy":"Camera support arms and NOAA date/time overlays excluded before peak selection and from retained tracks; irregular-motion tracks are full-review only",
+        "review_shortlist_policy":"Camera support arms and NOAA date/time overlays excluded; shortlist requires >=6 px net displacement in 512px images across >=1.5 hours and >=5 measured frames; irregular or shorter tracks remain in full review",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }
