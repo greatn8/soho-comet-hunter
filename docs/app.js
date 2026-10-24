@@ -1023,7 +1023,6 @@ let ccorPayload = null;
 let ccorCurrent = null;
 let ccorFrameIndex = 0;
 let ccorPlayback = null;
-let ccorShowAll = false;
 let ccorCamera = "all";
 let ccorVisibleTracks = [];
 
@@ -1176,11 +1175,12 @@ function ccorRenderCards() {
   const box = document.getElementById("ccorCandidates");
   if (!box || !ccorPayload) return;
   const tracks = ccorPayload.tracks || [];
-  const shortlisted = Array.isArray(ccorPayload.review_shortlist_ids)
-    ? ccorPayload.review_shortlist_ids.map(id => tracks.find(t => t.id === id)).filter(Boolean)
-    : tracks.slice(0, 24);
-  const selected = (ccorShowAll ? tracks : shortlisted)
-    .filter(t => ccorCamera === "all" || t.camera === ccorCamera);
+  // The publisher exports shortlisted tracks only. Never expose raw
+  // hypotheses as a fallback if an older payload is briefly cached.
+  const allowed = new Set(Array.isArray(ccorPayload.review_shortlist_ids)
+    ? ccorPayload.review_shortlist_ids : []);
+  const selected = tracks.filter(t => allowed.has(t.id) &&
+    (ccorCamera === "all" || t.camera === ccorCamera));
   ccorVisibleTracks = selected;
   if (ccorCurrent) ccorUpdateCandidatePosition();
   box.innerHTML = selected.map(t =>
@@ -1224,7 +1224,7 @@ async function refreshCCOR() {
       const search = info.detector_search || {};
       return camera.toUpperCase() + ": " + (info.status || "NOT_STARTED") +
         " · frames " + (info.cached_recent_frames || 0) +
-        " · tracks " + (info.retained_review_tracks || 0) +
+        " · reviews " + ((payload.published_per_camera || {})[camera] ?? (payload.tracks || []).filter(t => t.camera === camera).length) +
         (search.distinct_hypotheses != null ? " · hypotheses " + search.distinct_hypotheses : "");
     }).join(" | ") + " · Last check: " + (payload.generated_at || "unknown");
     ccorRenderCards();
@@ -1238,11 +1238,6 @@ async function refreshCCOR() {
 }
 document.getElementById("ccorCameraFilter")?.addEventListener("change", e => {
   ccorCamera = e.target.value; ccorRenderCards();
-});
-document.getElementById("ccorAllTracks")?.addEventListener("click", e => {
-  ccorShowAll = !ccorShowAll;
-  e.target.textContent = ccorShowAll ? "Show shortlist" : "Show all retained tracks";
-  ccorRenderCards();
 });
 document.getElementById("ccorReviewClose")?.addEventListener("click", ccorClose);
 document.getElementById("ccorReviewPrev")?.addEventListener("click", () => ccorStep(-1));
