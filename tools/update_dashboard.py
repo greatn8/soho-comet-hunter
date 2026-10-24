@@ -842,6 +842,12 @@ def promote_realtime_candidates(realtime_source, data_dir, age_hours=24):
             continue
         if last_seen > cutoff:
             continue
+        # Do not repeatedly regenerate expired unconfirmed archive videos on
+        # every 15-minute publish. The retention job removes existing copies.
+        # Known reports remain permanently eligible for archival.
+        if (last_seen <= now - timedelta(hours=48)
+                and status != "KNOWN_REPORT"):
+            continue
 
         promoted_at = now.isoformat().replace("+00:00", "Z")
         review_id = find_realtime_review_id(source, row)
