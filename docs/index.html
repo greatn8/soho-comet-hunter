@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b14">
   <title>SOHO Comet Hunter</title>
   <meta name="description" content="Live candidate dashboard for an automated SOHO comet-hunting pipeline.">
-  <link rel="stylesheet" href="./styles.css?v=20261024-ccor-review">
+  <link rel="stylesheet" href="./styles.css?v=20261024-ccor-no-scroll">
 </head>
 <body>
   <div class="stars" aria-hidden="true"></div>
@@ -128,12 +128,27 @@
         </select>
         <button type="button" id="ccorAllTracks">Show all retained tracks</button>
       </div>
-      <section id="ccorVisualViewer" class="ccor-viewer hidden" aria-label="CCOR original image review">
-        <div class="ccor-viewer-heading">
-          <h3 id="ccorReviewHeading">CCOR image inspection</h3>
-          <button type="button" id="ccorReviewClose">✕ Close</button>
+      <dialog id="ccorVisualViewer" class="ccor-viewer" aria-label="CCOR image and candidate review">
+        <div class="ccor-review-sticky">
+          <div class="ccor-viewer-heading">
+            <h3 id="ccorReviewHeading">CCOR image inspection</h3>
+            <button type="button" id="ccorReviewClose" aria-label="Close CCOR reviewer">✕ Close</button>
+          </div>
+          <div class="ccor-review-navigation">
+            <div class="ccor-navigation-group">
+              <button type="button" id="ccorCandidatePrev" title="Previous candidate (↑)">← Candidate</button>
+              <strong id="ccorCandidatePosition" aria-live="polite">Candidate 1 / 1</strong>
+              <button type="button" id="ccorCandidateNext" title="Next candidate (↓)">Candidate →</button>
+            </div>
+            <div class="ccor-navigation-group">
+              <button type="button" id="ccorReviewPrev" title="Previous image (←)">← Frame</button>
+              <strong id="ccorFramePosition" aria-live="polite">Frame 1 / 1</strong>
+              <button type="button" id="ccorReviewPlay" title="Play or pause (Space)">▶ Play</button>
+              <button type="button" id="ccorReviewNext" title="Next image (→)">Frame →</button>
+            </div>
+          </div>
         </div>
-        <p>Original NOAA JPEG with unverified measured trajectory. Green marks are track observations; amber marks the detected point in the current frame. Image motion alone does not establish comet identity.</p>
+        <p class="ccor-review-help">Original NOAA frames: green shows the proposed motion track; amber marks a measured point in this frame. These are unverified detections, not confirmed comets.</p>
         <div class="ccor-review-layout">
           <div class="ccor-image-stage">
             <img id="ccorReviewImage" alt="Original NOAA CCOR coronagraph quicklook">
@@ -146,12 +161,10 @@
         </div>
         <p id="ccorReviewCaption" class="ccor-caption"></p>
         <div class="ccor-controls">
-          <button type="button" id="ccorReviewPrev">← Previous</button>
-          <button type="button" id="ccorReviewPlay">▶ Play frames</button>
-          <button type="button" id="ccorReviewNext">Next →</button>
           <a id="ccorReviewSource" href="https://services.swpc.noaa.gov/" target="_blank" rel="noopener noreferrer">Open original NOAA JPEG ↗</a>
+          <small>Keyboard: ← / → frames · ↑ / ↓ candidates · Space play/pause · Esc close</small>
         </div>
-      </section>
+      </dialog>
       <div id="ccorCandidates" class="realtime-candidates"></div>
     </section>
 
@@ -233,6 +246,6 @@
     <div id="dialogBody"></div>
   </dialog>
 
-  <script src="./app.js?v=20261024-ccor-review"></script>
+  <script src="./app.js?v=20261024-ccor-no-scroll"></script>
 </body>
 </html>

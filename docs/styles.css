@@ -1119,3 +1119,34 @@ dialog::backdrop {
 .ccor-zoom canvas { display:block; max-width:100%; image-rendering:pixelated; border:1px solid #435876; }
 .ccor-caption { overflow-wrap:anywhere; font-family:ui-monospace,monospace; }
 @media(max-width:740px) { .ccor-review-layout { grid-template-columns:1fr; } }
+
+/* Scrolling-free CCOR review modal; C3 styles remain unchanged. */
+dialog.ccor-viewer {
+  width:min(1250px, calc(100vw - 28px)); max-width:none;
+  max-height:calc(100dvh - 24px); overflow:auto;
+  margin:auto; padding:0 15px 15px; box-sizing:border-box;
+  color:#dcecff; background:#081523; border:1px solid rgba(115,252,214,.45);
+}
+dialog.ccor-viewer::backdrop { background:rgba(0,0,0,.82); }
+.ccor-review-sticky {
+  position:sticky; top:0; z-index:5;
+  background:#081523; border-bottom:1px solid #314b60;
+  padding:12px 0 10px;
+}
+.ccor-review-navigation { display:flex; justify-content:space-between; flex-wrap:wrap; gap:9px; margin-top:10px; }
+.ccor-navigation-group { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.ccor-navigation-group strong { font-size:11px; color:#c8e9f5; white-space:nowrap; }
+.ccor-navigation-group button { padding:9px 12px; }
+.ccor-viewer-heading button { flex-shrink:0; }
+.ccor-review-help { margin:10px 0; }
+.ccor-viewer .ccor-image-stage img { max-height: min(67dvh, 710px); object-fit:contain; }
+.ccor-viewer .ccor-image-stage { width:fit-content; max-width:100%; margin:0 auto; }
+.ccor-viewer .ccor-image-stage svg { width:100%; height:100%; }
+.ccor-viewer .ccor-zoom { min-height:100px; }
+.ccor-viewer .ccor-controls small { color:#91abc7; }
+@media(max-width:740px) {
+  dialog.ccor-viewer { width:calc(100vw - 12px); max-height:calc(100dvh - 12px); padding:0 10px 10px; }
+  .ccor-review-navigation { flex-direction:column; }
+  .ccor-navigation-group { justify-content:space-between; }
+  .ccor-navigation-group button { padding:7px 8px; }
+}
