@@ -1025,6 +1025,9 @@ function ccorRenderCards() {
     '<article class="realtime-candidate">' +
     '<div class="realtime-candidate-top"><strong>' + escapeHtml(t.id) +
     '</strong><span>UNVERIFIED / ' + escapeHtml(t.camera.toUpperCase()) + '</span></div>' +
+    (t.motion_consistency?.status === "IRREGULAR_MOTION" ?
+      '<div class="realtime-media-missing">Irregular motion: abrupt trajectory change; diagnostic review only, not shortlisted.</div>' : '') +
+
     '<div class="realtime-candidate-meta"><div><span>First</span><strong>' + escapeHtml(t.first) +
     '</strong></div><div><span>Last</span><strong>' + escapeHtml(t.last) +
     '</strong></div><div><span>Frames</span><strong>' + escapeHtml(t.frames) +
