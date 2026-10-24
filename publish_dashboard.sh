@@ -43,18 +43,7 @@ python3 tools/update_dashboard.py \
 # Publish optional NOAA CCOR experimental review without touching C3 state.
 CCOR_REVIEW_SOURCE="${COMET_CCOR_REVIEW_SOURCE:-$HOME/comethunting/comet_hunter_native_cuda_v7_archive/results/ccor/ccor.json}"
 if [[ -f "$CCOR_REVIEW_SOURCE" ]]; then
-  python3 - "$CCOR_REVIEW_SOURCE" "docs/data/ccor.json" <<'PYCCOR'
-import json, pathlib, sys
-src, dest = map(pathlib.Path, sys.argv[1:])
-try:
-    payload = json.loads(src.read_text(encoding="utf-8"))
-    if payload.get("mode") != "EXPERIMENTAL_REVIEW_ONLY" or not isinstance(payload.get("tracks"),list):
-        raise ValueError("Not an experimental CCOR review payload")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(payload,indent=2)+"\n",encoding="utf-8")
-except (OSError,ValueError) as exc:
-    print(f"[WARN] Not publishing invalid CCOR review: {exc}")
-PYCCOR
+  python3 tools/publish_ccor_shortlist.py "$CCOR_REVIEW_SOURCE" "docs/data/ccor.json"
 fi
 
 # Publish the current stitched review clips on an ephemeral branch. The branch
