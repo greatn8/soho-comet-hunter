@@ -913,7 +913,6 @@ function ccorDraw() {
     caption.textContent = "NOAA image not available: " + entry.time +
       ". Remote JPEGs can expire; this does not invalidate the stored track measurements.";
   };
-  image.crossOrigin = "anonymous";
   image.src = entry.image_url;
   caption.textContent = ccorCurrent.id + " · " + entry.time +
     " UTC · frame " + (ccorFrameIndex+1) + "/" + entries.length +
