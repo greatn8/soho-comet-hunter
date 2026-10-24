@@ -129,6 +129,80 @@ def load_frames(cache, camera, now, hours=5):
             continue
     return frames, times, sizes
 
+# CCOR1's diagonal black occulter support has bright moving edge artifacts.
+# Coordinates are in a normalized 512x512 JPEG detector plane, NOT FITS
+# sky coordinates. The polygon deliberately includes a roughly 20-pixel
+# safety margin around the arm seen in the source NOAA quicklook images.
+# CCOR2 has a different image geometry and MUST NOT inherit this CCOR1 mask.
+# This is an engineering veto, not a comet-orbit selection rule.
+CCOR1_SUPPORT_ARM_EXCLUSION_512 = (
+    (195, 260), (304, 260), (310, 300), (266, 385),
+    (210, 482), (123, 482), (141, 425), (162, 364),
+)
+
+
+def _inside_polygon(x, y, vertices):
+    """Point-in-polygon for numpy grids and individual coordinates."""
+    result = np.zeros(np.broadcast_shapes(np.shape(x), np.shape(y)), dtype=bool)
+    for i, (xi, yi) in enumerate(vertices):
+        xj, yj = vertices[i - 1]
+        if yi == yj:
+            continue
+        crosses = ((yi > y) != (yj > y)) & (
+            x < (xj - xi) * (y - yi) / (yj - yi) + xi
+        )
+        result ^= crosses
+    return result
+
+
+def support_arm_mask(camera, shape):
+    """Exclude CCOR1 support/edge artifacts before peaks are ranked."""
+    height, width = shape
+    if camera != "ccor1":
+        return np.zeros(shape, dtype=bool)
+    yy, xx = np.ogrid[:height, :width]
+    return _inside_polygon(
+        xx * (512.0 / width), yy * (512.0 / height),
+        CCOR1_SUPPORT_ARM_EXCLUSION_512,
+    )
+
+
+def track_hits_support_arm(row):
+    """Veto tracks near the arm, including old retained pre-mask tracks."""
+    if row.get("camera") != "ccor1":
+        return False
+    shape = row.get("processing_shape") or [512, 512]
+    try:
+        width, height = (float(shape[0]), float(shape[1]))
+        if not (width > 0 and height > 0):
+            return False
+        raw = row.get("points") or []
+        coords = [(float(p["x"]), float(p["y"])) for p in raw]
+        if not coords:
+            coords = [(float(row["x_first"]), float(row["y_first"])),
+                      (float(row["x_last"]), float(row["y_last"]))]
+        for x, y in coords:
+            if bool(_inside_polygon(
+                x * 512.0 / width, y * 512.0 / height,
+                CCOR1_SUPPORT_ARM_EXCLUSION_512,
+            )):
+                return True
+        # Check between observations too, so a track crossing the arm
+        # is excluded even when individual recorded peaks lie outside it.
+        for (ax, ay), (bx, by) in zip(coords, coords[1:]):
+            for alpha in (0.25, 0.5, 0.75):
+                x = ax + alpha * (bx - ax)
+                y = ay + alpha * (by - ay)
+                if bool(_inside_polygon(
+                    x * 512.0 / width, y * 512.0 / height,
+                    CCOR1_SUPPORT_ARM_EXCLUSION_512,
+                )):
+                    return True
+    except (KeyError, ValueError, TypeError, IndexError, OverflowError):
+        return False
+    return False
+
+
 def peaks(frame, baseline, camera, limit=70):
     """Robust positive temporal residual point sources; provisional masks."""
     residual = frame - baseline
@@ -141,6 +215,7 @@ def peaks(frame, baseline, camera, limit=70):
     mask[int(h*.96):] = False
     mask[:, :int(w*.04)] = False
     mask[:, int(w*.96):] = False
+    mask &= ~support_arm_mask(camera, (h, w))
     inside = residual[mask]
     if inside.size == 0:
         return []
@@ -297,7 +372,7 @@ def integrate_events(previous, detected, camera, now):
     retained=[]
     id_index={}
     for row in previous:
-        if row.get("camera")!=camera or row.get("last","")<cutoff:
+        if row.get("camera")!=camera or row.get("last","")<cutoff or track_hits_support_arm(row):
             continue
         ident=row.get("id")
         if not ident:
@@ -310,6 +385,8 @@ def integrate_events(previous, detected, camera, now):
         id_index[ident]=len(retained)
         retained.append(dict(row))
     for row in detected:
+        if track_hits_support_arm(row):
+            continue
         match_index=next((i for i,old in enumerate(retained)
                           if match_track(old,row,None,None)),None)
         if match_index is not None:
@@ -432,6 +509,15 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             search_info["fell_back_to_legacy"] = True
         else:
             search_info["fell_back_to_legacy"] = False
+        prior_masked = sum(track_hits_support_arm(row) for row in prior
+                           if row.get("camera") == camera)
+        detected_masked = sum(track_hits_support_arm(row) for row in detected)
+        if prior_masked:
+            # One-time forensic snapshot: old excluded hypotheses never
+            # re-enter the live dashboard, but remain locally inspectable.
+            backup = out.with_name("ccor_pre_support_arm_mask.json")
+            if out.exists() and not backup.exists():
+                backup.write_bytes(out.read_bytes())
         retained=integrate_events(prior,detected,camera,now)
         # Exact source filenames are discovered from cached JPEGs, not inferred.
         # Keep CCOR image review entirely separate from existing C3 media.
@@ -452,6 +538,9 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             "detected_this_cycle":len(detected),
             "retained_review_tracks":len(retained),
             "duplicate_identity_rows_in_prior_output":prior_repeated_ids,
+            "support_arm_mask":camera == "ccor1",
+            "support_arm_excluded_from_prior":prior_masked,
+            "support_arm_excluded_new_tracks":detected_masked,
             "detector_hit_40_hypothesis_cap":(
                 not complete_search and search_info["stop_reason"]=="LEGACY_FIRST_40"),
             "detector_search":search_info,
@@ -475,7 +564,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "instruments":instrument_states,"tracks":tracks,
         "frame_manifests":frame_manifests,
         "review_shortlist_ids":review_shortlist(tracks),
-        "review_shortlist_policy":"Ranking and 4x4 spatial diversity for display only; no hypothesis rejected",
+        "review_shortlist_policy":"CCOR1 support-arm tracks excluded; remaining tracks ranked with 4x4 spatial diversity",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }
