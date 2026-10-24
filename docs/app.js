@@ -1189,12 +1189,16 @@ function ccorRenderCards() {
     '</strong><span>UNVERIFIED / ' + escapeHtml(t.camera.toUpperCase()) + '</span></div>' +
     (t.review_motion_evidence?.status === "LIMITED_MOTION_EVIDENCE" ?
       '<div class="realtime-media-missing">Limited motion evidence: short displacement, duration, or too few observations. Full review only.</div>' : '') +
+    (t.background_motion?.status === "LIKELY_BACKGROUND_STAR_MOTION" ?
+      '<div class="realtime-media-missing">Likely background star drift: moving with other spatially separate sources. Not confirmed as a star; full diagnostic review only.</div>' : '') +
     (t.motion_consistency?.status === "IRREGULAR_MOTION" ?
       '<div class="realtime-media-missing">Irregular motion: abrupt trajectory change; diagnostic review only, not shortlisted.</div>' : '') +
 
     '<div class="realtime-candidate-meta"><div><span>First</span><strong>' + escapeHtml(t.first) +
     '</strong></div><div><span>Last</span><strong>' + escapeHtml(t.last) +
     '</strong></div><div><span>Frames</span><strong>' + escapeHtml(t.frames) +
+    '</strong></div><div><span>Background motion</span><strong>' +
+    escapeHtml(t.background_motion?.status || "Not evaluated") +
     '</strong></div><div><span>Movement (px / 512)</span><strong>' +
     escapeHtml(t.review_motion_evidence?.displacement_px_512 ?? "—") +
     '</strong></div><div><span>Duration (h)</span><strong>' +
