@@ -221,6 +221,61 @@ def track_hits_support_arm(row):
     return False
 
 
+# The NOAA quicklook includes a bright UTC date/time legend at bottom left.
+# Pixel values can change each frame and mimic a moving point source.
+# The normalized 512-pixel exclusion covers only the legend plus a margin:
+# x = [0,205), y = [466,512). Unlike support arms this is shared by both
+# cameras. It is an engineering JPEG overlay mask, NOT celestial geometry.
+TIMESTAMP_OVERLAY_EXCLUSION_512 = (0.0, 466.0, 205.0, 512.0)
+
+
+def timestamp_overlay_mask(camera, shape):
+    """Exclude NOAA quicklook timestamp text on both CCOR camera feeds."""
+    h, w = shape
+    if camera not in CAMERAS:
+        return np.zeros(shape, dtype=bool)
+    left, top, right, bottom = TIMESTAMP_OVERLAY_EXCLUSION_512
+    yy, xx = np.ogrid[:h, :w]
+    return ((xx * 512.0 / w >= left) & (xx * 512.0 / w < right) &
+            (yy * 512.0 / h >= top) & (yy * 512.0 / h < bottom))
+
+
+def track_hits_timestamp_overlay(row):
+    """Remove existing hypotheses touching the changing date/time legend."""
+    if row.get("camera") not in CAMERAS:
+        return False
+    shape = row.get("processing_shape") or [512, 512]
+    try:
+        width, height = float(shape[0]), float(shape[1])
+        if width <= 0 or height <= 0:
+            return False
+        points = row.get("points") or [
+            {"x": row["x_first"], "y": row["y_first"]},
+            {"x": row["x_last"], "y": row["y_last"]},
+        ]
+        coords = [(float(p["x"]) * 512.0 / width,
+                   float(p["y"]) * 512.0 / height) for p in points]
+        for i, (x, y) in enumerate(coords):
+            if _timestamp_contains(x, y):
+                return True
+            if i:
+                a, b = coords[i-1], coords[i]
+                for alpha in (0.25, 0.5, 0.75):
+                    if _timestamp_contains(
+                        a[0] + alpha * (b[0] - a[0]),
+                        a[1] + alpha * (b[1] - a[1]),
+                    ):
+                        return True
+    except (IndexError, KeyError, TypeError, ValueError, OverflowError):
+        return False
+    return False
+
+
+def _timestamp_contains(x, y):
+    left, top, right, bottom = TIMESTAMP_OVERLAY_EXCLUSION_512
+    return left <= x < right and top <= y < bottom
+
+
 def peaks(frame, baseline, camera, limit=70):
     """Robust positive temporal residual point sources; provisional masks."""
     residual = frame - baseline
@@ -233,7 +288,8 @@ def peaks(frame, baseline, camera, limit=70):
     mask[int(h*.96):] = False
     mask[:, :int(w*.04)] = False
     mask[:, int(w*.96):] = False
-    mask &= ~support_arm_mask(camera, (h, w))
+    mask &= ~(support_arm_mask(camera, (h, w)) |
+              timestamp_overlay_mask(camera, (h, w)))
     inside = residual[mask]
     if inside.size == 0:
         return []
@@ -390,7 +446,8 @@ def integrate_events(previous, detected, camera, now):
     retained=[]
     id_index={}
     for row in previous:
-        if row.get("camera")!=camera or row.get("last","")<cutoff or track_hits_support_arm(row):
+        if (row.get("camera")!=camera or row.get("last","")<cutoff or
+                track_hits_support_arm(row) or track_hits_timestamp_overlay(row)):
             continue
         ident=row.get("id")
         if not ident:
@@ -403,7 +460,7 @@ def integrate_events(previous, detected, camera, now):
         id_index[ident]=len(retained)
         retained.append(dict(row))
     for row in detected:
-        if track_hits_support_arm(row):
+        if track_hits_support_arm(row) or track_hits_timestamp_overlay(row):
             continue
         match_index=next((i for i,old in enumerate(retained)
                           if match_track(old,row,None,None)),None)
@@ -531,6 +588,18 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         prior_masked = sum(track_hits_support_arm(row) for row in prior
                            if row.get("camera") == camera)
         detected_masked = sum(track_hits_support_arm(row) for row in detected)
+        timestamp_prior_masked = sum(
+            track_hits_timestamp_overlay(row) for row in prior
+            if row.get("camera") == camera and not track_hits_support_arm(row))
+        timestamp_detected_masked = sum(
+            track_hits_timestamp_overlay(row) for row in detected
+            if not track_hits_support_arm(row))
+        if timestamp_prior_masked:
+            # Keep one untouched pre-timestamp snapshot for audit, even
+            # though filtered tracks leave the public review dashboard.
+            backup = out.with_name("ccor_pre_timestamp_overlay_mask.json")
+            if out.exists() and not backup.exists():
+                backup.write_bytes(out.read_bytes())
         if prior_masked:
             # One-time forensic snapshot: old excluded hypotheses never
             # re-enter the live dashboard, but remain locally inspectable.
@@ -563,6 +632,9 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             "support_arm_mask":camera in SUPPORT_ARM_EXCLUSIONS_512,
             "support_arm_excluded_from_prior":prior_masked,
             "support_arm_excluded_new_tracks":detected_masked,
+            "timestamp_overlay_mask":camera in CAMERAS,
+            "timestamp_excluded_from_prior":timestamp_prior_masked,
+            "timestamp_excluded_new_tracks":timestamp_detected_masked,
             "irregular_motion_review_tracks":sum(
                 row["motion_consistency"]["status"] == "IRREGULAR_MOTION"
                 for row in retained),
@@ -589,7 +661,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "instruments":instrument_states,"tracks":tracks,
         "frame_manifests":frame_manifests,
         "review_shortlist_ids":review_shortlist(tracks),
-        "review_shortlist_policy":"Both camera support-arm masks exclude near-arm tracks; irregular-motion tracks remain full-review only; shortlist uses 4x4 spatial diversity",
+        "review_shortlist_policy":"Camera support arms and NOAA date/time overlays excluded before peak selection and from retained tracks; irregular-motion tracks are full-review only",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }
