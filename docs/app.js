@@ -813,48 +813,198 @@ loadData();
 setInterval(refreshRealtime, 60 * 1000);
 
 
-// Experimental NOAA CCOR screening is intentionally separate from LASCO C3.
-async function refreshCCOR() {
-  const status = document.getElementById("ccorStatus");
-  const box = document.getElementById("ccorCandidates");
-  if (!status || !box) return;
-  try {
-    const response = await fetch("./data/ccor.json?t=" + Date.now(), {cache: "no-store"});
-    if (!response.ok) {
-      status.textContent = "CCOR feed is not active. C3 detection is unaffected.";
-      return;
+// NOAA CCOR visual review is independent of the existing C3 workflow.
+let ccorPayload = null;
+let ccorCurrent = null;
+let ccorFrameIndex = 0;
+let ccorPlayback = null;
+let ccorShowAll = false;
+let ccorCamera = "all";
+
+function ccorFrameEntries(track) {
+  const camera = track.camera;
+  const manifest = ccorPayload?.frame_manifests?.[camera] || [];
+  const observations = (track.points || []).filter(p => p && p.time);
+  const byTime = new Map(observations.map(p => [p.time, p]));
+  const first = Date.parse(track.first);
+  const last = Date.parse(track.last);
+  // Include intermediate frames to distinguish a moving object from stars.
+  const available = manifest.filter(f => f.image_url && Number.isFinite(Date.parse(f.time)) &&
+    Date.parse(f.time) >= first - 15 * 60000 &&
+    Date.parse(f.time) <= last + 15 * 60000);
+  if (available.length) return available.map(f => ({...f, point: byTime.get(f.time) || null}));
+  return observations.filter(p => p.image_url).map(p => ({
+    time: p.time, image_url: p.image_url, point: p
+  }));
+}
+
+function ccorClose() {
+  if (ccorPlayback) clearInterval(ccorPlayback);
+  ccorPlayback = null;
+  ccorCurrent = null;
+  document.getElementById("ccorVisualViewer")?.classList.add("hidden");
+}
+
+function ccorDraw() {
+  if (!ccorCurrent) return;
+  const entries = ccorFrameEntries(ccorCurrent);
+  const image = document.getElementById("ccorReviewImage");
+  const overlay = document.getElementById("ccorReviewOverlay");
+  const zoom = document.getElementById("ccorReviewZoom");
+  const caption = document.getElementById("ccorReviewCaption");
+  if (!image || !overlay || !zoom || !caption) return;
+  if (!entries.length) {
+    image.removeAttribute("src"); image.classList.add("hidden");
+    overlay.innerHTML = ""; zoom.innerHTML = "";
+    caption.textContent = "No matching original NOAA JPEG images in the retained frame manifest. Older tracks may have expired from the source cache.";
+    return;
+  }
+  ccorFrameIndex = (ccorFrameIndex + entries.length) % entries.length;
+  const entry = entries[ccorFrameIndex];
+  const p = entry.point;
+  const shape = ccorCurrent.processing_shape || [512,512];
+  const w = Number(shape[0]) || 512, h = Number(shape[1]) || 512;
+  // Detector points use a 512-wide aspect-ratio-preserving representation.
+  // The source image scales uniformly in both axes; SVG preserves alignment.
+  const trace = (ccorCurrent.points || []).filter(pt => Number.isFinite(+pt.x) && Number.isFinite(+pt.y));
+  const circles = trace.map(pt => '<circle cx="' + (+pt.x) + '" cy="' + (+pt.y) +
+    '" r="2.5" fill="#73fcd6" opacity=".75"/>').join("");
+  const path = trace.map(pt => (+pt.x) + "," + (+pt.y)).join(" ");
+  const marker = p ? '<circle cx="' + (+p.x) + '" cy="' + (+p.y) +
+    '" r="9" fill="none" stroke="#ffcc62" stroke-width="2.2"/>' +
+    '<path d="M' + (+p.x-14) + ' ' + (+p.y) + 'h28 M' + (+p.x) + ' ' + (+p.y-14) +
+    'v28" stroke="#ffcc62" stroke-width="1" opacity=".8"/>' : "";
+  overlay.setAttribute("viewBox", '0 0 ' + w + ' ' + h);
+  overlay.innerHTML = '<polyline points="' + path + '" fill="none" stroke="#73fcd6" stroke-width="2"/>' +
+    circles + marker;
+  image.classList.remove("hidden");
+  image.onload = () => {
+    const srcw = image.naturalWidth, srch = image.naturalHeight;
+    if (!srcw || !srch) return;
+    // CSS object is fully contained in the same aspect-ratio box as overlay.
+    const sameAspect = Math.abs(srcw / srch - w / h) < 0.02;
+    overlay.style.display = sameAspect ? "block" : "none";
+    const currentX = p ? +p.x : (+ccorCurrent.x_first + +ccorCurrent.x_last)/2;
+    const currentY = p ? +p.y : (+ccorCurrent.y_first + +ccorCurrent.y_last)/2;
+    const crop = 72;
+    const sx = srcw / w, sy = srch / h;
+    const viewX = Math.max(0, Math.min(w - crop, currentX - crop / 2));
+    const viewY = Math.max(0, Math.min(h - crop, currentY - crop / 2));
+    zoom.innerHTML = "";
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = cropCanvas.height = 288;
+    const ctx = cropCanvas.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    try {
+      ctx.drawImage(image, viewX * sx, viewY * sy, crop * sx, crop * sy, 0, 0, 288, 288);
+      ctx.strokeStyle = "#ffcc62";
+      ctx.lineWidth = 1;
+      const zx = (currentX - viewX) * 288/crop;
+      const zy = (currentY - viewY) * 288/crop;
+      ctx.beginPath(); ctx.arc(zx,zy,13,0,Math.PI*2); ctx.stroke();
+      zoom.appendChild(cropCanvas);
+    } catch (error) {
+      zoom.textContent = "Zoom unavailable (cross-origin NOAA image).";
     }
-    const payload = await response.json();
-    const states = payload.instruments || {};
-    status.textContent = ["ccor1","ccor2"].map(camera => {
-      const state = states[camera] || {};
-      return camera.toUpperCase() + ": " + (state.status || "NOT_STARTED") +
-        " · frames " + (state.cached_recent_frames || 0) +
-        " · candidates " + (state.retained_review_tracks || 0);
-    }).join(" | ") + " · Last check: " + (payload.generated_at || "unknown");
-    const tracks = Array.isArray(payload.tracks) ? payload.tracks : [];
-    const safe = value => escapeHtml(String(value == null ? "" : value));
-    if (!tracks.length) {
-      box.innerHTML = '<div class="realtime-empty">No CCOR motion hypotheses available yet.</div>';
-      return;
-    }
-    const chosen = Array.isArray(payload.review_shortlist_ids)
-      ? payload.review_shortlist_ids.map(id => tracks.find(row => row.id === id)).filter(Boolean)
-      : tracks.slice(0,12);
-    box.innerHTML = chosen.slice(0,24).map(row => (
-      '<article class="realtime-candidate">' +
-      '<div class="realtime-candidate-top"><strong>' + safe(row.id) + '</strong>' +
-      '<span>UNVERIFIED MOTION / ' + safe((row.camera || "").toUpperCase()) + '</span></div>' +
-      '<div class="realtime-candidate-meta">' +
-      '<div><span>First</span><strong>' + safe(row.first) + '</strong></div>' +
-      '<div><span>Last</span><strong>' + safe(row.last) + '</strong></div>' +
-      '<div><span>Frames</span><strong>' + safe(row.frames) + '</strong></div>' +
-      '<div><span>RMS (px)</span><strong>' + safe(row.rms_px) + '</strong></div>' +
-      '</div></article>'
-    )).join("");
-  } catch (error) {
-    status.textContent = "Unable to read experimental CCOR data; C3 is unaffected.";
+  };
+  image.onerror = () => {
+    overlay.innerHTML = ""; zoom.innerHTML = "";
+    caption.textContent = "NOAA image not available: " + entry.time +
+      ". Remote JPEGs can expire; this does not invalidate the stored track measurements.";
+  };
+  image.crossOrigin = "anonymous";
+  image.src = entry.image_url;
+  caption.textContent = ccorCurrent.id + " · " + entry.time +
+    " UTC · frame " + (ccorFrameIndex+1) + "/" + entries.length +
+    (p ? " · measured detection" : " · intermediate frame (no fitted detection)") +
+    " · green: full track · amber: measured position";
+  const sourceLink = document.getElementById("ccorReviewSource");
+  sourceLink.href = entry.image_url;
+}
+function ccorOpen(id) {
+  const row = ccorPayload?.tracks?.find(t => t.id === id);
+  if (!row) return;
+  ccorClose();
+  ccorCurrent = row;
+  ccorFrameIndex = 0;
+  const viewer = document.getElementById("ccorVisualViewer");
+  viewer.classList.remove("hidden");
+  document.getElementById("ccorReviewHeading").textContent = row.id + " — " + row.camera.toUpperCase();
+  viewer.scrollIntoView({behavior: "smooth", block: "start"});
+  ccorDraw();
+}
+function ccorStep(shift) { ccorFrameIndex += shift; ccorDraw(); }
+function ccorTogglePlay() {
+  const button = document.getElementById("ccorReviewPlay");
+  if (ccorPlayback) {
+    clearInterval(ccorPlayback); ccorPlayback = null;
+    button.textContent = "▶ Play frames";
+  } else {
+    ccorPlayback = setInterval(() => ccorStep(1), 700);
+    button.textContent = "⏸ Pause";
   }
 }
+function ccorRenderCards() {
+  const box = document.getElementById("ccorCandidates");
+  if (!box || !ccorPayload) return;
+  const tracks = ccorPayload.tracks || [];
+  const shortlisted = Array.isArray(ccorPayload.review_shortlist_ids)
+    ? ccorPayload.review_shortlist_ids.map(id => tracks.find(t => t.id === id)).filter(Boolean)
+    : tracks.slice(0, 24);
+  const selected = (ccorShowAll ? tracks : shortlisted)
+    .filter(t => ccorCamera === "all" || t.camera === ccorCamera);
+  box.innerHTML = selected.map(t =>
+    '<article class="realtime-candidate">' +
+    '<div class="realtime-candidate-top"><strong>' + escapeHtml(t.id) +
+    '</strong><span>UNVERIFIED / ' + escapeHtml(t.camera.toUpperCase()) + '</span></div>' +
+    '<div class="realtime-candidate-meta"><div><span>First</span><strong>' + escapeHtml(t.first) +
+    '</strong></div><div><span>Last</span><strong>' + escapeHtml(t.last) +
+    '</strong></div><div><span>Frames</span><strong>' + escapeHtml(t.frames) +
+    '</strong></div><div><span>RMS (px)</span><strong>' + escapeHtml(t.rms_px) +
+    '</strong></div></div><button type="button" class="ccor-inspect" data-ccor-id="' +
+    escapeHtml(t.id) + '">Inspect NOAA frames ↗</button></article>'
+  ).join("") || '<div class="realtime-empty">No tracks matching the selected camera.</div>';
+  box.querySelectorAll("[data-ccor-id]").forEach(button =>
+    button.addEventListener("click", () => ccorOpen(button.dataset.ccorId)));
+}
+async function refreshCCOR() {
+  const status = document.getElementById("ccorStatus");
+  if (!status) return;
+  try {
+    const response = await fetch("./data/ccor.json?t=" + Date.now(), {cache: "no-store"});
+    if (!response.ok) throw Error("CCOR data not found");
+    const payload = await response.json();
+    ccorPayload = payload;
+    const cameras = payload.instruments || {};
+    status.textContent = ["ccor1", "ccor2"].map(camera => {
+      const info = cameras[camera] || {};
+      const search = info.detector_search || {};
+      return camera.toUpperCase() + ": " + (info.status || "NOT_STARTED") +
+        " · frames " + (info.cached_recent_frames || 0) +
+        " · tracks " + (info.retained_review_tracks || 0) +
+        (search.distinct_hypotheses != null ? " · hypotheses " + search.distinct_hypotheses : "");
+    }).join(" | ") + " · Last check: " + (payload.generated_at || "unknown");
+    ccorRenderCards();
+    if (ccorCurrent) {
+      const updated = payload.tracks?.find(t => t.id === ccorCurrent.id);
+      if (updated) ccorCurrent = updated;
+    }
+  } catch (error) {
+    status.textContent = "CCOR data temporarily unavailable; the C3 hunter is unaffected.";
+  }
+}
+document.getElementById("ccorCameraFilter")?.addEventListener("change", e => {
+  ccorCamera = e.target.value; ccorRenderCards();
+});
+document.getElementById("ccorAllTracks")?.addEventListener("click", e => {
+  ccorShowAll = !ccorShowAll;
+  e.target.textContent = ccorShowAll ? "Show shortlist" : "Show all retained tracks";
+  ccorRenderCards();
+});
+document.getElementById("ccorReviewClose")?.addEventListener("click", ccorClose);
+document.getElementById("ccorReviewPrev")?.addEventListener("click", () => ccorStep(-1));
+document.getElementById("ccorReviewNext")?.addEventListener("click", () => ccorStep(1));
+document.getElementById("ccorReviewPlay")?.addEventListener("click", ccorTogglePlay);
 refreshCCOR();
 setInterval(refreshCCOR, 60 * 1000);
