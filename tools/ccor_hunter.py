@@ -19,6 +19,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 import numpy as np
+from ccor_motion_consistency import annotated_track
 from PIL import Image
 
 BASE = "https://services.swpc.noaa.gov/products"
@@ -411,7 +412,8 @@ def review_shortlist(tracks, limit_per_camera=12):
     """Balanced display priority only; preserve ALL other stored hypotheses."""
     selected=[]
     for camera in CAMERAS:
-        rows=sorted((r for r in tracks if r.get("camera")==camera),
+        rows=sorted((r for r in tracks if r.get("camera")==camera and
+                     (r.get("motion_consistency") or {}).get("status") != "IRREGULAR_MOTION"),
                     key=track_quality,reverse=True)
         chosen=[]
         counts={}
@@ -518,7 +520,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             backup = out.with_name("ccor_pre_support_arm_mask.json")
             if out.exists() and not backup.exists():
                 backup.write_bytes(out.read_bytes())
-        retained=integrate_events(prior,detected,camera,now)
+        retained=[annotated_track(row) for row in integrate_events(prior,detected,camera,now)]
         # Exact source filenames are discovered from cached JPEGs, not inferred.
         # Keep CCOR image review entirely separate from existing C3 media.
         frame_manifests[camera] = source_frame_manifest(cache, camera, now)
@@ -541,6 +543,9 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             "support_arm_mask":camera == "ccor1",
             "support_arm_excluded_from_prior":prior_masked,
             "support_arm_excluded_new_tracks":detected_masked,
+            "irregular_motion_review_tracks":sum(
+                row["motion_consistency"]["status"] == "IRREGULAR_MOTION"
+                for row in retained),
             "detector_hit_40_hypothesis_cap":(
                 not complete_search and search_info["stop_reason"]=="LEGACY_FIRST_40"),
             "detector_search":search_info,
@@ -564,7 +569,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "instruments":instrument_states,"tracks":tracks,
         "frame_manifests":frame_manifests,
         "review_shortlist_ids":review_shortlist(tracks),
-        "review_shortlist_policy":"CCOR1 support-arm tracks excluded; remaining tracks ranked with 4x4 spatial diversity",
+        "review_shortlist_policy":"CCOR1 arm tracks excluded; irregular-motion tracks retained only in full review; shortlist uses 4x4 spatial diversity",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }
