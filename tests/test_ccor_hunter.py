@@ -122,6 +122,30 @@ class CCORTests(unittest.TestCase):
         self.assertEqual([r["id"] for r in ch.integrate_events([bad,good],[bad],"ccor2",now)],["clear"])
         self.assertFalse(ch.track_hits_support_arm({**bad,"camera":"ccor1"}))
 
+    def test_timestamp_overlay_excludes_both_cameras(self):
+        for camera in ("ccor1","ccor2"):
+            mask=ch.timestamp_overlay_mask(camera,(512,512))
+            self.assertTrue(bool(mask[489,130]))
+            self.assertTrue(bool(mask[472,180]))
+            self.assertFalse(bool(mask[489,220]))
+            self.assertFalse(bool(mask[440,130]))
+            row={"id":"timestamp","camera":camera,"processing_shape":[512,512],
+                 "first":"2026-10-24T09:00:00Z","last":"2026-10-24T10:00:00Z",
+                 "frames":5,"vx_px_h":1,"vy_px_h":0,
+                 "x_first":135,"y_first":489,"x_last":107,"y_last":486,
+                 "points":[{"x":135,"y":489},{"x":107,"y":486}]}
+            self.assertTrue(ch.track_hits_timestamp_overlay(row))
+            now=dt.datetime(2026,10,24,12,tzinfo=dt.timezone.utc)
+            self.assertEqual(ch.integrate_events([row],[],camera,now),[])
+
+    def test_timestamp_overlay_preserves_clear_points(self):
+        row={"camera":"ccor2","processing_shape":[512,512],
+             "points":[{"x":300,"y":480},{"x":301,"y":482}]}
+        self.assertFalse(ch.track_hits_timestamp_overlay(row))
+        row2={"camera":"ccor1","processing_shape":[1024,1024],
+              "points":[{"x":270,"y":978},{"x":200,"y":970}]}
+        self.assertTrue(ch.track_hits_timestamp_overlay(row2))
+
     def test_offline_writes_no_alerts(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload=ch.run_once(Path(tmp),now=dt.datetime(2026,10,23,12,tzinfo=dt.timezone.utc),offline=True)
