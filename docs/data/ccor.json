@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-24T17:22:53Z",
+  "generated_at": "2026-10-24T17:38:20Z",
   "mode": "EXPERIMENTAL_REVIEW_ONLY",
   "automatic_email_alerts": false,
   "independently_confirmed": false,
@@ -10,7 +10,7 @@
       "new_images": 1,
       "indexed_images": 31,
       "cached_recent_frames": 19,
-      "last_frame": "2026-10-24T17:00:00Z",
+      "last_frame": "2026-10-24T17:15:00Z",
       "detected_this_cycle": 40,
       "retained_review_tracks": 100,
       "duplicate_identity_rows_in_prior_output": 0,
@@ -39,7 +39,7 @@
         "scan_completed": true,
         "stop_reason": null,
         "seed_pairs_examined": 63700,
-        "distinct_hypotheses": 65,
+        "distinct_hypotheses": 60,
         "selected_hypotheses": 40,
         "per_frame_peak_cap": 70,
         "distinct_hypothesis_budget": 5000,
@@ -53,7 +53,7 @@
       "new_images": 1,
       "indexed_images": 31,
       "cached_recent_frames": 19,
-      "last_frame": "2026-10-24T17:00:00Z",
+      "last_frame": "2026-10-24T17:15:00Z",
       "detected_this_cycle": 40,
       "retained_review_tracks": 100,
       "duplicate_identity_rows_in_prior_output": 0,
@@ -75,14 +75,14 @@
         "y_spread_px": 351.0,
         "warning": "Common detector motion is not a verified stellar identity."
       },
-      "limited_motion_review_tracks": 62,
+      "limited_motion_review_tracks": 61,
       "detector_hit_40_hypothesis_cap": false,
       "detector_search": {
         "complete_search": true,
         "scan_completed": true,
         "stop_reason": null,
-        "seed_pairs_examined": 63490,
-        "distinct_hypotheses": 61,
+        "seed_pairs_examined": 63140,
+        "distinct_hypotheses": 60,
         "selected_hypotheses": 40,
         "per_frame_peak_cap": 70,
         "distinct_hypothesis_budget": 5000,
@@ -2346,6 +2346,104 @@
       }
     },
     {
+      "id": "CCOR2-cf48e80808ec",
+      "camera": "ccor2",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-24T15:45:00Z",
+      "last": "2026-10-24T17:15:00Z",
+      "frames": 7,
+      "x_first": 300.0,
+      "y_first": 180.0,
+      "x_last": 308.0,
+      "y_last": 168.0,
+      "vx_px_h": 4.86,
+      "vy_px_h": -7.71,
+      "speed_px_h": 9.12,
+      "sunward_px_h": -9.6,
+      "rms_px": 0.99,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-24T15:45:00Z",
+          "x": 300.0,
+          "y": 180.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1545_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-24T16:00:00Z",
+          "x": 301.0,
+          "y": 178.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1600_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-24T16:15:00Z",
+          "x": 302.0,
+          "y": 178.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1615_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-24T16:30:00Z",
+          "x": 303.0,
+          "y": 175.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1630_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-24T16:45:00Z",
+          "x": 304.0,
+          "y": 174.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1645_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-24T17:00:00Z",
+          "x": 305.0,
+          "y": 171.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1700_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-24T17:15:00Z",
+          "x": 308.0,
+          "y": 168.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1715_ccor2_1024by960.jpg"
+        }
+      ],
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 5,
+        "max_kink_px": 1.5,
+        "max_velocity_change_px_h": 12.0,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "MEASURABLE_MOTION",
+        "displacement_px_512": 14.42,
+        "duration_hours": 1.5,
+        "observation_count": 7,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "background_motion": {
+        "status": "DIFFERENT_FROM_COMMON_MOTION",
+        "velocity_difference_px_h": 7.43,
+        "background_confidence": "MOTION_ONLY",
+        "note": "Co-motion suggests a star; independently verify image and catalog before identification."
+      }
+    },
+    {
       "id": "CCOR2-68c79c661ef1",
       "camera": "ccor2",
       "review_class": "UNVERIFIED_MOTION",
@@ -2436,106 +2534,10 @@
         "background_confidence": "MOTION_ONLY",
         "note": "Co-motion suggests a star; independently verify image and catalog before identification."
       }
-    },
-    {
-      "id": "CCOR2-d717093aad64",
-      "camera": "ccor2",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-24T10:45:00Z",
-      "last": "2026-10-24T14:15:00Z",
-      "frames": 6,
-      "x_first": 212.0,
-      "y_first": 156.0,
-      "x_last": 214.0,
-      "y_last": 144.0,
-      "vx_px_h": 0.39,
-      "vy_px_h": -3.78,
-      "speed_px_h": 3.8,
-      "sunward_px_h": -2.96,
-      "rms_px": 1.76,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-24T10:45:00Z",
-          "x": 212.0,
-          "y": 156.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1045_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-24T11:00:00Z",
-          "x": 212.0,
-          "y": 155.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1100_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-24T13:00:00Z",
-          "x": 212.0,
-          "y": 144.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1300_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-24T13:15:00Z",
-          "x": 212.0,
-          "y": 144.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1315_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-24T14:00:00Z",
-          "x": 213.0,
-          "y": 144.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1400_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-24T14:15:00Z",
-          "x": 214.0,
-          "y": 144.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1415_ccor2_1024by960.jpg"
-        }
-      ],
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 4,
-        "max_kink_px": 1.22,
-        "max_velocity_change_px_h": 5.5,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "MEASURABLE_MOTION",
-        "displacement_px_512": 12.17,
-        "duration_hours": 3.5,
-        "observation_count": 6,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "background_motion": {
-        "status": "DIFFERENT_FROM_COMMON_MOTION",
-        "velocity_difference_px_h": 4.82,
-        "background_confidence": "MOTION_ONLY",
-        "note": "Co-motion suggests a star; independently verify image and catalog before identification."
-      }
     }
   ],
   "frame_manifests": {
     "ccor1": [
-      {
-        "time": "2026-10-24T03:30:00Z",
-        "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261024_0330_ccor1_1024by960.jpg"
-      },
       {
         "time": "2026-10-24T03:45:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261024_0345_ccor1_1024by960.jpg"
@@ -2751,13 +2753,13 @@
       {
         "time": "2026-10-24T17:00:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261024_1700_ccor1_1024by960.jpg"
+      },
+      {
+        "time": "2026-10-24T17:15:00Z",
+        "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261024_1715_ccor1_1024by960.jpg"
       }
     ],
     "ccor2": [
-      {
-        "time": "2026-10-24T03:30:00Z",
-        "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_0330_ccor2_1024by960.jpg"
-      },
       {
         "time": "2026-10-24T03:45:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_0345_ccor2_1024by960.jpg"
@@ -2973,6 +2975,10 @@
       {
         "time": "2026-10-24T17:00:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1700_ccor2_1024by960.jpg"
+      },
+      {
+        "time": "2026-10-24T17:15:00Z",
+        "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261024_1715_ccor2_1024by960.jpg"
       }
     ]
   },
@@ -3021,14 +3027,14 @@
     "CCOR2-9c1583a31e30",
     "CCOR2-37dbf0315bd6",
     "CCOR2-0dca7327f458",
-    "CCOR2-68c79c661ef1",
-    "CCOR2-d717093aad64"
+    "CCOR2-cf48e80808ec",
+    "CCOR2-68c79c661ef1"
   ],
   "review_shortlist_policy": "Masks and measurable-motion review thresholds; tracks co-moving with independently sampled background are displayed in full diagnostics, not shortlisted; no star or comet identity is asserted",
   "temporal_overlaps_not_duplicates": [
     [
       "CCOR1-0e5b67f98e69",
-      "CCOR2-129e74c8c426"
+      "CCOR2-cf48e80808ec"
     ]
   ],
   "warning": "Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted.",
