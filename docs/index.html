@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b14">
   <title>SOHO Comet Hunter</title>
   <meta name="description" content="Live candidate dashboard for an automated SOHO comet-hunting pipeline.">
-  <link rel="stylesheet" href="./styles.css?v=20261023-hide-seen-reviews">
+  <link rel="stylesheet" href="./styles.css?v=20261024-ccor-review">
 </head>
 <body>
   <div class="stars" aria-hidden="true"></div>
@@ -119,6 +119,39 @@
         </div>
       </div>
       <div id="ccorStatus" class="realtime-source-note">CCOR hunter not yet enabled.</div>
+      <div class="ccor-controls">
+        <label for="ccorCameraFilter">Camera</label>
+        <select id="ccorCameraFilter">
+          <option value="all">Both cameras</option>
+          <option value="ccor1">CCOR1</option>
+          <option value="ccor2">CCOR2</option>
+        </select>
+        <button type="button" id="ccorAllTracks">Show all retained tracks</button>
+      </div>
+      <section id="ccorVisualViewer" class="ccor-viewer hidden" aria-label="CCOR original image review">
+        <div class="ccor-viewer-heading">
+          <h3 id="ccorReviewHeading">CCOR image inspection</h3>
+          <button type="button" id="ccorReviewClose">✕ Close</button>
+        </div>
+        <p>Original NOAA JPEG with unverified measured trajectory. Green marks are track observations; amber marks the detected point in the current frame. Image motion alone does not establish comet identity.</p>
+        <div class="ccor-review-layout">
+          <div class="ccor-image-stage">
+            <img id="ccorReviewImage" alt="Original NOAA CCOR coronagraph quicklook">
+            <svg id="ccorReviewOverlay" aria-hidden="true" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="ccor-zoom-wrap">
+            <strong>Detection zoom · 4×</strong>
+            <div id="ccorReviewZoom" class="ccor-zoom"></div>
+          </div>
+        </div>
+        <p id="ccorReviewCaption" class="ccor-caption"></p>
+        <div class="ccor-controls">
+          <button type="button" id="ccorReviewPrev">← Previous</button>
+          <button type="button" id="ccorReviewPlay">▶ Play frames</button>
+          <button type="button" id="ccorReviewNext">Next →</button>
+          <a id="ccorReviewSource" href="https://services.swpc.noaa.gov/" target="_blank" rel="noopener noreferrer">Open original NOAA JPEG ↗</a>
+        </div>
+      </section>
       <div id="ccorCandidates" class="realtime-candidates"></div>
     </section>
 
@@ -200,6 +233,6 @@
     <div id="dialogBody"></div>
   </dialog>
 
-  <script src="./app.js?v=20261023-hide-seen-reviews"></script>
+  <script src="./app.js?v=20261024-ccor-review"></script>
 </body>
 </html>

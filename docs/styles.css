@@ -1096,3 +1096,26 @@ dialog::backdrop {
   font-size: 11px;
   line-height: 1.5;
 }
+
+/* Isolated NOAA CCOR image review controls. */
+.ccor-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:14px 0; }
+.ccor-controls button, .ccor-controls select, .ccor-controls a, .ccor-inspect, .ccor-viewer-heading button {
+  border:1px solid rgba(139,177,255,.3); background:#142238; color:#dbecff;
+  border-radius:8px; padding:9px 12px; font:inherit; font-size:12px; cursor:pointer; text-decoration:none;
+}
+.ccor-inspect { margin-top:12px; width:100%; }
+.ccor-controls button:hover, .ccor-inspect:hover { border-color:#73fcd6; }
+.ccor-viewer { margin-top:15px; padding:16px; border:1px solid rgba(115,252,214,.4); border-radius:12px; background:#081523; }
+.ccor-viewer.hidden, #ccorReviewImage.hidden { display:none; }
+.ccor-viewer-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
+.ccor-viewer h3 { margin:0; color:#dbecff; font-size:16px; }
+.ccor-viewer p { color:#9db1ce; font-size:12px; line-height:1.5; }
+.ccor-review-layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(180px,1fr); gap:16px; align-items:start; }
+.ccor-image-stage { position:relative; width:100%; min-height:160px; background:#03080f; border:1px solid #344660; }
+.ccor-image-stage img { display:block; width:100%; height:auto; }
+.ccor-image-stage svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.ccor-zoom-wrap { color:#d1e2fa; text-align:center; font-size:12px; }
+.ccor-zoom { margin-top:12px; min-height:150px; display:flex; justify-content:center; align-items:center; color:#a3b7d3; }
+.ccor-zoom canvas { display:block; max-width:100%; image-rendering:pixelated; border:1px solid #435876; }
+.ccor-caption { overflow-wrap:anywhere; font-family:ui-monospace,monospace; }
+@media(max-width:740px) { .ccor-review-layout { grid-template-columns:1fr; } }

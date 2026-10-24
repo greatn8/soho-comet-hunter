@@ -50,6 +50,33 @@ class CCORTests(unittest.TestCase):
         self.assertIn("distinct",picked)
         self.assertEqual(len(set(picked)),5)
 
+    def test_manifest_uses_only_existing_cached_filenames(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            now = dt.datetime(2026, 10, 24, 6, tzinfo=dt.timezone.utc)
+            (cache / "20261024_0500_ccor1_1204by1205.jpg").write_bytes(b"test")
+            (cache / "20261024_0515_ccor2_1204by1205.jpg").write_bytes(b"test")
+            (cache / "20261023_0100_ccor1_1204by1205.jpg").write_bytes(b"test")
+            manifest = ch.source_frame_manifest(cache, "ccor1", now)
+            self.assertEqual(len(manifest), 1)
+            self.assertEqual(manifest[0]["time"], "2026-10-24T05:00:00Z")
+            self.assertEqual(
+                manifest[0]["image_url"],
+                "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261024_0500_ccor1_1204by1205.jpg"
+            )
+
+    def test_offline_manifest_is_separate_and_sends_no_alerts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            now = dt.datetime(2026, 10, 24, 6, tzinfo=dt.timezone.utc)
+            cache = project / "cache" / "ccor" / "ccor1"
+            cache.mkdir(parents=True)
+            (cache / "20261024_0500_ccor1_1204by1205.jpg").write_bytes(b"test")
+            payload = ch.run_once(project, now=now, offline=True)
+            self.assertEqual(len(payload["frame_manifests"]["ccor1"]), 1)
+            self.assertFalse(payload["automatic_email_alerts"])
+            self.assertFalse((project / "results" / "realtime").exists())
+
     def test_offline_writes_no_alerts(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload=ch.run_once(Path(tmp),now=dt.datetime(2026,10,23,12,tzinfo=dt.timezone.utc),offline=True)
