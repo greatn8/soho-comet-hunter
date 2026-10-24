@@ -20,7 +20,10 @@ const state = {
   sort: "verified",
   liveReviewVisible: 8,
   showLowSupportRealtime: false,
-  showSeenAlreadyRealtime: false
+  showSeenAlreadyRealtime: false,
+  githubLiveEmailIssues: [],
+  githubEmailLastRequested: 0,
+  githubEmailFetchPending: false
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -555,28 +558,115 @@ function sortRealtimeReviews(rows) {
 
 // GitHub Actions creates assigned issues that trigger the user's C3 emails.
 // Use the exact review_id (not a run-local C-number) as the primary identity.
-function githubEmailForReview(row, publishedIssues) {
+// Fetch the latest public GitHub issue metadata independently of the 15-minute
+// dashboard publisher. The issue created by GitHub Actions is what triggers
+// the user's email; detector alerts.tsv is NOT the email notification ledger.
+const GITHUB_C3_ISSUES_API = "https://api.github.com/repos/greatn8/soho-comet-hunter/issues?state=all&sort=created&direction=desc&per_page=100";
+const GITHUB_C3_MARKER = "<!-- SOHO_STRONG_REVIEW_ALERT ";
+const GITHUB_C3_REFRESH_MS = 5 * 60 * 1000;
+
+function parseC3GitHubAlertIssues(issues) {
+  if (!Array.isArray(issues)) return [];
+  const accepted = [];
+  for (const issue of issues) {
+    if (!issue || issue.pull_request || typeof issue.body !== "string" ||
+        !issue.body.startsWith(GITHUB_C3_MARKER)) continue;
+    const first = issue.body.split("\n", 1)[0];
+    if (!first.endsWith(" -->")) continue;
+    let data;
+    try {
+      data = JSON.parse(first.slice(GITHUB_C3_MARKER.length, -4));
+    } catch { continue; }
+    const number = Number(issue.number);
+    const candidate = String(data?.candidate || "").toUpperCase();
+    const reviewId = String(data?.review_id || "");
+    const start = String(data?.first || "");
+    const end = String(data?.last || "");
+    const timestamp = String(issue.created_at || "");
+    if (!Number.isSafeInteger(number) || number <= 0 ||
+        !/^C\d+$/.test(candidate) ||
+        !/^RT\d{8}T\d{4}_[A-Za-z0-9]+$/.test(reviewId) ||
+        !/^20\d{6}_\d{4}_c3_(?:512|1024)\.jpg$/i.test(start) ||
+        !/^20\d{6}_\d{4}_c3_(?:512|1024)\.jpg$/i.test(end) ||
+        !Number.isFinite(Date.parse(timestamp))) continue;
+    accepted.push({
+      issue_number: number,
+      issue_url: "https://github.com/greatn8/soho-comet-hunter/issues/" + number,
+      created_at: timestamp,
+      candidate,
+      review_id: reviewId,
+      first: start,
+      last: end
+    });
+  }
+  return accepted.sort((a, b) =>
+    b.created_at.localeCompare(a.created_at) || b.issue_number - a.issue_number);
+}
+
+function currentC3GitHubAlerts(payload) {
+  const published = Array.isArray(payload?.github_email_alert_issues)
+    ? payload.github_email_alert_issues : [];
+  const all = [...state.githubLiveEmailIssues, ...published];
+  const seen = new Set();
+  return all.filter(issue => {
+    const key = String(issue.review_id || "") ||
+      [issue.candidate, issue.first, issue.last].join("|");
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
+      Number(b.issue_number || 0) - Number(a.issue_number || 0));
+}
+
+function githubEmailForReview(row, issues) {
   const id = String(row?.review_id || "");
   const candidate = String(row?.candidate || "").toUpperCase();
   const first = String(row?.first || "");
   const last = String(row?.last || "");
-  return (publishedIssues || []).find(issue =>
-    id && issue.review_id ? id === String(issue.review_id) :
-      !issue.review_id && candidate === String(issue.candidate || "").toUpperCase() &&
-      first === String(issue.first || "") && last === String(issue.last || "")
+  return (issues || []).find(issue =>
+    id && issue.review_id
+      ? id === String(issue.review_id)
+      : candidate === String(issue.candidate || "").toUpperCase() &&
+        first === String(issue.first || "") && last === String(issue.last || "")
   ) || null;
 }
-function sortEmailAlertReviews(rows, publishedIssues) {
-  const latestFirst = sortRealtimeReviews(rows);
-  return latestFirst.sort((a, b) => {
-    const ea = githubEmailForReview(a, publishedIssues);
-    const eb = githubEmailForReview(b, publishedIssues);
-    if (ea && !eb) return -1;
-    if (!ea && eb) return 1;
+
+function sortEmailAlertReviews(rows, issues) {
+  return sortRealtimeReviews(rows).sort((a, b) => {
+    const ea = githubEmailForReview(a, issues);
+    const eb = githubEmailForReview(b, issues);
+    if (!!ea !== !!eb) return ea ? -1 : 1;
     if (ea && eb) return String(eb.created_at).localeCompare(String(ea.created_at)) ||
       Number(eb.issue_number) - Number(ea.issue_number);
     return 0;
   });
+}
+
+async function refreshGithubC3EmailIssues() {
+  const now = Date.now();
+  if (state.githubEmailFetchPending ||
+      now - state.githubEmailLastRequested < GITHUB_C3_REFRESH_MS) return;
+  state.githubEmailLastRequested = now;
+  state.githubEmailFetchPending = true;
+  try {
+    const response = await fetch(GITHUB_C3_ISSUES_API, {
+      cache: "no-store", headers: {Accept:"application/vnd.github+json"}
+    });
+    if (!response.ok) throw new Error("GitHub API HTTP " + response.status);
+    const raw = await response.json();
+    if (!Array.isArray(raw)) throw new Error("Unexpected GitHub issues response");
+    state.githubLiveEmailIssues = parseC3GitHubAlertIssues(raw);
+    if (state.realtime?.available) {
+      renderRealtime(state.realtime);
+      if (c3HashTarget()) c3TryHashTarget(state.realtime);
+    }
+  } catch (error) {
+    // Public GitHub API can occasionally be rate-limited. Retain the
+    // publisher snapshot and allow direct candidate-ID / review-ID lookup.
+    console.warn("Latest GitHub C3 email alerts unavailable:", error);
+  } finally {
+    state.githubEmailFetchPending = false;
+  }
 }
 
 function c3ReviewKey(row) {
@@ -723,31 +813,32 @@ function renderRealtime(payload) {
     ? payload.review_candidates
     : currentRows;
   const { primary, diagnostics } = realtimeReviewGroups(reviewRows);
-  const githubIssues = Array.isArray(payload.github_email_alert_issues) ?
-    payload.github_email_alert_issues : [];
+  const githubIssues = currentC3GitHubAlerts(payload);
   // Keep an alerted candidate accessible even if an older classification
   // would otherwise put it in the diagnostics or previously-seen filter.
-  const recentAlerts = Array.isArray(payload.recent_alerts) ? payload.recent_alerts : [];
-  const recentKeys = new Set(recentAlerts.filter(a => a.candidate && a.first && a.last)
-    .map(a => [a.candidate, a.first, a.last].join("|")));
-  const latestAlertId = String(latestAlert.match(/(?:^|\\n)Candidate:\\s*(C\\d+)/i)?.[1] || "").toUpperCase();
-  const latestAlertRow = reviewRows.find(row => String(row.candidate || "").toUpperCase() === latestAlertId &&
+  // A C3 candidate number may be reused; for email prioritization require
+  // the exact issue review ID. The most recent email issue gets first place.
+  const latestAlertId = String(latestAlert.match(/(?:^|\n)Candidate:\s*(C\d+)/i)?.[1] || "").toUpperCase();
+  const latestAlertRow = reviewRows.find(row =>
+    String(row.candidate || "").toUpperCase() === latestAlertId &&
     String(row.review_class || "").toUpperCase() === "STRONG_REVIEW");
-  const emailRows = reviewRows.filter(row => githubEmailForReview(row, githubIssues) ||
-    (row.candidate && recentKeys.has([row.candidate,row.first,row.last].join("|"))));
+  const emailRows = reviewRows.filter(row => githubEmailForReview(row, githubIssues));
   const quickNav = $("#realtimeEmailQuickNav");
   if (quickNav) {
-    const top = [...emailRows].sort((a,b) => {
-      const ia=githubEmailForReview(a,githubIssues),ib=githubEmailForReview(b,githubIssues);
-      return String(ib?.created_at || "").localeCompare(String(ia?.created_at || ""));
-    }).slice(0,8);
+    const top = sortEmailAlertReviews(emailRows, githubIssues).slice(0, 8);
     quickNav.classList.toggle("hidden", !top.length);
-    quickNav.innerHTML = top.length ? '<strong>Recent C3 email-alert reviews</strong><div class="c3-email-chip-row">' +
-      top.map(row => '<button type="button" class="c3-email-chip" data-c3-jump="' +
-      escapeHtml(row.review_id || row.candidate) + '">' + escapeHtml(row.candidate) + '</button>').join("") +
-      '</div>' : "";
+    quickNav.innerHTML = top.length
+      ? '<strong>Recent C3 email-alert reviews</strong><div class="c3-email-chip-row">' +
+        top.map(row => {
+          const issue = githubEmailForReview(row, githubIssues);
+          return '<button type="button" class="c3-email-chip" data-c3-jump="' +
+            escapeHtml(row.review_id || row.candidate) + '" title="GitHub alert #' +
+            escapeHtml(issue?.issue_number || "") + '">' +
+            escapeHtml(row.candidate) + '</button>';
+        }).join("") + '</div>'
+      : "";
     quickNav.querySelectorAll("[data-c3-jump]").forEach(button =>
-      button.addEventListener("click",() => c3OpenReview(button.dataset.c3Jump,payload)));
+      button.addEventListener("click", () => c3OpenReview(button.dataset.c3Jump, payload)));
   }
 
   const seenCount = primary.filter(c => normalizeClass(c.status) === "SEEN_ALREADY").length;
@@ -762,7 +853,7 @@ function renderRealtime(payload) {
   const baseRows = state.showLowSupportRealtime
     ? [...visiblePrimary, ...diagnostics]
     : [...visiblePrimary, ...currentDiagnosticPreviews];
-  const rowsToDisplay = [...(latestAlertRow ? [latestAlertRow] : []), ...emailRows, ...baseRows.filter(row =>
+  const rowsToDisplay = [...emailRows, ...(latestAlertRow ? [latestAlertRow] : []), ...baseRows.filter(row =>
     !emailRows.some(alerted => (alerted.review_id && alerted.review_id === row.review_id) ||
       (!alerted.review_id && alerted.candidate === row.candidate &&
        alerted.first === row.first && alerted.last === row.last)))];
@@ -810,7 +901,10 @@ function renderRealtime(payload) {
   // Keep newest-first ordering among the reviews currently shown.
   // Repeated detections can be revealed without changing stored reviews.
   const ordered = sortEmailAlertReviews([...new Map(rowsToDisplay.map(row => [c3ReviewKey(row),row])).values()], githubIssues);
-  if (latestAlertRow) ordered.sort((a,b) => (c3ReviewKey(a) === c3ReviewKey(latestAlertRow) ? -1 : c3ReviewKey(b) === c3ReviewKey(latestAlertRow) ? 1 : 0));
+  // Fallback when the GitHub issue has not yet appeared. Never override a
+  // newer, positively identified email notification with an older text alert.
+  if (latestAlertRow && !emailRows.length)
+    ordered.sort((a,b) => (c3ReviewKey(a) === c3ReviewKey(latestAlertRow) ? -1 : c3ReviewKey(b) === c3ReviewKey(latestAlertRow) ? 1 : 0));
 
   const visible = Math.min(state.liveReviewVisible || 8, ordered.length);
   const more = visible < ordered.length
@@ -845,6 +939,7 @@ async function refreshRealtime() {
     const payload = await response.json();
     renderRealtime(payload);
     if (c3HashTarget()) c3TryHashTarget(payload);
+    refreshGithubC3EmailIssues();
   } catch (error) {
     console.warn("Realtime refresh failed:", error);
   }
@@ -869,6 +964,7 @@ async function loadData() {
     state.candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
     renderRealtime(realtime);
     if (c3HashTarget()) c3TryHashTarget(realtime);
+    refreshGithubC3EmailIssues();
 
     $("#demoBanner").classList.toggle("hidden", !payload.demo);
     $("#candidateCount").textContent = state.candidates.length;
