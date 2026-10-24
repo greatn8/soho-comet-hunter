@@ -42,9 +42,11 @@ class CCORTests(unittest.TestCase):
         common={"camera":"ccor1","first":"2026-10-23T10:00:00Z",
                 "last":"2026-10-23T11:00:00Z","frames":5,"rms_px":0.8,
                 "processing_shape":[512,512]}
-        crowded=[{**common,"id":f"crowded-{i}","x_first":150,"y_first":420}
+        crowded=[{**common,"id":f"crowded-{i}","x_first":150,"y_first":420,
+                  "x_last":162,"y_last":420}
                  for i in range(10)]
-        distinct={**common,"id":"distinct","x_first":430,"y_first":120}
+        distinct={**common,"id":"distinct","x_first":430,"y_first":120,
+                  "x_last":442,"y_last":120}
         picked=ch.review_shortlist(crowded+[distinct],limit_per_camera=5)
         self.assertEqual(len(picked),5)
         self.assertIn("distinct",picked)
