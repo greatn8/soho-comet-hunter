@@ -77,6 +77,30 @@ class CCORTests(unittest.TestCase):
             self.assertFalse(payload["automatic_email_alerts"])
             self.assertFalse((project / "results" / "realtime").exists())
 
+    def test_ccor1_support_arm_mask_rejects_known_edge_points(self):
+        for x, y in ((180, 375), (192, 349), (168, 393), (175, 410)):
+            self.assertTrue(bool(ch.support_arm_mask("ccor1", (512,512))[y,x]))
+        for x, y in ((60, 80), (450, 160), (390, 390)):
+            self.assertFalse(bool(ch.support_arm_mask("ccor1", (512,512))[y,x]))
+        self.assertFalse(ch.support_arm_mask("ccor2",(512,512)).any())
+
+    def test_ccor1_arm_track_removed_from_retained_history(self):
+        now=dt.datetime(2026,10,24,12,tzinfo=dt.timezone.utc)
+        common={"camera":"ccor1","first":"2026-10-24T09:00:00Z",
+                "last":"2026-10-24T10:00:00Z","frames":5,
+                "processing_shape":[512,512],"vx_px_h":1,"vy_px_h":0}
+        arm={**common,"id":"arm","x_first":192,"y_first":349,
+             "x_last":190,"y_last":353,
+             "points":[{"x":192,"y":349},{"x":190,"y":353}]}
+        clear={**common,"id":"clear","x_first":420,"y_first":100,
+               "x_last":425,"y_last":100,
+               "points":[{"x":420,"y":100},{"x":425,"y":100}]}
+        rows=ch.integrate_events([arm,clear],[arm],"ccor1",now)
+        self.assertEqual([r["id"] for r in rows],["clear"])
+        self.assertTrue(ch.track_hits_support_arm(arm))
+        self.assertFalse(ch.track_hits_support_arm(clear))
+        self.assertFalse(ch.track_hits_support_arm({**arm,"camera":"ccor2"}))
+
     def test_offline_writes_no_alerts(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload=ch.run_once(Path(tmp),now=dt.datetime(2026,10,23,12,tzinfo=dt.timezone.utc),offline=True)
