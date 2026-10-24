@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b14">
   <title>SOHO Comet Hunter</title>
   <meta name="description" content="Live candidate dashboard for an automated SOHO comet-hunting pipeline.">
-  <link rel="stylesheet" href="./styles.css?v=20261024-ccor-no-scroll">
+  <link rel="stylesheet" href="./styles.css?v=20261024-c3-email-deeplink-v1">
 </head>
 <body>
   <div class="stars" aria-hidden="true"></div>
@@ -107,6 +107,13 @@
       </figure>
 
       <div id="realtimeAlertBox" class="realtime-alert hidden"></div>
+      <div id="realtimeEmailQuickNav" class="c3-email-quick-nav hidden"></div>
+      <form id="realtimeFindForm" class="c3-find-form">
+        <label for="realtimeFindId">Jump directly to C3 candidate</label>
+        <input id="realtimeFindId" type="search" placeholder="e.g. C0120406" autocomplete="off" maxlength="32">
+        <button type="submit">Inspect candidate</button>
+        <span id="realtimeFindStatus" role="status" aria-live="polite"></span>
+      </form>
       <div id="realtimeCandidates" class="realtime-candidates"></div>
     </section>
 
@@ -246,6 +253,6 @@
     <div id="dialogBody"></div>
   </dialog>
 
-  <script src="./app.js?v=20261024-ccor-no-scroll"></script>
+  <script src="./app.js?v=20261024-c3-email-deeplink-v1"></script>
 </body>
 </html>
