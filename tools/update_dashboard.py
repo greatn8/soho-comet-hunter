@@ -9,6 +9,7 @@ import re
 import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 VIDEO_PREFERENCE = (
     "zoom_annotated.mp4",
@@ -982,6 +983,96 @@ def update_realtime_html_fallback(data_dir):
         print(f"[OK] Embedded latest realtime frame in dashboard HTML: {frame}")
 
 
+GITHUB_C3_ISSUES_URL = (
+    "https://api.github.com/repos/greatn8/soho-comet-hunter/issues"
+    "?state=all&sort=created&direction=desc&per_page=100"
+)
+GITHUB_C3_ALERT_MARKER = "<!-- SOHO_STRONG_REVIEW_ALERT "
+GITHUB_C3_REVIEW_RE = re.compile(r"^RT\\d{8}T\\d{4}_[A-Za-z0-9]+$")
+GITHUB_C3_FRAME_RE = re.compile(r"^20\\d{6}_\\d{4}_c3_(?:512|1024)\\.jpg$", re.I)
+
+
+def normalize_github_email_issues(issues):
+    """Only original GitHub issue notifications with stable review identity."""
+    output = []
+    seen = set()
+    for issue in issues:
+        if not isinstance(issue, dict) or "pull_request" in issue:
+            continue
+        body = issue.get("body")
+        if not isinstance(body, str) or not body.startswith(GITHUB_C3_ALERT_MARKER):
+            continue
+        line = body.split("\\n", 1)[0]
+        if not line.endswith(" -->"):
+            continue
+        try:
+            metadata = json.loads(line[len(GITHUB_C3_ALERT_MARKER):-4])
+            number = int(issue["number"])
+            candidate = str(metadata.get("candidate") or "")
+            review_id = str(metadata.get("review_id") or "")
+            first = str(metadata.get("first") or "")
+            last = str(metadata.get("last") or "")
+            created = str(issue.get("created_at") or "")
+            datetime.fromisoformat(created.replace("Z", "+00:00"))
+        except (ValueError, KeyError, TypeError, AttributeError):
+            continue
+        if not re.fullmatch(r"C\\d+", candidate, re.I):
+            continue
+        if not GITHUB_C3_FRAME_RE.fullmatch(first) or not GITHUB_C3_FRAME_RE.fullmatch(last):
+            continue
+        if review_id and not GITHUB_C3_REVIEW_RE.fullmatch(review_id):
+            continue
+        if not review_id and (candidate, first, last) in seen:
+            continue
+        key = ("id", review_id) if review_id else ("event", candidate, first, last)
+        if key in seen:
+            continue
+        seen.add(key)
+        output.append({
+            "issue_number": number, "issue_url":
+                f"https://github.com/greatn8/soho-comet-hunter/issues/{number}",
+            "created_at": created, "candidate": candidate.upper(),
+            "review_id": review_id, "first": first, "last": last,
+        })
+    output.sort(key=lambda row: (row["created_at"], row["issue_number"]), reverse=True)
+    return output[:150]
+
+
+def load_github_email_issues(previous, fetch=None):
+    """Read GitHub Actions notification issues without accessing any email inbox.
+
+    Preserve the last verified snapshot on HTTP errors, timeouts or malformed
+    responses. A missing issue is not evidence that no email was received.
+    """
+    prior = previous.get("github_email_alert_issues", [])
+    if not isinstance(prior, list):
+        prior = []
+    try:
+        if fetch is None:
+            def fetch(url):
+                request = Request(url, headers={
+                    "User-Agent": "SOHO-Comet-Hunter-Dashboard/1.0",
+                    "Accept": "application/vnd.github+json",
+                })
+                with urlopen(request, timeout=12) as response:
+                    return json.load(response)
+        pages = []
+        # The newest 200 issues are sufficient for the bounded realtime review.
+        for page in (1, 2):
+            response = fetch(GITHUB_C3_ISSUES_URL + f"&page={page}")
+            if not isinstance(response, list):
+                raise ValueError("Unexpected GitHub issue response")
+            pages.extend(response)
+            if len(response) < 100:
+                break
+        if not pages:
+            raise ValueError("Empty GitHub issue response")
+        return normalize_github_email_issues(pages)
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        print(f"[WARN] GitHub email-issue index unavailable; retaining last snapshot: {exc}")
+        return prior
+
+
 def publish_realtime_data(realtime_source, data_dir, age_hours=48):
     output = data_dir / "realtime.json"
 
@@ -1317,6 +1408,7 @@ def publish_realtime_data(realtime_source, data_dir, age_hours=48):
         "known_matches_lifetime_total": len(all_known),
         "view_reset_at": reset_at.isoformat().replace("+00:00", "Z") if reset_at else None,
         "latest_alert": latest_alert,
+        "github_email_alert_issues": load_github_email_issues(previous_payload),
         "latest_candidates": latest_candidates[:50],
         "review_candidates": review_candidates,
         "review_retention_limit": LIVE_MEDIA_LIMIT,
