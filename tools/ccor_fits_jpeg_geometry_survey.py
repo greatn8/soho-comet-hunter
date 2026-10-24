@@ -142,6 +142,8 @@ def run_case(case, fits_root, jpeg_root, output_root, make_images=True):
     jpegs = source_manifest(case, jpeg_root)
     for entry in jpegs:
         entry["meta"] = validate_jpeg(entry["path"])
+        with Image.open(entry["path"]) as img:
+            entry["dimensions_xy"] = list(img.size)
     frames = []
     rows = []
     for path in fits_paths:
@@ -168,7 +170,7 @@ def run_case(case, fits_root, jpeg_root, output_root, make_images=True):
                 round((frame["timestamp"] - matched["time"]).total_seconds(), 2)
                 if matched else None
             ),
-            "matched_jpeg_shape_xy": matched["meta"]["size"] if matched else None,
+            "matched_jpeg_shape_xy": matched["dimensions_xy"] if matched else None,
             "matched_jpeg_sha256": matched["meta"]["sha256"] if matched else None,
             "fullframe_sheet": None,
         }
