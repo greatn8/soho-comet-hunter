@@ -820,6 +820,7 @@ let ccorFrameIndex = 0;
 let ccorPlayback = null;
 let ccorShowAll = false;
 let ccorCamera = "all";
+let ccorVisibleTracks = [];
 
 function ccorFrameEntries(track) {
   const camera = track.camera;
@@ -842,7 +843,10 @@ function ccorClose() {
   if (ccorPlayback) clearInterval(ccorPlayback);
   ccorPlayback = null;
   ccorCurrent = null;
-  document.getElementById("ccorVisualViewer")?.classList.add("hidden");
+  const dialog = document.getElementById("ccorVisualViewer");
+  if (dialog?.open) dialog.close();
+  const play = document.getElementById("ccorReviewPlay");
+  if (play) play.textContent = "▶ Play";
 }
 
 function ccorDraw() {
@@ -854,12 +858,15 @@ function ccorDraw() {
   const caption = document.getElementById("ccorReviewCaption");
   if (!image || !overlay || !zoom || !caption) return;
   if (!entries.length) {
+    document.getElementById("ccorFramePosition").textContent = "No frames";
     image.removeAttribute("src"); image.classList.add("hidden");
     overlay.innerHTML = ""; zoom.innerHTML = "";
     caption.textContent = "No matching original NOAA JPEG images in the retained frame manifest. Older tracks may have expired from the source cache.";
     return;
   }
   ccorFrameIndex = (ccorFrameIndex + entries.length) % entries.length;
+  document.getElementById("ccorFramePosition").textContent =
+    "Frame " + (ccorFrameIndex + 1) + " / " + entries.length;
   const entry = entries[ccorFrameIndex];
   const p = entry.point;
   const shape = ccorCurrent.processing_shape || [512,512];
@@ -928,17 +935,29 @@ function ccorOpen(id) {
   ccorCurrent = row;
   ccorFrameIndex = 0;
   const viewer = document.getElementById("ccorVisualViewer");
-  viewer.classList.remove("hidden");
+  if (!viewer.open) viewer.showModal();
+  ccorUpdateCandidatePosition();
   document.getElementById("ccorReviewHeading").textContent = row.id + " — " + row.camera.toUpperCase();
-  viewer.scrollIntoView({behavior: "smooth", block: "start"});
   ccorDraw();
+}
+function ccorUpdateCandidatePosition() {
+  const index = ccorVisibleTracks.findIndex(row => row.id === ccorCurrent?.id);
+  document.getElementById("ccorCandidatePosition").textContent =
+    index >= 0 ? "Candidate " + (index + 1) + " / " + ccorVisibleTracks.length :
+    "Candidate not in current filter";
+}
+function ccorCandidateStep(shift) {
+  if (!ccorVisibleTracks.length) return;
+  const index = ccorVisibleTracks.findIndex(row => row.id === ccorCurrent?.id);
+  const next = (Math.max(index, 0) + shift + ccorVisibleTracks.length) % ccorVisibleTracks.length;
+  ccorOpen(ccorVisibleTracks[next].id);
 }
 function ccorStep(shift) { ccorFrameIndex += shift; ccorDraw(); }
 function ccorTogglePlay() {
   const button = document.getElementById("ccorReviewPlay");
   if (ccorPlayback) {
     clearInterval(ccorPlayback); ccorPlayback = null;
-    button.textContent = "▶ Play frames";
+    button.textContent = "▶ Play";
   } else {
     ccorPlayback = setInterval(() => ccorStep(1), 700);
     button.textContent = "⏸ Pause";
@@ -953,6 +972,8 @@ function ccorRenderCards() {
     : tracks.slice(0, 24);
   const selected = (ccorShowAll ? tracks : shortlisted)
     .filter(t => ccorCamera === "all" || t.camera === ccorCamera);
+  ccorVisibleTracks = selected;
+  if (ccorCurrent) ccorUpdateCandidatePosition();
   box.innerHTML = selected.map(t =>
     '<article class="realtime-candidate">' +
     '<div class="realtime-candidate-top"><strong>' + escapeHtml(t.id) +
@@ -1005,5 +1026,23 @@ document.getElementById("ccorReviewClose")?.addEventListener("click", ccorClose)
 document.getElementById("ccorReviewPrev")?.addEventListener("click", () => ccorStep(-1));
 document.getElementById("ccorReviewNext")?.addEventListener("click", () => ccorStep(1));
 document.getElementById("ccorReviewPlay")?.addEventListener("click", ccorTogglePlay);
+document.getElementById("ccorCandidatePrev")?.addEventListener("click", () => ccorCandidateStep(-1));
+document.getElementById("ccorCandidateNext")?.addEventListener("click", () => ccorCandidateStep(1));
+document.getElementById("ccorVisualViewer")?.addEventListener("close", () => {
+  if (ccorPlayback) clearInterval(ccorPlayback);
+  ccorPlayback = null;
+  ccorCurrent = null;
+  document.getElementById("ccorReviewPlay").textContent = "▶ Play";
+});
+document.addEventListener("keydown", event => {
+  const dialog = document.getElementById("ccorVisualViewer");
+  if (!dialog?.open || event.altKey || event.ctrlKey || event.metaKey ||
+      ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+  if (event.key === "ArrowLeft") { event.preventDefault(); ccorStep(-1); }
+  else if (event.key === "ArrowRight") { event.preventDefault(); ccorStep(1); }
+  else if (event.key === "ArrowUp") { event.preventDefault(); ccorCandidateStep(-1); }
+  else if (event.key === "ArrowDown") { event.preventDefault(); ccorCandidateStep(1); }
+  else if (event.code === "Space") { event.preventDefault(); ccorTogglePlay(); }
+});
 refreshCCOR();
 setInterval(refreshCCOR, 60 * 1000);
