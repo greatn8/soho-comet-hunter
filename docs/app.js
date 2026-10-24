@@ -431,7 +431,7 @@ function realtimeStatusClass(payload) {
   return ageMinutes <= 45 ? "live" : "stale";
 }
 
-function realtimeCandidateCard(c) {
+function realtimeCandidateCard(c, emailIssue = null) {
   const status = String(c.status || "UNKNOWN").toUpperCase();
   let media = "";
   if (c.review_video) {
@@ -467,8 +467,15 @@ function realtimeCandidateCard(c) {
       ? "live-known"
       : "live-seen";
 
+  const emailMarker = emailIssue
+    ? '<div class="c3-email-alert-label">✉ GitHub email alert · ' +
+        escapeHtml(formatDate(emailIssue.created_at)) + ' · <a href="' +
+        escapeHtml(emailIssue.issue_url) +
+        '" target="_blank" rel="noopener">View GitHub issue #' +
+        escapeHtml(emailIssue.issue_number) + '</a></div>'
+    : '';
   return `
-    <article class="realtime-candidate ${statusClass}">
+    <article class="realtime-candidate ${statusClass} ${emailIssue ? "c3-email-alerted" : ""}">${emailMarker}
       <div class="realtime-candidate-top">
         <strong>${escapeHtml(c.candidate || "Candidate")}</strong>
         <span>${escapeHtml(prettyClass(status))}</span>
@@ -544,6 +551,32 @@ function sortRealtimeReviews(rows) {
     (statusRank[String(a.status || "").toUpperCase()] ?? 9) -
       (statusRank[String(b.status || "").toUpperCase()] ?? 9)
   );
+}
+
+// GitHub Actions creates assigned issues that trigger the user's C3 emails.
+// Use the exact review_id (not a run-local C-number) as the primary identity.
+function githubEmailForReview(row, publishedIssues) {
+  const id = String(row?.review_id || "");
+  const candidate = String(row?.candidate || "").toUpperCase();
+  const first = String(row?.first || "");
+  const last = String(row?.last || "");
+  return (publishedIssues || []).find(issue =>
+    id && issue.review_id ? id === String(issue.review_id) :
+      !issue.review_id && candidate === String(issue.candidate || "").toUpperCase() &&
+      first === String(issue.first || "") && last === String(issue.last || "")
+  ) || null;
+}
+function sortEmailAlertReviews(rows, publishedIssues) {
+  const latestFirst = sortRealtimeReviews(rows);
+  return latestFirst.sort((a, b) => {
+    const ea = githubEmailForReview(a, publishedIssues);
+    const eb = githubEmailForReview(b, publishedIssues);
+    if (ea && !eb) return -1;
+    if (!ea && eb) return 1;
+    if (ea && eb) return String(eb.created_at).localeCompare(String(ea.created_at)) ||
+      Number(eb.issue_number) - Number(ea.issue_number);
+    return 0;
+  });
 }
 
 function renderRealtime(payload) {
@@ -649,6 +682,12 @@ function renderRealtime(payload) {
     ? payload.review_candidates
     : currentRows;
   const { primary, diagnostics } = realtimeReviewGroups(reviewRows);
+  const githubIssues = Array.isArray(payload.github_email_alert_issues) ?
+    payload.github_email_alert_issues : [];
+  // Keep an alerted candidate accessible even if an older classification
+  // would otherwise put it in the diagnostics or previously-seen filter.
+  const emailRows = reviewRows.filter(row => githubEmailForReview(row, githubIssues));
+
   const seenCount = primary.filter(c => normalizeClass(c.status) === "SEEN_ALREADY").length;
   const visiblePrimary = visiblePrimaryReviews(primary, state.showSeenAlreadyRealtime);
   // Never leave an active discovery dashboard visually empty when the only
@@ -658,9 +697,13 @@ function renderRealtime(payload) {
   const currentDiagnosticPreviews = !state.showLowSupportRealtime && !primary.length
     ? currentRows.filter(isRealtimeDiagnosticOnly).slice(0, 3)
     : [];
-  const rowsToDisplay = state.showLowSupportRealtime
+  const baseRows = state.showLowSupportRealtime
     ? [...visiblePrimary, ...diagnostics]
     : [...visiblePrimary, ...currentDiagnosticPreviews];
+  const rowsToDisplay = [...emailRows, ...baseRows.filter(row =>
+    !emailRows.some(alerted => (alerted.review_id && alerted.review_id === row.review_id) ||
+      (!alerted.review_id && alerted.candidate === row.candidate &&
+       alerted.first === row.first && alerted.last === row.last)))];
   const diagnosticNotice = currentDiagnosticPreviews.length
     ? '<div class="realtime-empty"><strong>No evidence-supported candidates in the published review set.</strong> Showing ' +
       currentDiagnosticPreviews.length +
@@ -704,7 +747,7 @@ function renderRealtime(payload) {
 
   // Keep newest-first ordering among the reviews currently shown.
   // Repeated detections can be revealed without changing stored reviews.
-  const ordered = sortRealtimeReviews(rowsToDisplay);
+  const ordered = sortEmailAlertReviews(rowsToDisplay, githubIssues);
 
   const visible = Math.min(state.liveReviewVisible || 8, ordered.length);
   const more = visible < ordered.length
@@ -713,7 +756,7 @@ function renderRealtime(payload) {
 
   candidatesEl.innerHTML =
     diagnosticNotice + seenControls +
-    ordered.slice(0, visible).map(realtimeCandidateCard).join("") +
+    ordered.slice(0, visible).map(row => realtimeCandidateCard(row, githubEmailForReview(row, githubIssues))).join("") +
     more + diagnosticControls;
 
   attachPreviouslySeenToggle(payload);
