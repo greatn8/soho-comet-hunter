@@ -101,6 +101,27 @@ class CCORTests(unittest.TestCase):
         self.assertFalse(ch.track_hits_support_arm(clear))
         self.assertFalse(ch.track_hits_support_arm({**arm,"camera":"ccor2"}))
 
+    def test_ccor2_support_arm_tracks_excluded_and_other_regions_retained(self):
+        mask=ch.support_arm_mask("ccor2",(512,512))
+        for x,y in ((253,153),(246,173),(234,149),(250,72)):
+            self.assertTrue(bool(mask[y,x]),(x,y))
+        for x,y in ((115,300),(360,305),(420,100)):
+            self.assertFalse(bool(mask[y,x]),(x,y))
+        base={"camera":"ccor2","processing_shape":[512,512],
+              "first":"2026-10-24T09:00:00Z","last":"2026-10-24T10:00:00Z",
+              "frames":5,"vx_px_h":1,"vy_px_h":0}
+        bad={**base,"id":"arm","x_first":246,"y_first":173,
+             "x_last":233,"y_last":148,
+             "points":[{"x":246,"y":173},{"x":233,"y":148}]}
+        good={**base,"id":"clear","x_first":360,"y_first":305,
+              "x_last":363,"y_last":307,
+              "points":[{"x":360,"y":305},{"x":363,"y":307}]}
+        self.assertTrue(ch.track_hits_support_arm(bad))
+        self.assertFalse(ch.track_hits_support_arm(good))
+        now=dt.datetime(2026,10,24,12,tzinfo=dt.timezone.utc)
+        self.assertEqual([r["id"] for r in ch.integrate_events([bad,good],[bad],"ccor2",now)],["clear"])
+        self.assertFalse(ch.track_hits_support_arm({**bad,"camera":"ccor1"}))
+
     def test_offline_writes_no_alerts(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload=ch.run_once(Path(tmp),now=dt.datetime(2026,10,23,12,tzinfo=dt.timezone.utc),offline=True)
