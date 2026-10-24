@@ -1,5 +1,5 @@
 """48h realtime retention keeps known objects, confirmed comets and historical records."""
-import json,sys,tempfile,unittest
+import json,sys,tempfile,unittest,subprocess
 from pathlib import Path
 import datetime as dt
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
@@ -36,4 +36,32 @@ class Retention(unittest.TestCase):
    self.assertEqual([x["id"] for x in b["candidates"]],[historical["id"],known["id"]])
    self.assertFalse((docs/"media/realtime_archive/RT20261020T1200ABC/zoom_contact_sheet.jpg").exists())
    self.assertTrue((docs/"media/realtime_archive/RT20261020T1200DEF/zoom_contact_sheet.jpg").exists())
+
+ def test_sparse_git_index_preserves_known_media(self):
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td);docs=root/"docs";(docs/"data").mkdir(parents=True)
+   old=row("RT20261020T1200_ABC")
+   known=row("RT20261020T1200_DEF","KNOWN_REPORT")
+   (docs/"data/realtime_archive.json").write_text(json.dumps({"candidates":[old,known]}))
+   (docs/"data/candidates.json").write_text(json.dumps({"candidates":[old,known]}))
+   paths=[]
+   for ident in ("RT20261020T1200ABC","RT20261020T1200DEF"):
+    directory=docs/"media/realtime_archive"/ident;directory.mkdir(parents=True)
+    file=directory/"zoom_annotated.mp4";file.write_bytes(b"media")
+    paths.append(file)
+   subprocess.run(["git","init","-q",str(root)],check=True)
+   subprocess.run(["git","-C",str(root),"config","user.email","test@example.com"],check=True)
+   subprocess.run(["git","-C",str(root),"config","user.name","Tester"],check=True)
+   subprocess.run(["git","-C",str(root),"add","-A"],check=True)
+   subprocess.run(["git","-C",str(root),"commit","-qm","fixture"],check=True)
+   subprocess.run(["git","-C",str(root),"sparse-checkout","set","--no-cone",
+                   "/*","!/*/","/docs/","!/docs/media/"],check=True)
+   self.assertFalse(paths[0].exists())
+   self.assertFalse(paths[1].exists())
+   p.execute(docs,apply=True,now=NOW)
+   subprocess.run(["git","-C",str(root),"add","-A","--sparse","docs"],check=True)
+   changed=subprocess.check_output(["git","-C",str(root),"diff","--cached","--name-status"],text=True)
+   self.assertIn("RT20261020T1200ABC/zoom_annotated.mp4",changed)
+   self.assertNotIn("RT20261020T1200DEF/zoom_annotated.mp4",changed)
+
 if __name__=="__main__":unittest.main()
