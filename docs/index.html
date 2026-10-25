@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b14">
   <title>SOHO Comet Hunter</title>
   <meta name="description" content="Live candidate dashboard for an automated SOHO comet-hunting pipeline.">
-  <link rel="stylesheet" href="./styles.css?v=20261025-ccor-recent-no-background">
+  <link rel="stylesheet" href="./styles.css?v=20261025-ccor-frame-evidence-fix">
 </head>
 <body>
   <div class="stars" aria-hidden="true"></div>
@@ -152,6 +152,7 @@
               <button type="button" id="ccorCandidateNext" title="Next candidate (↓)">Candidate →</button>
             </div>
             <div class="ccor-navigation-group">
+              <button type="button" id="ccorFrameMode">Include intermediate frames</button>
               <button type="button" id="ccorReviewPrev" title="Previous image (←)">← Frame</button>
               <strong id="ccorFramePosition" aria-live="polite">Frame 1 / 1</strong>
               <button type="button" id="ccorReviewPlay" title="Play or pause (Space)">▶ Play</button>
@@ -159,6 +160,7 @@
             </div>
           </div>
         </div>
+        <p id="ccorReviewFrameEvidence" class="ccor-evidence-label" role="status">MEASURED PEAK IN THIS FRAME</p>
         <p class="ccor-review-help">Original NOAA frames: green shows the proposed motion track; amber marks a measured point in this frame. These are unverified detections, not confirmed comets.</p>
         <div class="ccor-review-layout">
           <div class="ccor-image-stage">
