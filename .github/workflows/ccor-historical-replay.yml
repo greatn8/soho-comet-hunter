@@ -1,0 +1,49 @@
+name: Historical CCOR reported-candidate recovery replay
+on:
+  pull_request:
+    paths:
+      - 'tools/benchmark_ccor_reported_comets.py'
+      - '.github/workflows/ccor-historical-replay.yml'
+  workflow_dispatch:
+jobs:
+  historical_replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install imaging dependencies
+        run: python -m pip install numpy pillow
+      - name: Replay reported CCOR1 and CCOR2 events
+        run: |
+          set +e
+          PYTHONPATH=tools python tools/benchmark_ccor_reported_comets.py --execute --output historical_ccor_replay.json
+          result=$?
+          echo "Benchmark exit status: $result (old imagery may not remain on NOAA feeds)"
+          if [ -f historical_ccor_replay.json ]; then
+            python -m json.tool historical_ccor_replay.json > /dev/null
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("historical_ccor_replay.json").read_text())
+          for item in r["cases"]:
+              p=item.get("replay",{})
+              print(item["case"],"frames indexed:",item.get("listed_frames"),
+                    "loaded:",p.get("loaded_frames"),
+                    "status:",p.get("status"),
+                    "eligible tracks:",p.get("pipeline_eligible_tracks"),
+                    "calibrated recovery:",p.get("recovered_at_configured_tolerance"))
+              print("Retrieval/report error:",item.get("error") or p.get("download_errors",[])[:3])
+          PY
+          fi
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ccor-20261022-historical-replay
+          path: historical_ccor_replay.json
+          if-no-files-found: warn
