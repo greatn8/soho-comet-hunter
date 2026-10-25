@@ -17,9 +17,13 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install numpy pillow astropy
+      - name: Download bounded historical native FITS frames
+        run: |
+          mkdir -p native_fits_audit
+          PYTHONPATH=tools python tools/fetch_ccor_reference_fits.py --output-dir native_fits_audit/frames --context 0 --max-files 8 || true
       - name: Historical FITS frame evidence
         run: |
-          PYTHONPATH=tools python tools/ccor_native_fits_audit.py --output-dir native_fits_audit
+          PYTHONPATH=tools python tools/ccor_native_fits_audit.py --input-dir native_fits_audit/frames --output native_fits_audit/report.json || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
