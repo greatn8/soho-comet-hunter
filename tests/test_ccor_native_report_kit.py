@@ -13,9 +13,9 @@ import datetime as dt
 
 class NativeReportTests(unittest.TestCase):
  def test_exact_geometry_and_valid_png(self):
-  arr=np.zeros(kit.SHAPE,dtype=float)
+  yy,xx=np.ogrid[:1920,:2048]
+  arr=((xx+yy)/1000.0).astype(float)
   arr[800,1300]=100.0
-  arr[200:300,200:300]=2.0
   im=kit.native_preview(arr)
   self.assertEqual(im.size,(2048,1920))
   self.assertGreater(im.getpixel((1300,800)),im.getpixel((200,200)))
@@ -26,7 +26,8 @@ class NativeReportTests(unittest.TestCase):
    for i in range(3):
     p=fits/(f"CCOR1_1B_20261022T12{i*15:02d}25_V00_NC.fits")
     p.write_bytes(f"FITS-TEST-{i}".encode());paths.append(p)
-   arr=np.zeros(kit.SHAPE,float);arr[100:150,100:150]=50.0
+   yy,xx=np.ogrid[:1920,:2048]
+  arr=((xx+yy)/1000.0).astype(float);arr[100:150,100:150]=50.0
    def fake_load(path):
     i=paths.index(path)
     return {"array":arr,"camera":"ccor1","timestamp":dt.datetime(2026,10,22,12,i*15,25,tzinfo=dt.timezone.utc),
