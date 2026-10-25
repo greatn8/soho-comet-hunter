@@ -24,7 +24,11 @@ class CCORGlobalRankTests(unittest.TestCase):
   global_tracks,stats=hunter.track_points(frames,times,size,"ccor2",complete_search=True,return_diagnostics=True)
   all_tracks,offline_stats=offline.scan_without_early_return(frames,times,size,"ccor2")
   self.assertTrue(stats["scan_completed"])
-  self.assertEqual(global_tracks,sorted(all_tracks,key=hunter.track_quality,reverse=True)[:40])
+  # Complete search now checks pixel and continuity evidence before top 40.
+  # Strip per-track diagnostics when comparing the underlying hypotheses.
+  self.assertEqual(
+      [{k:v for k,v in row.items() if not k.startswith("precap_")} for row in global_tracks],
+      sorted(all_tracks,key=hunter.track_quality,reverse=True)[:40])
   self.assertEqual(stats["distinct_hypotheses"],len(all_tracks))
  def test_legacy_first40_preserved_and_complete_can_pick_later(self):
   rng=np.random.default_rng(22)
