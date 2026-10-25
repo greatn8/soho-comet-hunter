@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import math
+from bright_streak_review import bright_streak_review_evidence
 import os
 from pathlib import Path
 
@@ -29,6 +30,8 @@ def eligibility(row, *, reports_ok, now, max_age_minutes=90):
         problems.append("TOO_FEW_TRACKED_FRAMES")
     if row.get("trajectory_warning"):
         problems.append("INCONSISTENT_TRAJECTORY")
+    if row.get("bright_streak_review",{}).get("status")=="LIKELY_STREAK_ARTIFACT":
+        problems.append("BRIGHT_PLANET_STREAK")
     if row.get("edge_review",{}).get("status")=="BORDER_CONFINED":
         problems.append("BORDER_CONFINED")
     if row.get("star_field",{}).get("status")=="STAR_LIKE":
@@ -114,6 +117,8 @@ def process_early_tracks(raw_candidates, frames, results_dir, args, run_id, hunt
             c["pixel_verification"]=pixel
             c["review_class"]=review_class
             c["edge_review"]=hunter.edge_review_evidence(c)
+            c["bright_streak_review"]=bright_streak_review_evidence(
+                c,frames,gray_cache,hunter.pixel_verify._decode_gray,args.resolution)
             supported.append(c)
         except Exception:
             continue
@@ -143,6 +148,7 @@ def process_early_tracks(raw_candidates, frames, results_dir, args, run_id, hunt
             "pixel_verification":c.get("pixel_verification",{}),
             "star_field":c.get("star_field",{}),
             "edge_review":c.get("edge_review",{}),
+            "bright_streak_review":c.get("bright_streak_review",{}),
             "trajectory_warning":c.get("trajectory_warning",""),
             "report_id":match["report_id"] if match else "",
             "report_check_status":"CHECKED_RECENT_LIST" if reports_ok else "UNAVAILABLE",
