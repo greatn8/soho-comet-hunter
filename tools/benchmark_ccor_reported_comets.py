@@ -19,6 +19,9 @@ from pathlib import Path
 from PIL import Image
 
 import ccor_hunter as ch
+from ccor_review_evidence import assess as evidence_assess
+from ccor_field_rim import outer_rim_mask, track_rim_evidence
+import numpy as np
 
 UTC = dt.timezone.utc
 CASES = {
@@ -163,10 +166,41 @@ def replay(case, plan_result, calibration=None, max_frames=28):
         if len(frames)<6:
             outcome["status"]="INSUFFICIENT_IMAGES"
             return outcome
-        found=ch.track_points(frames,times,sizes,case["camera"])
+        found,diag=ch.track_points(
+            frames,times,sizes,case["camera"],complete_search=True,
+            return_diagnostics=True)
         outcome["status"]="DETECTOR_REPLAY_COMPLETE"
         outcome["tracks_generated"]=len(found)
+        outcome["search_diagnostics"]=diag
         outcome["hit_40_track_cap"]=len(found)==40
+        available=[ch.iso(t) for t in times]
+        by_time={ch.iso(t):image for t,image in zip(times,frames)}
+        median=np.median(np.stack(frames),axis=0)
+        rims={ch.iso(t):outer_rim_mask(image) for t,image in zip(times,frames)}
+        rejection_counts={}
+        decisions=[]
+        for track in found:
+            validation=evidence_assess(track,available,by_time,median)
+            rim=track_rim_evidence(track,rims)
+            motion=ch.annotated_track(track).get("motion_consistency",{})
+            stage=ch.early_motion_review(track)
+            failures=[]
+            if validation["status"]!="PASS": failures.append("CONTINUITY_OR_PIXELS")
+            if rim["status"]=="BOUNDARY_CONTACT": failures.append("FIELD_RIM")
+            if motion.get("status")=="IRREGULAR_MOTION": failures.append("IRREGULAR_MOTION")
+            if stage not in ("EARLY","ESTABLISHED"): failures.append("INSUFFICIENT_MOTION")
+            for reason in failures:
+                rejection_counts[reason]=rejection_counts.get(reason,0)+1
+            decisions.append({"track_id":track["id"],"first":track["first"],
+                "last":track["last"],"frames":track["frames"],
+                "review_stage":stage,"motion":motion,
+                "validation":validation,"field_rim":rim,
+                "shortlist_eligible":not failures,"rejection_reasons":failures})
+        outcome["pipeline_rejection_counts"]=rejection_counts
+        outcome["pipeline_eligible_tracks"]=sum(x["shortlist_eligible"] for x in decisions)
+        outcome["track_diagnostics"]=decisions
+        outcome["report_time_coverage_only"] = plan_result["report_times_covered"]
+        outcome["note"]="A track in this time window is NOT a confirmed recovery without independently calibrated report-to-JPEG registration."
         outcome["tracks_with_4_frames"]=sum(t["frames"]==4 for t in found)
         outcome["tracks_with_5plus_frames"]=sum(t["frames"]>=5 for t in found)
         outcome["sample_track_ids"]=[x["id"] for x in found[:12]]
