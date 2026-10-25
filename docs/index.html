@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b14">
   <title>SOHO Comet Hunter</title>
   <meta name="description" content="Live candidate dashboard for an automated SOHO comet-hunting pipeline.">
-  <link rel="stylesheet" href="./styles.css?v=20261025-ccor-frame-evidence-fix">
+  <link rel="stylesheet" href="./styles.css?v=20261026-source-pixels">
 </head>
 <body>
   <div class="stars" aria-hidden="true"></div>
@@ -162,10 +162,16 @@
         </div>
         <p id="ccorReviewFrameEvidence" class="ccor-evidence-label" role="status">MEASURED PEAK IN THIS FRAME</p>
         <p class="ccor-review-help">Original NOAA frames: green shows the proposed motion track; amber marks a measured point in this frame. These are unverified detections, not confirmed comets.</p>
+        <div class="ccor-controls">
+          <button type="button" id="ccorReportMark" aria-pressed="false">Mark positions: off</button>
+          <strong id="ccorReportCount">0 frames marked</strong>
+          <span id="ccorReportCursor" role="status">Open a candidate to measure source pixels.</span>
+        </div>
         <div class="ccor-review-layout">
           <div class="ccor-image-stage">
             <img id="ccorReviewImage" alt="Original NOAA CCOR coronagraph quicklook">
             <svg id="ccorReviewOverlay" aria-hidden="true" preserveAspectRatio="none"></svg>
+            <svg id="ccorReportOverlay" aria-hidden="true" preserveAspectRatio="none"></svg>
           </div>
           <div class="ccor-zoom-wrap">
             <strong>Detection zoom · 4×</strong>
@@ -173,6 +179,19 @@
           </div>
         </div>
         <p id="ccorReviewCaption" class="ccor-caption"></p>
+        <details id="ccorReportPanel" class="ccor-report-panel" open>
+          <summary>Report coordinates</summary>
+          <p>Turn on Mark positions, then click the same object in at least three frames. Pink marks your selected pixel. Coordinates use the actual original NOAA JPEG size and Upper Left (0,0), including any image borders.</p>
+          <ol id="ccorReportPositions"></ol>
+          <div class="ccor-controls">
+            <button type="button" id="ccorReportCopy" disabled>Copy report</button>
+            <button type="button" id="ccorReportDownload" disabled>Download report</button>
+            <button type="button" id="ccorReportJSON" disabled>Download measurements</button>
+            <a href="https://sungrazer.nrl.navy.mil/report" target="_blank" rel="noopener noreferrer">Open Sungrazer report form ↗</a>
+          </div>
+          <p id="ccorReportStatus" role="status">Mark only a source you can see. Detector markers are not automatically used as report positions.</p>
+          <textarea id="ccorReportText" aria-label="Report coordinates and source images" readonly rows="7"></textarea>
+        </details>
         <div class="ccor-controls">
           <a id="ccorReviewSource" href="https://services.swpc.noaa.gov/" target="_blank" rel="noopener noreferrer">Open original NOAA JPEG ↗</a>
           <small>Keyboard: ← / → frames · ↑ / ↓ candidates · Space play/pause · Esc close</small>
@@ -259,6 +278,9 @@
     <div id="dialogBody"></div>
   </dialog>
 
-  <script src="./app.js?v=20261025-ccor-shortlist-only"></script>
+  <script src="./ccor-coordinates.js?v=20261026-source-pixels"></script>
+  <script src="./ccor-report-ui.js?v=20261026-source-pixels"></script>
+  <script src="./app.js?v=20261026-source-pixels"></script>
 </body>
 </html>
+

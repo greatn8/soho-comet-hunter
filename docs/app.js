@@ -1099,6 +1099,7 @@ function ccorDraw() {
   const evidence = document.getElementById("ccorReviewFrameEvidence");
   const allEntries = ccorFrameEntries(ccorCurrent, true);
   if (!image || !overlay || !zoom || !caption) return;
+  window.CCORReportUI?.pending(ccorCurrent);
   if (!entries.length) {
     document.getElementById("ccorFramePosition").textContent = "No frames";
     image.removeAttribute("src"); image.classList.add("hidden");
@@ -1111,6 +1112,8 @@ function ccorDraw() {
   document.getElementById("ccorFramePosition").textContent =
     "Frame " + (ccorFrameIndex + 1) + " / " + entries.length;
   const entry = entries[ccorFrameIndex];
+  const reportTrack = ccorCurrent;
+  const expectedImageURL = new URL(entry.image_url, window.location.href).href;
   const p = entry.point;
   if (evidence) {
     evidence.textContent = p ? "MEASURED PEAK IN THIS FRAME" :
@@ -1134,8 +1137,10 @@ function ccorDraw() {
     circles + marker;
   image.classList.remove("hidden");
   image.onload = () => {
+    if (!ccorCurrent || ccorCurrent.id !== reportTrack.id || image.currentSrc !== expectedImageURL) return;
     const srcw = image.naturalWidth, srch = image.naturalHeight;
     if (!srcw || !srch) return;
+    window.CCORReportUI?.ready(reportTrack, entry, image);
     // CSS object is fully contained in the same aspect-ratio box as overlay.
     const sameAspect = Math.abs(srcw / srch - w / h) < 0.02;
     overlay.style.display = sameAspect ? "block" : "none";
@@ -1172,11 +1177,13 @@ function ccorDraw() {
         ctx.beginPath(); ctx.arc(zx,zy,13,0,Math.PI*2); ctx.stroke();
       }
       zoom.appendChild(cropCanvas);
+      window.CCORReportUI?.setZoom(cropCanvas, {x:viewX*sx,y:viewY*sy,width:crop*sx,height:crop*sy});
     } catch (error) {
       zoom.textContent = "Zoom unavailable (cross-origin NOAA image).";
     }
   };
   image.onerror = () => {
+    window.CCORReportUI?.unavailable();
     overlay.innerHTML = ""; zoom.innerHTML = "";
     caption.textContent = "NOAA image not available: " + entry.time +
       ". Remote JPEGs can expire; this does not invalidate the stored track measurements.";
@@ -1358,3 +1365,11 @@ document.getElementById("realtimeFindForm")?.addEventListener("submit", event =>
   c3OpenReview(document.getElementById("realtimeFindId").value);
 });
 window.addEventListener("hashchange", () => { if(state.realtime) c3TryHashTarget(state.realtime); });
+
+
+// Marking a source requires a still frame; never record against advancing playback.
+document.addEventListener("ccor-report-measure", () => {
+  if (ccorPlayback) clearInterval(ccorPlayback);
+  ccorPlayback = null;
+  document.getElementById("ccorReviewPlay").textContent = "▶ Play";
+});
