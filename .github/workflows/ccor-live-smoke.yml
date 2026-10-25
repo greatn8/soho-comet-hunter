@@ -20,7 +20,9 @@ jobs:
           python - <<'PY'
           import datetime as dt, io
           from PIL import Image
-          from tools.ccor_hunter import discover,get
+          import sys
+sys.path.insert(0, 'tools')
+from ccor_hunter import discover,get
           now=dt.datetime.now(dt.timezone.utc)
           for camera in ("ccor1","ccor2"):
               items,errors=discover(camera,now,lookback_hours=168)
