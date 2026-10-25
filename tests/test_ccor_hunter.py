@@ -56,6 +56,9 @@ class CCORTests(unittest.TestCase):
         base={"camera":"ccor1","first":"2026-10-24T09:00:00Z",
               "last":"2026-10-24T12:00:00Z","frames":10,
               "rms_px":0.5,"processing_shape":[512,512],
+              # Shortlisting now requires independent cached-frame pixel evidence.
+              # This fixture tests recency AFTER that validation has passed.
+              "review_validation":{"status":"PASS"},
               "x_first":100,"y_first":100,"x_last":110,"y_last":100}
         older={**base,"id":"older"}
         recent={**base,"id":"recent","first":"2026-10-24T12:15:00Z",
@@ -65,6 +68,11 @@ class CCORTests(unittest.TestCase):
         self.assertEqual(ch.early_motion_review(recent),"EARLY")
         self.assertIn("recent",ch.review_shortlist([older,recent],limit_per_camera=2))
         self.assertEqual(ch.review_shortlist([older,recent],limit_per_camera=2)[0],"recent")
+        # A recent track with missing/failed pixel evidence is NOT eligible.
+        invalid={**recent,"review_validation":{"status":"FAIL"}}
+        self.assertNotIn("recent",ch.review_shortlist([older,invalid],limit_per_camera=2))
+        unknown={**recent,"review_validation":{"status":"UNASSESSABLE"}}
+        self.assertNotIn("recent",ch.review_shortlist([older,unknown],limit_per_camera=2))
 
     def test_too_little_motion_still_not_shortlisted(self):
         base={"camera":"ccor2","id":"tiny","first":"2026-10-24T10:00:00Z",
