@@ -17,6 +17,7 @@ from track_evidence import audit_track_frames, position_at
 from star_field import annotate_star_field
 from image_star_motion import build_reference, evidence_for_velocity
 from edge_review import edge_review_evidence
+from bright_streak_review import bright_streak_review_evidence
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
@@ -1091,6 +1092,22 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
     log(f"1024 edge-parity triage: downgraded {edge_downgraded} border-confined "
         "strong review events; all detections preserved.")
 
+    # Planet saturation streaks can create false pixel-verified moving tracks.
+    # Inspect the actual cached image per frame; downgrade only persistent
+    # streak adjacency. Preserve diagnostics and all source hypotheses.
+    streak_downgraded=0
+    for c in event_representatives:
+        c["bright_streak_review"]=bright_streak_review_evidence(
+            c,frames,gray_cache,pixel_verify._decode_gray,args.resolution)
+        if (c.get("review_class")=="STRONG_REVIEW" and
+                c["bright_streak_review"]["status"]=="LIKELY_STREAK_ARTIFACT"):
+            c["review_class"]="SECONDARY"
+            c["bright_streak_review_downgraded"]=True
+            streak_downgraded+=1
+    if streak_downgraded:
+        log(f"Bright horizontal streak triage: downgraded {streak_downgraded} "
+            "high-priority C3 review(s), preserved all tracks and clips.")
+
     # Compare independent pixel-supported tracks to find shared star motion.
     # Keep raw hypotheses and videos; only star-like strong alerts are triaged.
     annotate_star_field(event_representatives)
@@ -1178,6 +1195,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         "image_star_motion_downgraded":0,
         "star_field_review_downgraded":star_like_count,
         "edge_review_downgraded":edge_downgraded,
+        "bright_streak_review_downgraded":streak_downgraded,
         "temporal_motion_measured":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("status")=="MEASURED" for c in event_representatives),
         "temporal_motion_supported":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("supported",0) >= 3 for c in event_representatives),
         "pixel_rejected_events":len(rejected_representatives),
@@ -1286,6 +1304,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "star_field":c.get("star_field",{}),
             "image_star_motion":c.get("image_star_motion",{}),
             "edge_review":c.get("edge_review",{}),
+            "bright_streak_review":c.get("bright_streak_review",{}),
             "event_group":c.get("event_group"),
             "members":c.get("event_members",1),
             "member_ids":c.get("event_member_ids",[c["cid"]]),
@@ -1347,6 +1366,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "star_field":c.get("star_field",{}),
             "image_star_motion":c.get("image_star_motion",{}),
             "edge_review":c.get("edge_review",{}),
+            "bright_streak_review":c.get("bright_streak_review",{}),
             "first":c["first"]["file"],
             "last":c["last"]["file"],
             "frames":c["frames"],
