@@ -2,6 +2,13 @@ name: Realtime review integrity
 on:
   push:
     branches: [main, 'fix/realtime-review-integrity-*']
+    # The 15-minute dashboard publisher only changes generated observations
+    # and media. Running all 220+ regression tests on each data-only commit
+    # creates redundant workflow runs and failure email floods.
+    # Code/config/test changes still trigger the full test suite.
+    paths-ignore:
+      - 'docs/data/**'
+      - 'docs/media/**'
   pull_request:
 jobs:
   test:
