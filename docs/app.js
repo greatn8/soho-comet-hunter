@@ -483,6 +483,7 @@ function realtimeCandidateCard(c, emailIssue = null) {
         <strong>${escapeHtml(c.candidate || "Candidate")}</strong>
         <span>${escapeHtml(prettyClass(status))}</span>
       </div>
+      
       <div class="realtime-observed-times">
         <span>First seen <strong>${escapeHtml(realtimeFrameUtc(c.first))}</strong></span>
         <span>Last seen <strong>${escapeHtml(realtimeFrameUtc(c.last))}</strong></span>
