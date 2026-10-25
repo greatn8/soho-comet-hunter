@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from live_review import ensure_live_review
+from c3_candidate_ids import allocate_candidate_ids
 from early_c3_review import process_early_tracks
 import pixel_verify
 from pixel_verify import classify_for_review, verify_track_pixels, verify_temporal_motion
@@ -935,12 +936,15 @@ def run_multiscale_cuda(project, frames, results_dir, args, run_id, cache_dir):
             raise RuntimeError(f"CUDA {window_hours}h pass failed ({proc.returncode}); "
                                f"see {log_path}. Newest frame not marked complete.")
         parsed=parse_candidates(proc.stdout)
-        for c in parsed:
+        # A CUDA number is reused every pass. Preserve it only as a
+        # diagnostic and reserve durable new identities before downstream
+        # review, early alerts, event grouping and result publication.
+        identities = allocate_candidate_ids(project, len(parsed))
+        for c, identity in zip(parsed, identities):
             c["source_window_hours"]=window_hours
             c["source_candidate_id"]=c["cid"]
-            # CUDA C01 etc. is scoped to one pass. Keep global IDs numeric
-            # so dashboard and alert format continue to work unchanged.
-            c["cid"]=f"C{window_hours:03d}{int(c['cid'][1:]):04d}"
+            c["legacy_run_local_candidate_id"]=f"C{window_hours:03d}{int(c['cid'][1:]):04d}"
+            c["cid"]=identity
         # Independent early assessment, before long CUDA passes.
         # Opt-in marker persists across watchdog recovery. Never block C3.
         if window_hours==args.search_windows[0] and (project/"state"/"realtime_early_review_enabled").is_file():
