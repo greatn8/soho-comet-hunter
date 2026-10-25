@@ -20,7 +20,6 @@ from urllib.request import Request, urlopen
 
 import numpy as np
 from ccor_motion_consistency import annotated_track
-from ccor_background_motion import estimate_common_motion, annotate_background_motion
 from PIL import Image
 
 BASE = "https://services.swpc.noaa.gov/products"
@@ -538,36 +537,86 @@ def review_motion_evidence(row):
     }
 
 
+# Earlier stages are valuable for timely manual review. They are not
+# confirmed comets, and early reviews are less reliable than mature tracks.
+EARLY_MIN_FRAMES = 4
+EARLY_MIN_HOURS = .75
+EARLY_MIN_DISPLACEMENT_PX_512 = 4.0
+EARLY_MAX_RMS_PX = 1.5
+
+
+def early_motion_review(row):
+    """Separate early-evidence eligibility from established motion evidence."""
+    established = review_motion_evidence(row)
+    if established["status"] == "MEASURABLE_MOTION":
+        return "ESTABLISHED"
+    if established["status"] == "UNASSESSABLE":
+        return "INSUFFICIENT"
+    try:
+        displacement = established["displacement_px_512"]
+        hours = established["duration_hours"]
+        frames = established["observation_count"]
+        rms = float(row["rms_px"])
+        if (displacement >= EARLY_MIN_DISPLACEMENT_PX_512 and
+                hours >= EARLY_MIN_HOURS and frames >= EARLY_MIN_FRAMES and
+                math.isfinite(rms) and 0 <= rms <= EARLY_MAX_RMS_PX):
+            return "EARLY"
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return "INSUFFICIENT"
+    return "INSUFFICIENT"
+
+
 def review_shortlist(tracks, limit_per_camera=12):
-    """Balanced display priority only; preserve ALL other stored hypotheses."""
-    selected=[]
+    """Mix freshly appearing tracks with strong mature tracks for timely review.
+
+    This is display-only: retain every non-masked hypothesis locally. Fill up
+    to half the quota from newest acceptable tracks, the remainder by quality.
+    Apply spatial diversity with a fallback if too few distinct cells exist.
+    """
+    selected = []
     for camera in CAMERAS:
-        rows=sorted((r for r in tracks if r.get("camera")==camera and
-                     (r.get("motion_consistency") or {}).get("status") != "IRREGULAR_MOTION"
-                     and review_motion_evidence(r)["status"] == "MEASURABLE_MOTION"
-                     and (r.get("background_motion") or {}).get("status") != "LIKELY_BACKGROUND_STAR_MOTION"),
-                    key=track_quality,reverse=True)
-        chosen=[]
-        counts={}
-        for row in rows:
-            shape=row.get("processing_shape") or [512,512]
+        rows = [r for r in tracks if r.get("camera") == camera
+                and (r.get("motion_consistency") or {}).get("status") != "IRREGULAR_MOTION"
+                and early_motion_review(r) in ("EARLY", "ESTABLISHED")]
+        newest = sorted(rows, key=lambda r: (
+            r.get("last", ""), r.get("first", ""), track_quality(r)), reverse=True)
+        strongest = sorted(rows, key=lambda r: (
+            early_motion_review(r) == "ESTABLISHED", track_quality(r),
+            r.get("last", "")), reverse=True)
+
+        chosen, counts, seen = [], {}, set()
+
+        def add(row, relaxed=False):
+            ident = row.get("id")
+            if not ident or ident in seen or len(chosen) >= limit_per_camera:
+                return False
+            shape = row.get("processing_shape") or [512,512]
             try:
-                column=min(3,max(0,int(4*float(row["x_first"])/float(shape[0]))))
-                quadrant=min(3,max(0,int(4*float(row["y_first"])/float(shape[1]))))
-                cell=(column,quadrant)
-            except (KeyError,TypeError,ValueError,ZeroDivisionError):
-                cell=(-1,-1)
-            if counts.get(cell,0)>=2:
-                continue
+                column = min(3, max(0, int(4*float(row["x_first"])/float(shape[0]))))
+                quadrant = min(3, max(0, int(4*float(row["y_first"])/float(shape[1]))))
+                cell = (column, quadrant)
+            except (KeyError, TypeError, ValueError, ZeroDivisionError, IndexError):
+                cell = (-1,-1)
+            if not relaxed and counts.get(cell,0) >= 2:
+                return False
+            seen.add(ident)
             chosen.append(row)
-            counts[cell]=counts.get(cell,0)+1
-            if len(chosen)>=limit_per_camera:
+            counts[cell] = counts.get(cell,0)+1
+            return True
+
+        # A selection with 12 slots reserves 6 for recent arrivals. Do not
+        # demote new candidates behind many hours of older high-frame tracks.
+        recent_quota = (limit_per_camera + 1) // 2
+        for row in newest:
+            if len(chosen) >= recent_quota:
                 break
-        if len(chosen)<limit_per_camera:
-            ids={r["id"] for r in chosen}
-            chosen.extend(r for r in rows if r.get("id") not in ids
-                          and len(chosen)<limit_per_camera)
-        selected.extend(r["id"] for r in chosen)
+            add(row)
+        for row in strongest:
+            add(row)
+        # Fill remaining slots from recent evidence if spatial cells are full.
+        for row in newest:
+            add(row, relaxed=True)
+        selected.extend(row["id"] for row in chosen)
     return selected
 
 
@@ -621,7 +670,6 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
     instrument_states = {}
     frame_manifests = {}
     tracks = []
-    common_background_motion = {}
     for camera in CAMERAS:
         cache=project/"cache"/"ccor"/camera
         errors=[]
@@ -671,9 +719,11 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         retained=[annotated_track(row) for row in integrate_events(prior,detected,camera,now)]
         for track in retained:
             track["review_motion_evidence"] = review_motion_evidence(track)
-        common = estimate_common_motion(retained, camera)
-        common_background_motion[camera] = common or {"status":"INSUFFICIENT_INDEPENDENT_REFERENCE_TRACKS"}
-        retained = annotate_background_motion(retained, camera, common)
+            track["review_stage"] = early_motion_review(track)
+        # Remove legacy background-motion classifications from older saved
+        # reviews. Star-field co-motion was not independently calibrated.
+        for track in retained:
+            track.pop("background_motion", None)
         # Exact source filenames are discovered from cached JPEGs, not inferred.
         # Keep CCOR image review entirely separate from existing C3 media.
         frame_manifests[camera] = source_frame_manifest(cache, camera, now)
@@ -702,10 +752,6 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             "irregular_motion_review_tracks":sum(
                 row["motion_consistency"]["status"] == "IRREGULAR_MOTION"
                 for row in retained),
-            "likely_background_star_motion_tracks":sum(
-                row["background_motion"]["status"] == "LIKELY_BACKGROUND_STAR_MOTION"
-                for row in retained),
-            "background_motion_consensus":common_background_motion[camera],
             "limited_motion_review_tracks":sum(
                 row["review_motion_evidence"]["status"] != "MEASURABLE_MOTION"
                 for row in retained),
@@ -731,9 +777,8 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "independently_confirmed":False,
         "instruments":instrument_states,"tracks":tracks,
         "frame_manifests":frame_manifests,
-        "common_background_motion":common_background_motion,
         "review_shortlist_ids":review_shortlist(tracks),
-        "review_shortlist_policy":"Masks and measurable-motion review thresholds; tracks co-moving with independently sampled background are displayed in full diagnostics, not shortlisted; no star or comet identity is asserted",
+        "review_shortlist_policy":"Camera mask and trajectory screening; recent early (>=4 frames, >=45min, >=4px) and established (>=5 frames, >=90min, >=6px) candidates prioritised by recency and independent evidence; no background-star motion comparison",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }

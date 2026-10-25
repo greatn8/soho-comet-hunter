@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b14">
   <title>SOHO Comet Hunter</title>
   <meta name="description" content="Live candidate dashboard for an automated SOHO comet-hunting pipeline.">
-  <link rel="stylesheet" href="./styles.css?v=20261025-c3-all-email-reviews">
+  <link rel="stylesheet" href="./styles.css?v=20261025-ccor-recent-no-background">
 </head>
 <body>
   <div class="stars" aria-hidden="true"></div>
@@ -132,6 +132,11 @@
           <option value="all">Both cameras</option>
           <option value="ccor1">CCOR1</option>
           <option value="ccor2">CCOR2</option>
+        </select>
+        <label for="ccorSortOrder">Order</label>
+        <select id="ccorSortOrder">
+          <option value="newest">Newest observed first</option>
+          <option value="evidence">Most observations first</option>
         </select>
       </div>
       <dialog id="ccorVisualViewer" class="ccor-viewer" aria-label="CCOR image and candidate review">
