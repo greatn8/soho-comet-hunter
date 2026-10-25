@@ -46,6 +46,7 @@ def sample_case(name,output,fetch=hunter.get):
             "coordinate_calibration":"NOT_CALIBRATED",
             "hypotheses":{},"contact_sheet":None}
     if len(frames)<6:
+        print(name,"SOURCE_IMAGE_ERRORS",errors[:4],flush=True)
         return result
     baseline=np.median(np.stack(list(frames.values())),axis=0)
     columns=len(ORIENTATIONS)
@@ -112,6 +113,7 @@ def main():
         print(name,":",result["loaded"],"frames; orientation evidence:",
               {k:str(v["point_peak_passed"])+"/"+str(v["tested"])
                for k,v in result["hypotheses"].items()},flush=True)
+    args.output_dir.mkdir(parents=True,exist_ok=True)
     target=args.output_dir/"geometry_diagnostics.json"
     target.write_text(json.dumps(report,indent=2)+"\n")
     print("Report:",target,flush=True)
