@@ -1,0 +1,25 @@
+name: CCOR dashboard source coordinates
+on:
+  pull_request:
+    paths:
+      - 'docs/app.js'
+      - 'docs/index.html'
+      - 'docs/styles.css'
+      - 'docs/ccor-*.js'
+      - 'tests/test_ccor_coordinates.cjs'
+      - 'tests/test_ccor_report_browser.cjs'
+      - '.github/workflows/ccor-dashboard-coordinates.yml'
+  workflow_dispatch:
+jobs:
+  source_coordinates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/test_ccor_coordinates.cjs
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/test_ccor_report_browser.cjs
