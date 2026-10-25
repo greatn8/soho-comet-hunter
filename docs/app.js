@@ -1255,6 +1255,8 @@ function ccorRenderCards() {
     '</strong><span>UNVERIFIED / ' + escapeHtml(t.camera.toUpperCase()) + '</span></div>' +
     (t.review_motion_evidence?.status === "LIMITED_MOTION_EVIDENCE" ?
       '<div class="realtime-media-missing">Limited motion evidence: short displacement, duration, or too few observations. Full review only.</div>' : '') +
+    (t.review_validation?.status === "PASS" ?
+      '<div class="ccor-evidence-pass">Frame continuity and source-pixel checks passed (not a confirmed comet).</div>' : '') +
     (t.review_stage === "EARLY" ?
       '<div class="realtime-media-missing">Early candidate — shorter motion history; verify original frames carefully.</div>' : '') +
     (t.motion_consistency?.status === "IRREGULAR_MOTION" ?
@@ -1263,6 +1265,12 @@ function ccorRenderCards() {
     '<div class="realtime-candidate-meta"><div><span>First</span><strong>' + escapeHtml(t.first) +
     '</strong></div><div><span>Last</span><strong>' + escapeHtml(t.last) +
     '</strong></div><div><span>Frames</span><strong>' + escapeHtml(t.frames) +
+    '</strong></div><div><span>Frames with detections</span><strong>' +
+    escapeHtml((t.review_validation?.continuity?.matched ?? "—") + " / " +
+      (t.review_validation?.continuity?.available ?? "—")) +
+    '</strong></div><div><span>Pixel evidence</span><strong>' +
+    escapeHtml((t.review_validation?.pixels?.passed ?? "—") + " / " +
+      (t.review_validation?.pixels?.evaluated ?? "—")) +
     '</strong></div><div><span>Review stage</span><strong>' +
     escapeHtml(t.review_stage || "UNVERIFIED") +
     '</strong></div><div><span>Movement (px / 512)</span><strong>' +

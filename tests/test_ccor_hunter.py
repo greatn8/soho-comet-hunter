@@ -41,7 +41,7 @@ class CCORTests(unittest.TestCase):
     def test_review_shortlist_keeps_spatially_distinct_track(self):
         common={"camera":"ccor1","first":"2026-10-23T10:00:00Z",
                 "last":"2026-10-23T11:00:00Z","frames":5,"rms_px":0.8,
-                "processing_shape":[512,512]}
+                "processing_shape":[512,512],"review_validation":{"status":"PASS"}}
         crowded=[{**common,"id":f"crowded-{i}","x_first":150,"y_first":420,
                   "x_last":162,"y_last":420}
                  for i in range(10)]
@@ -78,7 +78,7 @@ class CCORTests(unittest.TestCase):
         now=dt.datetime(2026,10,24,12,tzinfo=dt.timezone.utc)
         base={"camera":"ccor1","first":"2026-10-24T09:00:00Z",
               "last":"2026-10-24T12:00:00Z","frames":8,"rms_px":0.3,
-              "processing_shape":[512,512]}
+              "processing_shape":[512,512],"review_validation":{"status":"PASS"}}
         tiny={**base,"id":"tiny","x_first":100,"y_first":100,
               "x_last":103,"y_last":100}
         moving={**base,"id":"moving","x_first":340,"y_first":240,
@@ -98,7 +98,7 @@ class CCORTests(unittest.TestCase):
     def test_normalized_displacement_and_irregular_veto(self):
         base={"camera":"ccor1","first":"2026-10-24T09:00:00Z",
               "last":"2026-10-24T12:00:00Z","frames":8,
-              "rms_px":0.3,"processing_shape":[1024,1024],
+              "rms_px":0.3,"processing_shape":[1024,1024],"review_validation":{"status":"PASS"},
               "x_first":300,"y_first":300,"x_last":318,"y_last":300}
         self.assertEqual(ch.review_motion_evidence(base)["displacement_px_512"],9)
         self.assertEqual(ch.review_motion_evidence(base)["status"],"MEASURABLE_MOTION")
@@ -201,7 +201,7 @@ class CCORTests(unittest.TestCase):
         row={"camera":"ccor2","processing_shape":[512,512],
              "points":[{"x":300,"y":480},{"x":301,"y":482}]}
         self.assertFalse(ch.track_hits_timestamp_overlay(row))
-        row2={"camera":"ccor1","processing_shape":[1024,1024],
+        row2={"camera":"ccor1","processing_shape":[1024,1024],"review_validation":{"status":"PASS"},
               "points":[{"x":270,"y":978},{"x":200,"y":970}]}
         self.assertTrue(ch.track_hits_timestamp_overlay(row2))
 
