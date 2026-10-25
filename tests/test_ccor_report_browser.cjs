@@ -15,6 +15,7 @@ server=http.createServer((req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 const context=await browser.newContext({viewport:{width:1200,height:900}}),page=await context.newPage();
+const expected=[];
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.route('https://services.swpc.noaa.gov/**',async route=>{
 const svg='<svg xmlns="http://www.w3.org/2000/svg" width="1204" height="1205"><rect width="1204" height="1205" fill="#222"/><circle cx="600" cy="700" r="3" fill="white"/></svg>';
@@ -30,16 +31,31 @@ for(let i=0;i<3;i++){
  const pos=await page.locator('#ccorReviewImage').evaluate(img=>{
  const r=img.getBoundingClientRect(),scale=Math.min(r.width/img.naturalWidth,r.height/img.naturalHeight);
  return {x:r.left+(r.width-img.naturalWidth*scale)/2+600.5*scale,y:r.top+(r.height-img.naturalHeight*scale)/2+700.5*scale};});
+ await page.evaluate(()=>document.getElementById('ccorReviewImage').addEventListener('click',e=>{
+  const img=e.currentTarget,r=img.getBoundingClientRect(),s=Math.min(r.width/1204,r.height/1205);
+  window.testActualPixel={x:Math.floor((e.clientX-r.left-(r.width-1204*s)/2)/s),y:Math.floor((e.clientY-r.top-(r.height-1205*s)/2)/s)};
+ },{once:true}));
  await page.mouse.click(pos.x,pos.y);
+ expected.push(await page.evaluate(()=>window.testActualPixel));
  if(i<2){await page.locator('#ccorReviewNext').click();await page.waitForFunction(()=>document.getElementById('ccorReportCursor').textContent.includes('1204'));}
 }
 assert.equal(await page.locator('#ccorReportCount').innerText(),'3 frames marked');
-let text=await page.locator('#ccorReportText').inputValue();assert.match(text,/1204 x 1205/);assert.match(text,/600 700/);
+let text=await page.locator('#ccorReportText').inputValue();assert.match(text,/1204 x 1205/);for(const p of expected)assert.ok(text.includes(' '+p.x+' '+p.y));
 assert.equal(await page.locator('#ccorReportCopy').isDisabled(),false);
-const saved=await page.evaluate(()=>localStorage.getItem('ccor-source-image-measurements-v1'));assert.ok(saved.includes('"x":600'));
+const saved=await page.evaluate(()=>localStorage.getItem('ccor-source-image-measurements-v1'));assert.ok(saved.includes('"x":'+expected[0].x));
 await page.screenshot({path:process.env.CCOR_SCREENSHOT||'/tmp/ccor-report-ui.png',fullPage:false});
+// Zoom clicks must record the source crop, not 288px canvas coordinates.
+await page.locator('#ccorReviewNext').click();
+await page.waitForFunction(()=>document.getElementById('ccorReportCursor').textContent.includes('1204'));
+const canvas=page.locator('#ccorReviewZoom canvas');await canvas.scrollIntoViewIfNeeded();
+const cb=await canvas.boundingBox();await page.mouse.click(cb.x+cb.width/2,cb.y+cb.height/2);
+assert.equal(await page.locator('#ccorReportCount').innerText(),'4 frames marked');
+const zoomSaved=JSON.parse(await page.evaluate(()=>localStorage.getItem('ccor-source-image-measurements-v1')))[0].rows;
+const last=zoomSaved.find(r=>r.time_utc==='2026-10-25T14:00:00Z');
+assert.ok(Math.abs(last.x-149*1204/512)<2&&Math.abs(last.y-286*1205/512)<2);
 await page.reload();await page.waitForSelector('[data-ccor-id]');await page.locator('[data-ccor-id]').first().click();
-assert.equal(await page.locator('#ccorReportCount').innerText(),'3 frames marked');
+assert.equal(await page.locator('#ccorReportCount').innerText(),'4 frames marked');
+await page.locator('#ccorReportPositions button').first().click();
 await page.locator('#ccorReportPositions button').first().click();assert.equal(await page.locator('#ccorReportCopy').isDisabled(),true);
 console.log('PASS: browser click → three frames → exact source pixel export → restore → remove. Page errors:',JSON.stringify(errors));
 await browser.close();server.close();if(errors.length)process.exitCode=1;
