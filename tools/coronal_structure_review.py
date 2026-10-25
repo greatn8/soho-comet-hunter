@@ -134,7 +134,7 @@ def coronal_structure_evidence(candidate, frame_paths, gray_cache, decoder,
         # when it overlaps a broad streamer. Unknown motion stays eligible.
         negative_motion=not motion_inconclusive and supported==0
         status=("LIKELY_CORONAL_STRUCTURE" if persistent and negative_motion else
-                "BROAD_BUT_MOVING" if persistent and supported>0 else
+                "BROAD_BUT_MOVING" if persistent and not motion_inconclusive and supported>0 else
                 "MOTION_UNASSESSABLE" if persistent and motion_inconclusive else
                 "CLEAR")
         return {"status":status,"frames_checked":count,"broad_frames":broad_count,
