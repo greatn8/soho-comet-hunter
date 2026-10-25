@@ -1,0 +1,32 @@
+name: Native CCOR FITS historical coordinate audit
+on:
+  pull_request:
+    paths:
+      - 'tools/ccor_native_fits_audit.py'
+      - '.github/workflows/ccor-native-fits-audit.yml'
+  workflow_dispatch:
+jobs:
+  native_fits_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy pillow astropy
+      - name: Download bounded historical native FITS frames
+        run: |
+          mkdir -p native_fits_audit
+          PYTHONPATH=tools python tools/fetch_ccor_reference_fits.py --output-dir native_fits_audit/frames --context 0 --max-files 8 || true
+      - name: Historical FITS frame evidence
+        run: |
+          PYTHONPATH=tools python tools/ccor_native_fits_audit.py --input-dir native_fits_audit/frames --output native_fits_audit/report.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-ccor-fits-audit
+          path: native_fits_audit/
+          if-no-files-found: error
