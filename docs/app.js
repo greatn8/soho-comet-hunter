@@ -1049,6 +1049,7 @@ let ccorCurrent = null;
 let ccorFrameIndex = 0;
 let ccorPlayback = null;
 let ccorCamera = "all";
+let ccorSort = "newest";
 let ccorVisibleTracks = [];
 
 function ccorFrameEntries(track) {
@@ -1205,7 +1206,12 @@ function ccorRenderCards() {
   const allowed = new Set(Array.isArray(ccorPayload.review_shortlist_ids)
     ? ccorPayload.review_shortlist_ids : []);
   const selected = tracks.filter(t => allowed.has(t.id) &&
-    (ccorCamera === "all" || t.camera === ccorCamera));
+    (ccorCamera === "all" || t.camera === ccorCamera))
+    .sort((a,b) => ccorSort === "newest"
+      ? String(b.last || "").localeCompare(String(a.last || "")) ||
+        String(b.first || "").localeCompare(String(a.first || ""))
+      : (Number(b.frames || 0) - Number(a.frames || 0)) ||
+        String(b.last || "").localeCompare(String(a.last || "")));
   ccorVisibleTracks = selected;
   if (ccorCurrent) ccorUpdateCandidatePosition();
   box.innerHTML = selected.map(t =>
@@ -1214,16 +1220,16 @@ function ccorRenderCards() {
     '</strong><span>UNVERIFIED / ' + escapeHtml(t.camera.toUpperCase()) + '</span></div>' +
     (t.review_motion_evidence?.status === "LIMITED_MOTION_EVIDENCE" ?
       '<div class="realtime-media-missing">Limited motion evidence: short displacement, duration, or too few observations. Full review only.</div>' : '') +
-    (t.background_motion?.status === "LIKELY_BACKGROUND_STAR_MOTION" ?
-      '<div class="realtime-media-missing">Likely background star drift: moving with other spatially separate sources. Not confirmed as a star; full diagnostic review only.</div>' : '') +
+    (t.review_stage === "EARLY" ?
+      '<div class="realtime-media-missing">Early candidate — shorter motion history; verify original frames carefully.</div>' : '') +
     (t.motion_consistency?.status === "IRREGULAR_MOTION" ?
       '<div class="realtime-media-missing">Irregular motion: abrupt trajectory change; diagnostic review only, not shortlisted.</div>' : '') +
 
     '<div class="realtime-candidate-meta"><div><span>First</span><strong>' + escapeHtml(t.first) +
     '</strong></div><div><span>Last</span><strong>' + escapeHtml(t.last) +
     '</strong></div><div><span>Frames</span><strong>' + escapeHtml(t.frames) +
-    '</strong></div><div><span>Background motion</span><strong>' +
-    escapeHtml(t.background_motion?.status || "Not evaluated") +
+    '</strong></div><div><span>Review stage</span><strong>' +
+    escapeHtml(t.review_stage || "UNVERIFIED") +
     '</strong></div><div><span>Movement (px / 512)</span><strong>' +
     escapeHtml(t.review_motion_evidence?.displacement_px_512 ?? "—") +
     '</strong></div><div><span>Duration (h)</span><strong>' +
@@ -1261,6 +1267,10 @@ async function refreshCCOR() {
     status.textContent = "CCOR data temporarily unavailable; the C3 hunter is unaffected.";
   }
 }
+document.getElementById("ccorSortOrder")?.addEventListener("change", e => {
+  ccorSort = e.target.value;
+  ccorRenderCards();
+});
 document.getElementById("ccorCameraFilter")?.addEventListener("change", e => {
   ccorCamera = e.target.value; ccorRenderCards();
 });
