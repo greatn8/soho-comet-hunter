@@ -21,6 +21,7 @@ from urllib.request import Request, urlopen
 import numpy as np
 from ccor_motion_consistency import annotated_track
 from ccor_review_evidence import assess as assess_review_evidence
+from ccor_field_rim import outer_rim_mask, track_rim_evidence
 from PIL import Image
 
 BASE = "https://services.swpc.noaa.gov/products"
@@ -277,7 +278,7 @@ def _timestamp_contains(x, y):
     return left <= x < right and top <= y < bottom
 
 
-def peaks(frame, baseline, camera, limit=70):
+def peaks(frame, baseline, camera, limit=70, field_rim=None):
     """Robust positive temporal residual point sources; provisional masks."""
     residual = frame - baseline
     h, w = residual.shape
@@ -289,6 +290,8 @@ def peaks(frame, baseline, camera, limit=70):
     mask[int(h*.96):] = False
     mask[:, :int(w*.04)] = False
     mask[:, int(w*.96):] = False
+    if field_rim is not None:
+        mask &= ~field_rim
     mask &= ~(support_arm_mask(camera, (h, w)) |
               timestamp_overlay_mask(camera, (h, w)))
     inside = residual[mask]
@@ -356,7 +359,8 @@ def track_points(frames, times, sizes, camera, *, complete_search=False,
     baseline = np.median(np.stack(frames), axis=0)
     # Search recent frames only; the current window is independently rechecked.
     start = max(0, len(frames)-16)
-    spots = [peaks(frame,baseline,camera) for frame in frames[start:]]
+    spots = [peaks(frame,baseline,camera,field_rim=outer_rim_mask(frame))
+             for frame in frames[start:]]
     ts = times[start:]
     results = []
     for i in range(len(spots)-3):
@@ -579,7 +583,8 @@ def review_shortlist(tracks, limit_per_camera=12):
         rows = [r for r in tracks if r.get("camera") == camera
                 and (r.get("motion_consistency") or {}).get("status") != "IRREGULAR_MOTION"
                 and early_motion_review(r) in ("EARLY", "ESTABLISHED")
-                and (r.get("review_validation") or {}).get("status") == "PASS"]
+                and (r.get("review_validation") or {}).get("status") == "PASS"
+                and (r.get("field_rim_review") or {}).get("status") != "BOUNDARY_CONTACT"]
         newest = sorted(rows, key=lambda r: (
             r.get("last", ""), r.get("first", ""), track_quality(r)), reverse=True)
         strongest = sorted(rows, key=lambda r: (
@@ -726,6 +731,10 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         # interval. Old tracks outside cache remain local but never pass.
         frame_by_time = {iso(t):image for t,image in zip(times,images)}
         baseline = np.median(np.stack(images),axis=0) if images else None
+        masks_by_time = {iso(t):outer_rim_mask(image)
+                         for t,image in zip(times,images)}
+        for track in retained:
+            track["field_rim_review"] = track_rim_evidence(track,masks_by_time)
         for track in retained:
             track["review_validation"] = (assess_review_evidence(
                 track, [iso(t) for t in times], frame_by_time,baseline)
@@ -763,6 +772,9 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             "irregular_motion_review_tracks":sum(
                 row["motion_consistency"]["status"] == "IRREGULAR_MOTION"
                 for row in retained),
+            "field_rim_excluded_tracks":sum(
+                row["field_rim_review"]["status"] == "BOUNDARY_CONTACT"
+                for row in retained),
             "evidence_pass_tracks":sum(row["review_validation"]["status"] == "PASS" for row in retained),
             "evidence_fail_tracks":sum(row["review_validation"]["status"] == "FAIL" for row in retained),
             "limited_motion_review_tracks":sum(
@@ -791,7 +803,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "instruments":instrument_states,"tracks":tracks,
         "frame_manifests":frame_manifests,
         "review_shortlist_ids":review_shortlist(tracks),
-        "review_shortlist_policy":"Camera masks; recent early and established trajectory review; cached-frame continuity >=70%, no gap >2, residual compact source evidence on >=75% observed frames; nonpassing tracks retained locally",
+        "review_shortlist_policy":"Dynamic outer-field rim mask and camera masks; recent early and established trajectory review; cached-frame continuity >=70%, no gap >2, residual compact source evidence on >=75% observed frames; nonpassing tracks retained locally",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }
