@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 
 import numpy as np
 from ccor_motion_consistency import annotated_track
+from ccor_review_evidence import assess as assess_review_evidence
 from PIL import Image
 
 BASE = "https://services.swpc.noaa.gov/products"
@@ -577,7 +578,8 @@ def review_shortlist(tracks, limit_per_camera=12):
     for camera in CAMERAS:
         rows = [r for r in tracks if r.get("camera") == camera
                 and (r.get("motion_consistency") or {}).get("status") != "IRREGULAR_MOTION"
-                and early_motion_review(r) in ("EARLY", "ESTABLISHED")]
+                and early_motion_review(r) in ("EARLY", "ESTABLISHED")
+                and (r.get("review_validation") or {}).get("status") == "PASS"]
         newest = sorted(rows, key=lambda r: (
             r.get("last", ""), r.get("first", ""), track_quality(r)), reverse=True)
         strongest = sorted(rows, key=lambda r: (
@@ -720,6 +722,15 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         for track in retained:
             track["review_motion_evidence"] = review_motion_evidence(track)
             track["review_stage"] = early_motion_review(track)
+        # Validate ONLY against actual cached frames in the observation
+        # interval. Old tracks outside cache remain local but never pass.
+        frame_by_time = {iso(t):image for t,image in zip(times,images)}
+        baseline = np.median(np.stack(images),axis=0) if images else None
+        for track in retained:
+            track["review_validation"] = (assess_review_evidence(
+                track, [iso(t) for t in times], frame_by_time,baseline)
+                if baseline is not None else
+                {"status":"UNASSESSABLE","reason":"No cached NOAA frames"})
         # Remove legacy background-motion classifications from older saved
         # reviews. Star-field co-motion was not independently calibrated.
         for track in retained:
@@ -752,6 +763,8 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
             "irregular_motion_review_tracks":sum(
                 row["motion_consistency"]["status"] == "IRREGULAR_MOTION"
                 for row in retained),
+            "evidence_pass_tracks":sum(row["review_validation"]["status"] == "PASS" for row in retained),
+            "evidence_fail_tracks":sum(row["review_validation"]["status"] == "FAIL" for row in retained),
             "limited_motion_review_tracks":sum(
                 row["review_motion_evidence"]["status"] != "MEASURABLE_MOTION"
                 for row in retained),
@@ -778,7 +791,7 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         "instruments":instrument_states,"tracks":tracks,
         "frame_manifests":frame_manifests,
         "review_shortlist_ids":review_shortlist(tracks),
-        "review_shortlist_policy":"Camera mask and trajectory screening; recent early (>=4 frames, >=45min, >=4px) and established (>=5 frames, >=90min, >=6px) candidates prioritised by recency and independent evidence; no background-star motion comparison",
+        "review_shortlist_policy":"Camera masks; recent early and established trajectory review; cached-frame continuity >=70%, no gap >2, residual compact source evidence on >=75% observed frames; nonpassing tracks retained locally",
         "temporal_overlaps_not_duplicates":overlaps[:40],
         "warning":"Candidate trajectories are UNVERIFIED. Cross-camera time overlap is not a deduplication. No discovery or realtime alert is asserted."
     }
