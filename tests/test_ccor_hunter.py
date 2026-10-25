@@ -137,7 +137,11 @@ class CCORTests(unittest.TestCase):
             self.assertTrue(bool(ch.support_arm_mask("ccor1", (512,512))[y,x]))
         for x, y in ((60, 80), (450, 160), (390, 390)):
             self.assertFalse(bool(ch.support_arm_mask("ccor1", (512,512))[y,x]))
-        self.assertFalse(ch.support_arm_mask("ccor2",(512,512)).any())
+        # Both cameras now have their own support-arm masks.
+        # Check that CCOR2 is enabled without inheriting CCOR1 geometry.
+        self.assertTrue(bool(ch.support_arm_mask("ccor2",(512,512))[173,246]))
+        self.assertFalse(bool(ch.support_arm_mask("ccor2",(512,512))[349,192]))
+        self.assertFalse(ch.support_arm_mask("unknown",(512,512)).any())
 
     def test_ccor1_arm_track_removed_from_retained_history(self):
         now=dt.datetime(2026,10,24,12,tzinfo=dt.timezone.utc)
