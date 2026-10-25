@@ -1048,11 +1048,12 @@ let ccorPayload = null;
 let ccorCurrent = null;
 let ccorFrameIndex = 0;
 let ccorPlayback = null;
+let ccorShowIntermediateFrames = false;
 let ccorCamera = "all";
 let ccorSort = "newest";
 let ccorVisibleTracks = [];
 
-function ccorFrameEntries(track) {
+function ccorFrameEntries(track, includeIntermediate = ccorShowIntermediateFrames) {
   const camera = track.camera;
   const manifest = ccorPayload?.frame_manifests?.[camera] || [];
   const observations = (track.points || []).filter(p => p && p.time);
@@ -1063,7 +1064,15 @@ function ccorFrameEntries(track) {
   const available = manifest.filter(f => f.image_url && Number.isFinite(Date.parse(f.time)) &&
     Date.parse(f.time) >= first - 15 * 60000 &&
     Date.parse(f.time) <= last + 15 * 60000);
-  if (available.length) return available.map(f => ({...f, point: byTime.get(f.time) || null}));
+  if (available.length) {
+    const withEvidence = available.map(f => ({...f, point: byTime.get(f.time) || null}));
+    // Default to frames on which the detector actually measured a peak.
+    // Intermediate source images are important for diagnostics but must
+    // never masquerade as measured points in the normal playback.
+    const selected = includeIntermediate ? withEvidence :
+      withEvidence.filter(entry => entry.point);
+    if (selected.length) return selected;
+  }
   return observations.filter(p => p.image_url).map(p => ({
     time: p.time, image_url: p.image_url, point: p
   }));
@@ -1086,12 +1095,15 @@ function ccorDraw() {
   const overlay = document.getElementById("ccorReviewOverlay");
   const zoom = document.getElementById("ccorReviewZoom");
   const caption = document.getElementById("ccorReviewCaption");
+  const evidence = document.getElementById("ccorReviewFrameEvidence");
+  const allEntries = ccorFrameEntries(ccorCurrent, true);
   if (!image || !overlay || !zoom || !caption) return;
   if (!entries.length) {
     document.getElementById("ccorFramePosition").textContent = "No frames";
     image.removeAttribute("src"); image.classList.add("hidden");
     overlay.innerHTML = ""; zoom.innerHTML = "";
-    caption.textContent = "No matching original NOAA JPEG images in the retained frame manifest. Older tracks may have expired from the source cache.";
+    caption.textContent = "No measured NOAA images available for this review. Older images may have expired.";
+    if (evidence) evidence.textContent = "NO MEASURED IMAGE AVAILABLE";
     return;
   }
   ccorFrameIndex = (ccorFrameIndex + entries.length) % entries.length;
@@ -1099,6 +1111,11 @@ function ccorDraw() {
     "Frame " + (ccorFrameIndex + 1) + " / " + entries.length;
   const entry = entries[ccorFrameIndex];
   const p = entry.point;
+  if (evidence) {
+    evidence.textContent = p ? "MEASURED PEAK IN THIS FRAME" :
+      "NO MEASURED DETECTION IN THIS FRAME";
+    evidence.classList.toggle("ccor-no-measurement", !p);
+  }
   const shape = ccorCurrent.processing_shape || [512,512];
   const w = Number(shape[0]) || 512, h = Number(shape[1]) || 512;
   // Detector points use a 512-wide aspect-ratio-preserving representation.
@@ -1121,8 +1138,18 @@ function ccorDraw() {
     // CSS object is fully contained in the same aspect-ratio box as overlay.
     const sameAspect = Math.abs(srcw / srch - w / h) < 0.02;
     overlay.style.display = sameAspect ? "block" : "none";
-    const currentX = p ? +p.x : (+ccorCurrent.x_first + +ccorCurrent.x_last)/2;
-    const currentY = p ? +p.y : (+ccorCurrent.y_first + +ccorCurrent.y_last)/2;
+    // Intermediate frames have NO measured position. Center their zoom at
+    // the time-interpolated point only to inspect an absence; never draw an
+    // amber measurement marker for these frames.
+    const t0 = Date.parse(ccorCurrent.first);
+    const t1 = Date.parse(ccorCurrent.last);
+    const tt = Date.parse(entry.time);
+    const fraction = t1 > t0 && Number.isFinite(tt) ?
+      Math.max(0, Math.min(1, (tt - t0) / (t1 - t0))) : 0.5;
+    const currentX = p ? +p.x :
+      +ccorCurrent.x_first + (+ccorCurrent.x_last - +ccorCurrent.x_first) * fraction;
+    const currentY = p ? +p.y :
+      +ccorCurrent.y_first + (+ccorCurrent.y_last - +ccorCurrent.y_first) * fraction;
     const crop = 72;
     const sx = srcw / w, sy = srch / h;
     const viewX = Math.max(0, Math.min(w - crop, currentX - crop / 2));
@@ -1135,11 +1162,14 @@ function ccorDraw() {
     ctx.imageSmoothingEnabled = false;
     try {
       ctx.drawImage(image, viewX * sx, viewY * sy, crop * sx, crop * sy, 0, 0, 288, 288);
-      ctx.strokeStyle = "#ffcc62";
-      ctx.lineWidth = 1;
-      const zx = (currentX - viewX) * 288/crop;
-      const zy = (currentY - viewY) * 288/crop;
-      ctx.beginPath(); ctx.arc(zx,zy,13,0,Math.PI*2); ctx.stroke();
+      // A ring is only shown for a REAL peak measurement.
+      if (p) {
+        ctx.strokeStyle = "#ffcc62";
+        ctx.lineWidth = 1;
+        const zx = (currentX - viewX) * 288/crop;
+        const zy = (currentY - viewY) * 288/crop;
+        ctx.beginPath(); ctx.arc(zx,zy,13,0,Math.PI*2); ctx.stroke();
+      }
       zoom.appendChild(cropCanvas);
     } catch (error) {
       zoom.textContent = "Zoom unavailable (cross-origin NOAA image).";
@@ -1153,8 +1183,11 @@ function ccorDraw() {
   image.src = entry.image_url;
   caption.textContent = ccorCurrent.id + " · " + entry.time +
     " UTC · frame " + (ccorFrameIndex+1) + "/" + entries.length +
-    (p ? " · measured detection" : " · intermediate frame (no fitted detection)") +
-    " · green: full track · amber: measured position";
+    (p ? " · MEASURED detector peak" :
+      " · NO DETECTION in this frame (zoom centered at estimated position; no marker)") +
+    " · " + ccorCurrent.points.length + " measured frames / " +
+    allEntries.length + " source frames in viewer · green: proposed track" +
+    (p ? " · amber: measured position" : "");
   const sourceLink = document.getElementById("ccorReviewSource");
   sourceLink.href = entry.image_url;
 }
@@ -1168,6 +1201,8 @@ function ccorOpen(id) {
   document.getElementById("ccorReviewPlay").textContent = "▶ Play";
   ccorCurrent = row;
   ccorFrameIndex = 0;
+  // Enter at the first measured peak rather than a potentially empty
+  // pre-track source frame.
   const viewer = document.getElementById("ccorVisualViewer");
   if (!viewer.open) viewer.showModal();
   ccorUpdateCandidatePosition();
@@ -1273,6 +1308,16 @@ document.getElementById("ccorSortOrder")?.addEventListener("change", e => {
 });
 document.getElementById("ccorCameraFilter")?.addEventListener("change", e => {
   ccorCamera = e.target.value; ccorRenderCards();
+});
+document.getElementById("ccorFrameMode")?.addEventListener("click", e => {
+  if (ccorPlayback) clearInterval(ccorPlayback);
+  ccorPlayback = null;
+  document.getElementById("ccorReviewPlay").textContent = "▶ Play";
+  ccorShowIntermediateFrames = !ccorShowIntermediateFrames;
+  e.target.textContent = ccorShowIntermediateFrames ?
+    "Show measured frames only" : "Include intermediate frames";
+  ccorFrameIndex = 0;
+  ccorDraw();
 });
 document.getElementById("ccorReviewClose")?.addEventListener("click", ccorClose);
 document.getElementById("ccorReviewPrev")?.addEventListener("click", () => ccorStep(-1));
