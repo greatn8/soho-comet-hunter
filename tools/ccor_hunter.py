@@ -22,6 +22,7 @@ import numpy as np
 from ccor_motion_consistency import annotated_track
 from ccor_review_evidence import assess as assess_review_evidence
 from ccor_field_rim import outer_rim_mask, track_rim_evidence
+from ccor_report_coordinates import prepare_reporting_coordinates
 from PIL import Image
 
 BASE = "https://services.swpc.noaa.gov/products"
@@ -349,8 +350,31 @@ def track_points(frames, times, sizes, camera, *, complete_search=False,
         stats["scan_completed"] = complete
         stats["stop_reason"] = reason
         stats["distinct_hypotheses"] = len(rows)
-        chosen = (sorted(rows, key=track_quality, reverse=True)[:40]
-                  if complete_search else rows)
+        if complete_search and rows:
+            # Apply shortlist evidence gates BEFORE the top-40 cap.
+            available=[iso(t) for t in times]
+            by_time={iso(t):frame for t,frame in zip(times,frames)}
+            baseline_all=np.median(np.stack(frames),axis=0)
+            rim_by_time={iso(t):outer_rim_mask(frame)
+                         for t,frame in zip(times,frames)}
+            for row in rows:
+                validation=assess_review_evidence(row,available,by_time,baseline_all)
+                rim=track_rim_evidence(row,rim_by_time)
+                motion=annotated_track(row).get("motion_consistency",{})
+                stage=early_motion_review(row)
+                row["precap_evidence_status"]=validation["status"]
+                row["precap_review_eligible"]=(
+                    validation["status"]=="PASS"
+                    and rim.get("status")!="BOUNDARY_CONTACT"
+                    and motion.get("status")!="IRREGULAR_MOTION"
+                    and stage in ("EARLY","ESTABLISHED"))
+            stats["precap_eligible_hypotheses"]=sum(
+                bool(r["precap_review_eligible"]) for r in rows)
+            chosen=sorted(rows,key=lambda r:(
+                bool(r["precap_review_eligible"]), track_quality(r)),reverse=True)[:40]
+        else:
+            chosen = (sorted(rows, key=track_quality, reverse=True)[:40]
+                      if complete_search else rows)
         stats["selected_hypotheses"] = len(chosen)
         return (chosen, stats) if return_diagnostics else chosen
 
@@ -727,6 +751,8 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         for track in retained:
             track["review_motion_evidence"] = review_motion_evidence(track)
             track["review_stage"] = early_motion_review(track)
+            if track.get("source_jpeg_shape") == [1024,960]:
+                track["report_coordinates"] = prepare_reporting_coordinates(track)
         # Validate ONLY against actual cached frames in the observation
         # interval. Old tracks outside cache remain local but never pass.
         frame_by_time = {iso(t):image for t,image in zip(times,images)}
