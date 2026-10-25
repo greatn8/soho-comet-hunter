@@ -63,6 +63,8 @@ class MultiscaleTests(unittest.TestCase):
                 rows,stats=run_multiscale_cuda(
                     root,sorted(cache.glob("*.jpg")),root,args,"test",cache)
             self.assertEqual([c["cid"] for c in rows],
+                             ["C9000000000001","C9000000000002","C9000000000003"])
+            self.assertEqual([c["legacy_run_local_candidate_id"] for c in rows],
                              ["C0020001","C0050001","C0120001"])
             self.assertEqual([n for n,_ in calls],[3,6,8])
             self.assertEqual(len(stats),3)
