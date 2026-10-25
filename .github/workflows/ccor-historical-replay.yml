@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'tools/benchmark_ccor_reported_comets.py'
+      - 'tools/ccor_historical_geometry.py'
       - '.github/workflows/ccor-historical-replay.yml'
   workflow_dispatch:
 jobs:
@@ -41,9 +42,14 @@ jobs:
           PY
           fi
           exit 0
+      - name: Inspect real NOAA frames at each reported CCD position
+        run: |
+          PYTHONPATH=tools python tools/ccor_historical_geometry.py --output-dir ccor_geometry
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ccor-20261022-historical-replay
-          path: historical_ccor_replay.json
+          path: |
+            historical_ccor_replay.json
+            ccor_geometry/**
           if-no-files-found: warn
