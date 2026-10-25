@@ -1,0 +1,19 @@
+name: CCOR native reporting coordinate integrity
+on:
+  pull_request:
+    paths:
+      - 'tools/ccor_native_report_kit.py'
+      - 'tests/test_ccor_native_report_kit.py'
+      - '.github/workflows/ccor-native-report-kit.yml'
+  workflow_dispatch:
+jobs:
+  native_coordinates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy pillow astropy
+      - run: python -m unittest discover -s tests -p 'test_ccor_native_report_kit.py' -v
