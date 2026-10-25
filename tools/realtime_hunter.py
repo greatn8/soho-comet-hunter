@@ -18,6 +18,7 @@ from star_field import annotate_star_field
 from image_star_motion import build_reference, evidence_for_velocity
 from edge_review import edge_review_evidence
 from bright_streak_review import bright_streak_review_evidence
+from coronal_structure_review import coronal_structure_evidence
 
 SOHO_BASE="https://soho.nascom.nasa.gov/data/REPROCESSING/Completed"
 SOHO_NRT_GIF_BASE="https://soho.nascom.nasa.gov/data/realtime/javagif/gifs/"
@@ -1108,6 +1109,19 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         log(f"Bright horizontal streak triage: downgraded {streak_downgraded} "
             "high-priority C3 review(s), preserved all tracks and clips.")
 
+    coronal_downgraded=0
+    for c in event_representatives:
+        c["coronal_structure_review"]=coronal_structure_evidence(
+            c,frames,gray_cache,pixel_verify._decode_gray,args.resolution)
+        if (c.get("review_class")=="STRONG_REVIEW" and
+                c["coronal_structure_review"]["status"]=="LIKELY_CORONAL_STRUCTURE"):
+            c["review_class"]="SECONDARY"
+            c["coronal_structure_downgraded"]=True
+            coronal_downgraded+=1
+    if coronal_downgraded:
+        log(f"Broad coronal structure triage: downgraded {coronal_downgraded} "
+            "high-priority events; all evidence retained.")
+
     # Compare independent pixel-supported tracks to find shared star motion.
     # Keep raw hypotheses and videos; only star-like strong alerts are triaged.
     annotate_star_field(event_representatives)
@@ -1196,6 +1210,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
         "star_field_review_downgraded":star_like_count,
         "edge_review_downgraded":edge_downgraded,
         "bright_streak_review_downgraded":streak_downgraded,
+        "coronal_structure_downgraded":coronal_downgraded,
         "temporal_motion_measured":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("status")=="MEASURED" for c in event_representatives),
         "temporal_motion_supported":sum(c.get("pixel_verification",{}).get("temporal_motion",{}).get("supported",0) >= 3 for c in event_representatives),
         "pixel_rejected_events":len(rejected_representatives),
@@ -1305,6 +1320,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "image_star_motion":c.get("image_star_motion",{}),
             "edge_review":c.get("edge_review",{}),
             "bright_streak_review":c.get("bright_streak_review",{}),
+            "coronal_structure_review":c.get("coronal_structure_review",{}),
             "event_group":c.get("event_group"),
             "members":c.get("event_members",1),
             "member_ids":c.get("event_member_ids",[c["cid"]]),
@@ -1367,6 +1383,7 @@ def run_detector(project,cache_dir,results_dir,args,force=False):
             "image_star_motion":c.get("image_star_motion",{}),
             "edge_review":c.get("edge_review",{}),
             "bright_streak_review":c.get("bright_streak_review",{}),
+            "coronal_structure_review":c.get("coronal_structure_review",{}),
             "first":c["first"]["file"],
             "last":c["last"]["file"],
             "frames":c["frames"],
