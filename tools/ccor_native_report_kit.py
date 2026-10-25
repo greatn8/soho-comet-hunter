@@ -202,8 +202,8 @@ def export(fits_dir,output_dir,points_path):
             "coordinate_transform":"IDENTITY_FROM_SOURCE_FITS_ARRAY",
             "notes":"Coordinates are exact to the specified native preview pixels. Independent source identity and comet motion must be reviewed before submitting. Provide source filenames and coordinate origin to Sungrazer.",
             "observations":rows,"motion_diagnostic":fit}
-    if (output_dir/"report_positions.json").exists() or
-            (output_dir/"report_positions.txt").exists()):
+    if ((output_dir/"report_positions.json").exists() or
+        (output_dir/"report_positions.txt").exists()):
         raise FileExistsError("Refusing to overwrite existing report export")
     (output_dir/"report_positions.json").write_text(json.dumps(result,indent=2)+"\n")
     lines=[camera.upper()+" — native FITS image coordinates",
