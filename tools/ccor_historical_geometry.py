@@ -13,11 +13,10 @@ import numpy as np
 from PIL import Image,ImageDraw
 import ccor_hunter as hunter
 from ccor_review_evidence import pixel_at
-from ccor_report_coordinates import native_to_image
+from ccor_report_position_overlays import project, GEOMETRIES
 from benchmark_ccor_reported_comets import CASES,plan,timestamp
 
-ORIENTATIONS=(("identity",False,False),("flip_x",True,False),
-              ("flip_y",False,True),("flip_both",True,True))
+ORIENTATIONS=GEOMETRIES
 THUMB=176
 PAD=10
 
@@ -27,23 +26,26 @@ def sample_case(name,output,fetch=hunter.get):
     planned=plan(case,fetch=fetch)
     indexed=planned["images"]
     frames={}
+    actual_shapes={}
     errors=[]
     for item in indexed:
         try:
             raw=fetch(item["url"],limit=1_500_000)
             with Image.open(io.BytesIO(raw)) as im:
-                if im.size!=(1024,960):
-                    errors.append("Unexpected JPEG dimensions: "+str(im.size))
-                    continue
+                w,h=im.size
+                factor=min(1.0,512.0/w)
+                output_shape=(round(w*factor),round(h*factor))
                 gray=np.asarray(im.convert("L").resize(
-                    (512,480),Image.Resampling.BOX),dtype=np.float32)
+                    output_shape,Image.Resampling.BOX),dtype=np.float32)
             frames[item["time"]]=gray
+            actual_shapes[item["time"]]=(w,h)
         except Exception as exc:
             errors.append(f"{item['time']}: {type(exc).__name__}: {exc}")
     result={"case":name,"camera":case["camera"],"report_url":case["report"],
             "reported_positions_native":case["points"],
             "indexed":len(indexed),"loaded":len(frames),"errors":errors,
             "coordinate_calibration":"NOT_CALIBRATED",
+            "actual_jpeg_shapes":actual_shapes,
             "hypotheses":{},"contact_sheet":None}
     if len(frames)<6:
         print(name,"SOURCE_IMAGE_ERRORS",errors[:4],flush=True)
@@ -53,7 +55,7 @@ def sample_case(name,output,fetch=hunter.get):
     rows=len(case["points"])
     canvas=Image.new("RGB",(columns*THUMB,(rows+1)*(THUMB+25)),(15,21,31))
     draw=ImageDraw.Draw(canvas)
-    for j,(label,flipx,flipy) in enumerate(ORIENTATIONS):
+    for j,label in enumerate(ORIENTATIONS):
         draw.text((j*THUMB+8,9),label,fill=(245,219,106))
         n=0
         passed=0
@@ -63,8 +65,10 @@ def sample_case(name,output,fetch=hunter.get):
             details={"time_utc":when,"native_xy":[reported_x,reported_y],
                      "image_available":source is not None}
             if source is not None:
-                x,y=native_to_image(reported_x,reported_y,(512,480),(1024,960),
-                                    flip_x=flipx,flip_y=flipy)
+                jw,jh=actual_shapes[when]
+                xj,yj=project(reported_x,reported_y,jw,jh,label)
+                h,w=source.shape
+                x,y=xj*w/jw,yj*h/jh
                 xpix,ypix=round(x),round(y)
                 evidence=pixel_at(source,baseline,x,y)
                 details.update({"processed_xy":[round(x,2),round(y,2)],
@@ -76,7 +80,7 @@ def sample_case(name,output,fetch=hunter.get):
                 x0,y0=xpix-half,ypix-half
                 padded=np.full((43,43),85,dtype=np.uint8)
                 ix0,iy0=max(x0,0),max(y0,0)
-                ix1,iy1=min(x0+43,512),min(y0+43,480)
+                ix1,iy1=min(x0+43,w),min(y0+43,h)
                 if ix1>ix0 and iy1>iy0:
                     padded[iy0-y0:iy1-y0,ix0-x0:ix1-x0]=residual[iy0:iy1,ix0:ix1]
                 thumb=Image.fromarray(padded).resize((THUMB,THUMB),Image.Resampling.NEAREST).convert("RGB")
