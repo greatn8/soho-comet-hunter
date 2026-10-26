@@ -23,6 +23,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install notification dependencies
+        run: python -m pip install 'numpy>=1.26,<3'
+      - name: Check notification imports
+        run: PYTHONPATH=tools python -c "from check_recent_sungrazer_reports import fetch_and_check"
       - name: Create assigned GitHub issue for new STRONG_REVIEW
         env:
           GH_TOKEN: ${{ github.token }}
