@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-31T12:45:00Z",
+  "generated_at": "2026-10-31T13:16:00Z",
   "mode": "EXPERIMENTAL_REVIEW_ONLY",
   "automatic_email_alerts": false,
   "independently_confirmed": false,
@@ -10,7 +10,7 @@
       "new_images": 1,
       "indexed_images": 31,
       "cached_recent_frames": 19,
-      "last_frame": "2026-10-31T12:30:00Z",
+      "last_frame": "2026-10-31T13:00:00Z",
       "detected_this_cycle": 40,
       "retained_review_tracks": 100,
       "duplicate_identity_rows_in_prior_output": 0,
@@ -20,22 +20,22 @@
       "timestamp_overlay_mask": true,
       "timestamp_excluded_from_prior": 0,
       "timestamp_excluded_new_tracks": 0,
-      "irregular_motion_review_tracks": 14,
+      "irregular_motion_review_tracks": 13,
       "field_rim_excluded_tracks": 0,
-      "evidence_pass_tracks": 45,
-      "evidence_fail_tracks": 33,
-      "limited_motion_review_tracks": 47,
+      "evidence_pass_tracks": 50,
+      "evidence_fail_tracks": 40,
+      "limited_motion_review_tracks": 53,
       "detector_hit_40_hypothesis_cap": false,
       "detector_search": {
         "complete_search": true,
         "scan_completed": true,
         "stop_reason": null,
         "seed_pairs_examined": 63700,
-        "distinct_hypotheses": 98,
+        "distinct_hypotheses": 90,
         "selected_hypotheses": 40,
         "per_frame_peak_cap": 70,
         "distinct_hypothesis_budget": 5000,
-        "precap_eligible_hypotheses": 4,
+        "precap_eligible_hypotheses": 5,
         "fell_back_to_legacy": false
       },
       "status": "REVIEW_ONLY",
@@ -46,7 +46,7 @@
       "new_images": 1,
       "indexed_images": 31,
       "cached_recent_frames": 19,
-      "last_frame": "2026-10-31T12:30:00Z",
+      "last_frame": "2026-10-31T13:00:00Z",
       "detected_this_cycle": 40,
       "retained_review_tracks": 100,
       "duplicate_identity_rows_in_prior_output": 0,
@@ -56,22 +56,22 @@
       "timestamp_overlay_mask": true,
       "timestamp_excluded_from_prior": 0,
       "timestamp_excluded_new_tracks": 0,
-      "irregular_motion_review_tracks": 10,
+      "irregular_motion_review_tracks": 8,
       "field_rim_excluded_tracks": 0,
-      "evidence_pass_tracks": 46,
-      "evidence_fail_tracks": 48,
-      "limited_motion_review_tracks": 73,
+      "evidence_pass_tracks": 37,
+      "evidence_fail_tracks": 61,
+      "limited_motion_review_tracks": 70,
       "detector_hit_40_hypothesis_cap": false,
       "detector_search": {
         "complete_search": true,
         "scan_completed": true,
         "stop_reason": null,
-        "seed_pairs_examined": 44697,
-        "distinct_hypotheses": 191,
+        "seed_pairs_examined": 63700,
+        "distinct_hypotheses": 321,
         "selected_hypotheses": 40,
         "per_frame_peak_cap": 70,
         "distinct_hypothesis_budget": 5000,
-        "precap_eligible_hypotheses": 17,
+        "precap_eligible_hypotheses": 38,
         "fell_back_to_legacy": false
       },
       "status": "REVIEW_ONLY",
@@ -80,21 +80,317 @@
   },
   "tracks": [
     {
+      "id": "CCOR1-2aabb49272ac",
+      "camera": "ccor1",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T12:15:00Z",
+      "last": "2026-10-31T13:00:00Z",
+      "frames": 4,
+      "x_first": 364.0,
+      "y_first": 251.0,
+      "x_last": 357.0,
+      "y_last": 251.0,
+      "vx_px_h": -10.0,
+      "vy_px_h": -0.0,
+      "speed_px_h": 10.0,
+      "sunward_px_h": 9.32,
+      "rms_px": 0.94,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T12:15:00Z",
+          "x": 364.0,
+          "y": 251.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1215_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:30:00Z",
+          "x": 361.0,
+          "y": 251.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1230_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:45:00Z",
+          "x": 357.0,
+          "y": 251.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1245_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T13:00:00Z",
+          "x": 357.0,
+          "y": 251.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1300_ccor1_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 2,
+        "max_kink_px": 2.0,
+        "max_velocity_change_px_h": 16.0,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "LIMITED_MOTION_EVIDENCE",
+        "displacement_px_512": 7.0,
+        "duration_hours": 0.75,
+        "observation_count": 4,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "EARLY",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 4,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 4,
+          "available": 4,
+          "coverage": 1.0,
+          "longest_missing_run": 0,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 4,
+          "passed": 4,
+          "pass_fraction": 1.0,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T12:15:00Z",
+              "pass": true,
+              "snr": 12.82,
+              "peak_residual": 20.0,
+              "compact_pixels": 18,
+              "peak_xy": [
+                364,
+                251
+              ]
+            },
+            {
+              "time": "2026-10-31T12:30:00Z",
+              "pass": true,
+              "snr": 5.73,
+              "peak_residual": 19.0,
+              "compact_pixels": 14,
+              "peak_xy": [
+                361,
+                251
+              ]
+            },
+            {
+              "time": "2026-10-31T12:45:00Z",
+              "pass": true,
+              "snr": 3.6,
+              "peak_residual": 23.0,
+              "compact_pixels": 5,
+              "peak_xy": [
+                355,
+                251
+              ]
+            },
+            {
+              "time": "2026-10-31T13:00:00Z",
+              "pass": true,
+              "snr": 3.2,
+              "peak_residual": 27.0,
+              "compact_pixels": 3,
+              "peak_xy": [
+                357,
+                251
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR1-f5d3e7528961",
+      "camera": "ccor1",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T12:00:00Z",
+      "last": "2026-10-31T13:00:00Z",
+      "frames": 4,
+      "x_first": 162.0,
+      "y_first": 300.0,
+      "x_last": 151.0,
+      "y_last": 315.0,
+      "vx_px_h": -10.8,
+      "vy_px_h": 16.0,
+      "speed_px_h": 19.3,
+      "sunward_px_h": -16.65,
+      "rms_px": 1.1,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T12:00:00Z",
+          "x": 162.0,
+          "y": 300.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1200_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:15:00Z",
+          "x": 159.0,
+          "y": 304.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1215_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:45:00Z",
+          "x": 154.0,
+          "y": 314.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1245_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T13:00:00Z",
+          "x": 151.0,
+          "y": 315.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1300_ccor1_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 2,
+        "max_kink_px": 2.69,
+        "max_velocity_change_px_h": 16.12,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "LIMITED_MOTION_EVIDENCE",
+        "displacement_px_512": 18.6,
+        "duration_hours": 1.0,
+        "observation_count": 4,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "EARLY",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 4,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 4,
+          "available": 5,
+          "coverage": 0.8,
+          "longest_missing_run": 1,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 4,
+          "passed": 3,
+          "pass_fraction": 0.75,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T12:00:00Z",
+              "pass": true,
+              "snr": 3.6,
+              "peak_residual": 17.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                162,
+                300
+              ]
+            },
+            {
+              "time": "2026-10-31T12:15:00Z",
+              "pass": false,
+              "snr": 2.99,
+              "peak_residual": 18.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                158,
+                302
+              ]
+            },
+            {
+              "time": "2026-10-31T12:45:00Z",
+              "pass": true,
+              "snr": 4.05,
+              "peak_residual": 20.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                154,
+                314
+              ]
+            },
+            {
+              "time": "2026-10-31T13:00:00Z",
+              "pass": true,
+              "snr": 5.4,
+              "peak_residual": 18.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                151,
+                315
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
       "id": "CCOR1-841f11121e35",
       "camera": "ccor1",
       "review_class": "UNVERIFIED_MOTION",
       "first": "2026-10-31T11:30:00Z",
-      "last": "2026-10-31T12:30:00Z",
-      "frames": 4,
+      "last": "2026-10-31T13:00:00Z",
+      "frames": 5,
       "x_first": 163.0,
       "y_first": 324.0,
-      "x_last": 161.0,
-      "y_last": 297.0,
-      "vx_px_h": -2.8,
-      "vy_px_h": -26.8,
-      "speed_px_h": 26.95,
-      "sunward_px_h": 11.74,
-      "rms_px": 0.99,
+      "x_last": 158.0,
+      "y_last": 283.0,
+      "vx_px_h": -3.05,
+      "vy_px_h": -27.19,
+      "speed_px_h": 27.36,
+      "sunward_px_h": 9.04,
+      "rms_px": 0.92,
       "processing_shape": [
         512,
         512
@@ -128,6 +424,12 @@
           "x": 161.0,
           "y": 297.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1230_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T13:00:00Z",
+          "x": 158.0,
+          "y": 283.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1300_ccor1_1024by960.jpg"
         }
       ],
       "precap_evidence_status": "PASS",
@@ -135,7 +437,7 @@
       "motion_consistency": {
         "status": "PROVISIONALLY_CONSISTENT",
         "reason": "No large local kinks detected",
-        "triples_checked": 2,
+        "triples_checked": 3,
         "max_kink_px": 2.36,
         "max_velocity_change_px_h": 14.14,
         "large_kinks": 0,
@@ -146,8 +448,167 @@
         }
       },
       "review_motion_evidence": {
+        "status": "MEASURABLE_MOTION",
+        "displacement_px_512": 41.3,
+        "duration_hours": 1.5,
+        "observation_count": 5,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "ESTABLISHED",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 5,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 5,
+          "available": 7,
+          "coverage": 0.714,
+          "longest_missing_run": 1,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 5,
+          "passed": 4,
+          "pass_fraction": 0.8,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T11:30:00Z",
+              "pass": true,
+              "snr": 5.73,
+              "peak_residual": 17.0,
+              "compact_pixels": 4,
+              "peak_xy": [
+                163,
+                324
+              ]
+            },
+            {
+              "time": "2026-10-31T11:45:00Z",
+              "pass": true,
+              "snr": 4.32,
+              "peak_residual": 17.0,
+              "compact_pixels": 2,
+              "peak_xy": [
+                164,
+                316
+              ]
+            },
+            {
+              "time": "2026-10-31T12:15:00Z",
+              "pass": false,
+              "snr": 2.99,
+              "peak_residual": 18.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                158,
+                302
+              ]
+            },
+            {
+              "time": "2026-10-31T12:30:00Z",
+              "pass": true,
+              "snr": 3.6,
+              "peak_residual": 18.0,
+              "compact_pixels": 2,
+              "peak_xy": [
+                161,
+                297
+              ]
+            },
+            {
+              "time": "2026-10-31T13:00:00Z",
+              "pass": true,
+              "snr": 4.05,
+              "peak_residual": 20.0,
+              "compact_pixels": 2,
+              "peak_xy": [
+                158,
+                283
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR1-259e7e9d5bd5",
+      "camera": "ccor1",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T11:45:00Z",
+      "last": "2026-10-31T12:45:00Z",
+      "frames": 4,
+      "x_first": 355.0,
+      "y_first": 252.0,
+      "x_last": 374.0,
+      "y_last": 252.0,
+      "vx_px_h": 18.86,
+      "vy_px_h": -0.11,
+      "speed_px_h": 18.86,
+      "sunward_px_h": -18.99,
+      "rms_px": 0.51,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T11:45:00Z",
+          "x": 355.0,
+          "y": 252.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1145_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:00:00Z",
+          "x": 360.0,
+          "y": 252.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1200_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:15:00Z",
+          "x": 364.0,
+          "y": 251.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1215_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:45:00Z",
+          "x": 374.0,
+          "y": 252.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1245_ccor1_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 2,
+        "max_kink_px": 1.2,
+        "max_velocity_change_px_h": 7.21,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
         "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 27.07,
+        "displacement_px_512": 19.0,
         "duration_hours": 1.0,
         "observation_count": 4,
         "minimum_displacement_px_512": 6.0,
@@ -180,47 +641,47 @@
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T11:30:00Z",
+              "time": "2026-10-31T11:45:00Z",
               "pass": true,
-              "snr": 6.07,
-              "peak_residual": 18.0,
-              "compact_pixels": 5,
+              "snr": 4.72,
+              "peak_residual": 16.0,
+              "compact_pixels": 8,
               "peak_xy": [
-                163,
-                324
+                354,
+                251
               ]
             },
             {
-              "time": "2026-10-31T11:45:00Z",
+              "time": "2026-10-31T12:00:00Z",
               "pass": true,
-              "snr": 4.32,
-              "peak_residual": 18.0,
-              "compact_pixels": 2,
+              "snr": 6.74,
+              "peak_residual": 11.0,
+              "compact_pixels": 11,
               "peak_xy": [
-                162,
-                317
+                360,
+                252
               ]
             },
             {
               "time": "2026-10-31T12:15:00Z",
               "pass": true,
-              "snr": 3.6,
-              "peak_residual": 19.0,
-              "compact_pixels": 2,
+              "snr": 12.82,
+              "peak_residual": 20.0,
+              "compact_pixels": 18,
               "peak_xy": [
-                158,
-                302
+                364,
+                251
               ]
             },
             {
-              "time": "2026-10-31T12:30:00Z",
+              "time": "2026-10-31T12:45:00Z",
               "pass": true,
-              "snr": 3.6,
-              "peak_residual": 18.0,
-              "compact_pixels": 2,
+              "snr": 12.14,
+              "peak_residual": 19.0,
+              "compact_pixels": 13,
               "peak_xy": [
-                161,
-                297
+                374,
+                252
               ]
             }
           ]
@@ -329,10 +790,10 @@
           "samples": [
             {
               "time": "2026-10-31T11:30:00Z",
-              "pass": false,
-              "snr": 2.87,
-              "peak_residual": 17.0,
-              "compact_pixels": 0,
+              "pass": true,
+              "snr": 3.04,
+              "peak_residual": 18.0,
+              "compact_pixels": 1,
               "peak_xy": [
                 150,
                 249
@@ -340,10 +801,10 @@
             },
             {
               "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 3.6,
-              "peak_residual": 18.0,
-              "compact_pixels": 1,
+              "pass": false,
+              "snr": 2.79,
+              "peak_residual": 16.0,
+              "compact_pixels": 0,
               "peak_xy": [
                 151,
                 256
@@ -352,9 +813,9 @@
             {
               "time": "2026-10-31T12:00:00Z",
               "pass": true,
-              "snr": 4.18,
-              "peak_residual": 17.0,
-              "compact_pixels": 2,
+              "snr": 4.72,
+              "peak_residual": 15.0,
+              "compact_pixels": 3,
               "peak_xy": [
                 151,
                 265
@@ -363,12 +824,12 @@
             {
               "time": "2026-10-31T12:30:00Z",
               "pass": true,
-              "snr": 3.6,
-              "peak_residual": 19.0,
+              "snr": 4.32,
+              "peak_residual": 18.0,
               "compact_pixels": 2,
               "peak_xy": [
-                153,
-                275
+                152,
+                274
               ]
             }
           ]
@@ -478,9 +939,9 @@
             {
               "time": "2026-10-31T11:30:00Z",
               "pass": true,
-              "snr": 8.77,
-              "peak_residual": 13.0,
-              "compact_pixels": 12,
+              "snr": 8.09,
+              "peak_residual": 12.0,
+              "compact_pixels": 7,
               "peak_xy": [
                 361,
                 252
@@ -489,9 +950,9 @@
             {
               "time": "2026-10-31T11:45:00Z",
               "pass": true,
-              "snr": 5.73,
-              "peak_residual": 18.0,
-              "compact_pixels": 6,
+              "snr": 6.74,
+              "peak_residual": 11.0,
+              "compact_pixels": 7,
               "peak_xy": [
                 360,
                 252
@@ -500,9 +961,9 @@
             {
               "time": "2026-10-31T12:00:00Z",
               "pass": true,
-              "snr": 7.64,
-              "peak_residual": 18.0,
-              "compact_pixels": 15,
+              "snr": 6.74,
+              "peak_residual": 11.0,
+              "compact_pixels": 11,
               "peak_xy": [
                 360,
                 252
@@ -511,12 +972,160 @@
             {
               "time": "2026-10-31T12:15:00Z",
               "pass": true,
-              "snr": 6.07,
-              "peak_residual": 23.0,
-              "compact_pixels": 11,
+              "snr": 4.32,
+              "peak_residual": 20.0,
+              "compact_pixels": 3,
               "peak_xy": [
                 355,
                 251
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR1-456d4c59e445",
+      "camera": "ccor1",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T11:30:00Z",
+      "last": "2026-10-31T12:15:00Z",
+      "frames": 4,
+      "x_first": 150.0,
+      "y_first": 263.0,
+      "x_last": 153.0,
+      "y_last": 280.0,
+      "vx_px_h": 3.6,
+      "vy_px_h": 22.4,
+      "speed_px_h": 22.69,
+      "sunward_px_h": 0.63,
+      "rms_px": 0.69,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T11:30:00Z",
+          "x": 150.0,
+          "y": 263.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1130_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T11:45:00Z",
+          "x": 151.0,
+          "y": 268.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1145_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:00:00Z",
+          "x": 151.0,
+          "y": 273.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1200_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:15:00Z",
+          "x": 153.0,
+          "y": 280.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1215_ccor1_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 2,
+        "max_kink_px": 1.41,
+        "max_velocity_change_px_h": 11.31,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "LIMITED_MOTION_EVIDENCE",
+        "displacement_px_512": 17.26,
+        "duration_hours": 0.75,
+        "observation_count": 4,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "EARLY",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 4,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 4,
+          "available": 4,
+          "coverage": 1.0,
+          "longest_missing_run": 0,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 4,
+          "passed": 4,
+          "pass_fraction": 1.0,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T11:30:00Z",
+              "pass": true,
+              "snr": 4.38,
+              "peak_residual": 15.0,
+              "compact_pixels": 4,
+              "peak_xy": [
+                150,
+                263
+              ]
+            },
+            {
+              "time": "2026-10-31T11:45:00Z",
+              "pass": true,
+              "snr": 5.67,
+              "peak_residual": 22.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                151,
+                268
+              ]
+            },
+            {
+              "time": "2026-10-31T12:00:00Z",
+              "pass": true,
+              "snr": 5.13,
+              "peak_residual": 21.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                151,
+                273
+              ]
+            },
+            {
+              "time": "2026-10-31T12:15:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 16.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                153,
+                280
               ]
             }
           ]
@@ -637,9 +1246,9 @@
             {
               "time": "2026-10-31T11:30:00Z",
               "pass": true,
-              "snr": 4.05,
-              "peak_residual": 17.0,
-              "compact_pixels": 2,
+              "snr": 5.06,
+              "peak_residual": 16.0,
+              "compact_pixels": 3,
               "peak_xy": [
                 146,
                 283
@@ -659,12 +1268,177 @@
             {
               "time": "2026-10-31T12:15:00Z",
               "pass": false,
-              "snr": 2.99,
-              "peak_residual": 20.0,
+              "snr": 2.19,
+              "peak_residual": 17.0,
               "compact_pixels": 0,
               "peak_xy": [
                 158,
                 282
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR1-0370b120d1e3",
+      "camera": "ccor1",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T10:45:00Z",
+      "last": "2026-10-31T12:15:00Z",
+      "frames": 5,
+      "x_first": 153.0,
+      "y_first": 299.0,
+      "x_last": 159.0,
+      "y_last": 304.0,
+      "vx_px_h": 4.04,
+      "vy_px_h": 3.23,
+      "speed_px_h": 5.17,
+      "sunward_px_h": 2.26,
+      "rms_px": 0.48,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T10:45:00Z",
+          "x": 153.0,
+          "y": 299.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1045_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T11:00:00Z",
+          "x": 154.0,
+          "y": 300.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1100_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T11:30:00Z",
+          "x": 157.0,
+          "y": 302.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1130_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T11:45:00Z",
+          "x": 157.0,
+          "y": 302.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1145_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:15:00Z",
+          "x": 159.0,
+          "y": 304.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1215_ccor1_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 3,
+        "max_kink_px": 1.2,
+        "max_velocity_change_px_h": 7.21,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "MEASURABLE_MOTION",
+        "displacement_px_512": 7.81,
+        "duration_hours": 1.5,
+        "observation_count": 5,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "ESTABLISHED",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 5,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 5,
+          "available": 7,
+          "coverage": 0.714,
+          "longest_missing_run": 1,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 5,
+          "passed": 4,
+          "pass_fraction": 0.8,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T10:45:00Z",
+              "pass": true,
+              "snr": 4.38,
+              "peak_residual": 12.0,
+              "compact_pixels": 3,
+              "peak_xy": [
+                153,
+                299
+              ]
+            },
+            {
+              "time": "2026-10-31T11:00:00Z",
+              "pass": true,
+              "snr": 3.6,
+              "peak_residual": 16.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                154,
+                300
+              ]
+            },
+            {
+              "time": "2026-10-31T11:30:00Z",
+              "pass": true,
+              "snr": 3.37,
+              "peak_residual": 19.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                157,
+                302
+              ]
+            },
+            {
+              "time": "2026-10-31T11:45:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 15.0,
+              "compact_pixels": 2,
+              "peak_xy": [
+                157,
+                302
+              ]
+            },
+            {
+              "time": "2026-10-31T12:15:00Z",
+              "pass": false,
+              "snr": 2.99,
+              "peak_residual": 18.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                158,
+                302
               ]
             }
           ]
@@ -774,9 +1548,9 @@
             {
               "time": "2026-10-31T11:15:00Z",
               "pass": true,
-              "snr": 11.47,
-              "peak_residual": 17.0,
-              "compact_pixels": 16,
+              "snr": 10.79,
+              "peak_residual": 16.0,
+              "compact_pixels": 6,
               "peak_xy": [
                 369,
                 252
@@ -785,20 +1559,20 @@
             {
               "time": "2026-10-31T11:30:00Z",
               "pass": true,
-              "snr": 9.44,
-              "peak_residual": 14.0,
-              "compact_pixels": 13,
+              "snr": 7.42,
+              "peak_residual": 11.0,
+              "compact_pixels": 6,
               "peak_xy": [
-                364,
+                363,
                 252
               ]
             },
             {
               "time": "2026-10-31T11:45:00Z",
               "pass": true,
-              "snr": 5.73,
-              "peak_residual": 18.0,
-              "compact_pixels": 6,
+              "snr": 6.74,
+              "peak_residual": 11.0,
+              "compact_pixels": 7,
               "peak_xy": [
                 360,
                 252
@@ -807,9 +1581,9 @@
             {
               "time": "2026-10-31T12:00:00Z",
               "pass": true,
-              "snr": 6.74,
-              "peak_residual": 22.0,
-              "compact_pixels": 10,
+              "snr": 5.4,
+              "peak_residual": 18.0,
+              "compact_pixels": 6,
               "peak_xy": [
                 356,
                 251
@@ -922,9 +1696,9 @@
             {
               "time": "2026-10-31T11:15:00Z",
               "pass": true,
-              "snr": 12.14,
-              "peak_residual": 18.0,
-              "compact_pixels": 12,
+              "snr": 9.44,
+              "peak_residual": 14.0,
+              "compact_pixels": 5,
               "peak_xy": [
                 364,
                 252
@@ -933,9 +1707,9 @@
             {
               "time": "2026-10-31T11:30:00Z",
               "pass": true,
-              "snr": 8.77,
-              "peak_residual": 13.0,
-              "compact_pixels": 12,
+              "snr": 8.09,
+              "peak_residual": 12.0,
+              "compact_pixels": 7,
               "peak_xy": [
                 361,
                 252
@@ -944,9 +1718,9 @@
             {
               "time": "2026-10-31T11:45:00Z",
               "pass": true,
-              "snr": 5.73,
-              "peak_residual": 18.0,
-              "compact_pixels": 6,
+              "snr": 6.74,
+              "peak_residual": 11.0,
+              "compact_pixels": 7,
               "peak_xy": [
                 360,
                 252
@@ -955,160 +1729,12 @@
             {
               "time": "2026-10-31T12:00:00Z",
               "pass": true,
-              "snr": 6.74,
-              "peak_residual": 22.0,
-              "compact_pixels": 10,
+              "snr": 5.4,
+              "peak_residual": 18.0,
+              "compact_pixels": 6,
               "peak_xy": [
                 356,
                 251
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR1-22d244eeba0c",
-      "camera": "ccor1",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T11:00:00Z",
-      "last": "2026-10-31T11:45:00Z",
-      "frames": 4,
-      "x_first": 154.0,
-      "y_first": 300.0,
-      "x_last": 151.0,
-      "y_last": 314.0,
-      "vx_px_h": -4.4,
-      "vy_px_h": 18.0,
-      "speed_px_h": 18.53,
-      "sunward_px_h": -11.82,
-      "rms_px": 0.74,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T11:00:00Z",
-          "x": 154.0,
-          "y": 300.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1100_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:15:00Z",
-          "x": 153.0,
-          "y": 305.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1115_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:30:00Z",
-          "x": 151.0,
-          "y": 308.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1130_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 151.0,
-          "y": 314.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1145_ccor1_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 1.8,
-        "max_velocity_change_px_h": 14.42,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 14.32,
-        "duration_hours": 0.75,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 4,
-          "coverage": 1.0,
-          "longest_missing_run": 0,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 4,
-          "pass_fraction": 1.0,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T11:00:00Z",
-              "pass": true,
-              "snr": 4.32,
-              "peak_residual": 16.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                154,
-                300
-              ]
-            },
-            {
-              "time": "2026-10-31T11:15:00Z",
-              "pass": true,
-              "snr": 4.72,
-              "peak_residual": 15.0,
-              "compact_pixels": 4,
-              "peak_xy": [
-                153,
-                305
-              ]
-            },
-            {
-              "time": "2026-10-31T11:30:00Z",
-              "pass": true,
-              "snr": 3.37,
-              "peak_residual": 17.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                151,
-                308
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 5.06,
-              "peak_residual": 16.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                151,
-                314
               ]
             }
           ]
@@ -1211,16 +1837,16 @@
         "pixels": {
           "status": "PASS",
           "evaluated": 4,
-          "passed": 4,
-          "pass_fraction": 1.0,
+          "passed": 3,
+          "pass_fraction": 0.75,
           "minimum_fraction": 0.75,
           "samples": [
             {
               "time": "2026-10-31T10:45:00Z",
               "pass": true,
-              "snr": 4.72,
+              "snr": 6.07,
               "peak_residual": 19.0,
-              "compact_pixels": 1,
+              "compact_pixels": 2,
               "peak_xy": [
                 355,
                 226
@@ -1228,21 +1854,21 @@
             },
             {
               "time": "2026-10-31T11:00:00Z",
-              "pass": true,
-              "snr": 3.37,
-              "peak_residual": 17.0,
-              "compact_pixels": 1,
+              "pass": false,
+              "snr": 2.7,
+              "peak_residual": 12.0,
+              "compact_pixels": 0,
               "peak_xy": [
                 357,
-                232
+                231
               ]
             },
             {
               "time": "2026-10-31T11:15:00Z",
               "pass": true,
-              "snr": 3.28,
-              "peak_residual": 21.0,
-              "compact_pixels": 1,
+              "snr": 6.07,
+              "peak_residual": 20.0,
+              "compact_pixels": 2,
               "peak_xy": [
                 356,
                 239
@@ -1251,160 +1877,12 @@
             {
               "time": "2026-10-31T11:45:00Z",
               "pass": true,
-              "snr": 7.08,
-              "peak_residual": 23.0,
-              "compact_pixels": 14,
-              "peak_xy": [
-                355,
-                252
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR1-0370b120d1e3",
-      "camera": "ccor1",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T10:45:00Z",
-      "last": "2026-10-31T11:45:00Z",
-      "frames": 4,
-      "x_first": 153.0,
-      "y_first": 299.0,
-      "x_last": 157.0,
-      "y_last": 302.0,
-      "vx_px_h": 4.4,
-      "vy_px_h": 3.2,
-      "speed_px_h": 5.44,
-      "sunward_px_h": 2.45,
-      "rms_px": 0.5,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T10:45:00Z",
-          "x": 153.0,
-          "y": 299.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1045_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:00:00Z",
-          "x": 154.0,
-          "y": 300.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1100_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:30:00Z",
-          "x": 157.0,
-          "y": 302.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1130_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 157.0,
-          "y": 302.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1145_ccor1_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 1.2,
-        "max_velocity_change_px_h": 7.21,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 5.0,
-        "duration_hours": 1.0,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 5,
-          "coverage": 0.8,
-          "longest_missing_run": 1,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 4,
-          "pass_fraction": 1.0,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T10:45:00Z",
-              "pass": true,
-              "snr": 4.38,
-              "peak_residual": 13.0,
-              "compact_pixels": 3,
-              "peak_xy": [
-                153,
-                299
-              ]
-            },
-            {
-              "time": "2026-10-31T11:00:00Z",
-              "pass": true,
-              "snr": 4.32,
+              "snr": 4.72,
               "peak_residual": 16.0,
-              "compact_pixels": 1,
+              "compact_pixels": 8,
               "peak_xy": [
-                154,
-                300
-              ]
-            },
-            {
-              "time": "2026-10-31T11:30:00Z",
-              "pass": true,
-              "snr": 4.38,
-              "peak_residual": 21.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                157,
-                302
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 3.6,
-              "peak_residual": 17.0,
-              "compact_pixels": 2,
-              "peak_xy": [
-                157,
-                302
+                354,
+                251
               ]
             }
           ]
@@ -1412,316 +1890,20 @@
       }
     },
     {
-      "id": "CCOR1-0c6011da5da5",
-      "camera": "ccor1",
+      "id": "CCOR2-34e52a48c143",
+      "camera": "ccor2",
       "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T10:45:00Z",
-      "last": "2026-10-31T11:45:00Z",
+      "first": "2026-10-31T12:15:00Z",
+      "last": "2026-10-31T13:00:00Z",
       "frames": 4,
-      "x_first": 166.0,
-      "y_first": 296.0,
-      "x_last": 157.0,
-      "y_last": 302.0,
-      "vx_px_h": -9.14,
-      "vy_px_h": 6.17,
-      "speed_px_h": 11.03,
-      "sunward_px_h": -10.68,
-      "rms_px": 1.27,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T10:45:00Z",
-          "x": 166.0,
-          "y": 296.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1045_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:00:00Z",
-          "x": 164.0,
-          "y": 298.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1100_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:15:00Z",
-          "x": 161.0,
-          "y": 302.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1115_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 157.0,
-          "y": 302.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1145_ccor1_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 2.75,
-        "max_velocity_change_px_h": 16.49,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 10.82,
-        "duration_hours": 1.0,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 5,
-          "coverage": 0.8,
-          "longest_missing_run": 1,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 3,
-          "pass_fraction": 0.75,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T10:45:00Z",
-              "pass": false,
-              "snr": 2.89,
-              "peak_residual": 16.0,
-              "compact_pixels": 0,
-              "peak_xy": [
-                166,
-                296
-              ]
-            },
-            {
-              "time": "2026-10-31T11:00:00Z",
-              "pass": true,
-              "snr": 3.37,
-              "peak_residual": 15.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                164,
-                298
-              ]
-            },
-            {
-              "time": "2026-10-31T11:15:00Z",
-              "pass": true,
-              "snr": 3.82,
-              "peak_residual": 19.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                161,
-                302
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 3.6,
-              "peak_residual": 17.0,
-              "compact_pixels": 2,
-              "peak_xy": [
-                157,
-                302
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR1-0969be34a527",
-      "camera": "ccor1",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T10:15:00Z",
-      "last": "2026-10-31T11:00:00Z",
-      "frames": 4,
-      "x_first": 150.0,
-      "y_first": 267.0,
-      "x_last": 151.0,
-      "y_last": 252.0,
-      "vx_px_h": 0.8,
-      "vy_px_h": -19.6,
-      "speed_px_h": 19.62,
-      "sunward_px_h": 1.99,
-      "rms_px": 0.61,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T10:15:00Z",
-          "x": 150.0,
-          "y": 267.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1015_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T10:30:00Z",
-          "x": 151.0,
-          "y": 262.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1030_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T10:45:00Z",
-          "x": 150.0,
-          "y": 258.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1045_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:00:00Z",
-          "x": 151.0,
-          "y": 252.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1100_ccor1_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 1.41,
-        "max_velocity_change_px_h": 11.31,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 15.03,
-        "duration_hours": 0.75,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 4,
-          "coverage": 1.0,
-          "longest_missing_run": 0,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 3,
-          "pass_fraction": 0.75,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T10:15:00Z",
-              "pass": true,
-              "snr": 3.71,
-              "peak_residual": 12.0,
-              "compact_pixels": 3,
-              "peak_xy": [
-                150,
-                267
-              ]
-            },
-            {
-              "time": "2026-10-31T10:30:00Z",
-              "pass": true,
-              "snr": 3.04,
-              "peak_residual": 19.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                151,
-                262
-              ]
-            },
-            {
-              "time": "2026-10-31T10:45:00Z",
-              "pass": false,
-              "snr": 2.92,
-              "peak_residual": 13.0,
-              "compact_pixels": 0,
-              "peak_xy": [
-                150,
-                258
-              ]
-            },
-            {
-              "time": "2026-10-31T11:00:00Z",
-              "pass": true,
-              "snr": 3.37,
-              "peak_residual": 15.0,
-              "compact_pixels": 2,
-              "peak_xy": [
-                150,
-                253
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR1-95874c5091f6",
-      "camera": "ccor1",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T09:45:00Z",
-      "last": "2026-10-31T10:30:00Z",
-      "frames": 4,
-      "x_first": 145.0,
-      "y_first": 270.0,
-      "x_last": 153.0,
-      "y_last": 265.0,
-      "vx_px_h": 10.4,
-      "vy_px_h": -6.4,
-      "speed_px_h": 12.21,
-      "sunward_px_h": 11.32,
+      "x_first": 294.0,
+      "y_first": 137.0,
+      "x_last": 295.0,
+      "y_last": 127.0,
+      "vx_px_h": 1.6,
+      "vy_px_h": -13.6,
+      "speed_px_h": 13.69,
+      "sunward_px_h": -13.13,
       "rms_px": 0.32,
       "processing_shape": [
         512,
@@ -1734,28 +1916,28 @@
       "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
       "points": [
         {
-          "time": "2026-10-31T09:45:00Z",
-          "x": 145.0,
-          "y": 270.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_0945_ccor1_1024by960.jpg"
+          "time": "2026-10-31T12:15:00Z",
+          "x": 294.0,
+          "y": 137.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
         },
         {
-          "time": "2026-10-31T10:00:00Z",
-          "x": 148.0,
-          "y": 268.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1000_ccor1_1024by960.jpg"
+          "time": "2026-10-31T12:30:00Z",
+          "x": 294.0,
+          "y": 134.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
         },
         {
-          "time": "2026-10-31T10:15:00Z",
-          "x": 150.0,
-          "y": 267.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1015_ccor1_1024by960.jpg"
+          "time": "2026-10-31T12:45:00Z",
+          "x": 295.0,
+          "y": 130.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1245_ccor2_1024by960.jpg"
         },
         {
-          "time": "2026-10-31T10:30:00Z",
-          "x": 153.0,
-          "y": 265.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1030_ccor1_1024by960.jpg"
+          "time": "2026-10-31T13:00:00Z",
+          "x": 295.0,
+          "y": 127.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1300_ccor2_1024by960.jpg"
         }
       ],
       "precap_evidence_status": "PASS",
@@ -1775,155 +1957,7 @@
       },
       "review_motion_evidence": {
         "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 9.43,
-        "duration_hours": 0.75,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 4,
-          "coverage": 1.0,
-          "longest_missing_run": 0,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 4,
-          "pass_fraction": 1.0,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T09:45:00Z",
-              "pass": true,
-              "snr": 3.37,
-              "peak_residual": 12.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                145,
-                270
-              ]
-            },
-            {
-              "time": "2026-10-31T10:00:00Z",
-              "pass": true,
-              "snr": 3.37,
-              "peak_residual": 12.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                148,
-                268
-              ]
-            },
-            {
-              "time": "2026-10-31T10:15:00Z",
-              "pass": true,
-              "snr": 3.71,
-              "peak_residual": 12.0,
-              "compact_pixels": 3,
-              "peak_xy": [
-                150,
-                267
-              ]
-            },
-            {
-              "time": "2026-10-31T10:30:00Z",
-              "pass": true,
-              "snr": 3.78,
-              "peak_residual": 15.0,
-              "compact_pixels": 2,
-              "peak_xy": [
-                153,
-                265
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR2-e1dbf31dfc6b",
-      "camera": "ccor2",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T11:45:00Z",
-      "last": "2026-10-31T12:30:00Z",
-      "frames": 4,
-      "x_first": 294.0,
-      "y_first": 141.0,
-      "x_last": 295.0,
-      "y_last": 127.0,
-      "vx_px_h": 1.2,
-      "vy_px_h": -19.2,
-      "speed_px_h": 19.24,
-      "sunward_px_h": -18.2,
-      "rms_px": 0.72,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 294.0,
-          "y": 141.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:00:00Z",
-          "x": 294.0,
-          "y": 136.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:15:00Z",
-          "x": 294.0,
-          "y": 130.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:30:00Z",
-          "x": 295.0,
-          "y": 127.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 1.58,
-        "max_velocity_change_px_h": 12.65,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 14.04,
+        "displacement_px_512": 10.05,
         "duration_hours": 0.75,
         "observation_count": 4,
         "minimum_displacement_px_512": 6.0,
@@ -1956,44 +1990,44 @@
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T11:45:00Z",
+              "time": "2026-10-31T12:15:00Z",
               "pass": true,
-              "snr": 3.04,
-              "peak_residual": 26.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                293,
-                143
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 3.04,
-              "peak_residual": 24.0,
-              "compact_pixels": 1,
+              "snr": 3.71,
+              "peak_residual": 15.0,
+              "compact_pixels": 7,
               "peak_xy": [
                 294,
                 136
               ]
             },
             {
-              "time": "2026-10-31T12:15:00Z",
+              "time": "2026-10-31T12:30:00Z",
+              "pass": false,
+              "snr": 2.47,
+              "peak_residual": 15.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                294,
+                134
+              ]
+            },
+            {
+              "time": "2026-10-31T12:45:00Z",
               "pass": true,
-              "snr": 3.37,
-              "peak_residual": 22.0,
-              "compact_pixels": 4,
+              "snr": 3.51,
+              "peak_residual": 18.0,
+              "compact_pixels": 2,
               "peak_xy": [
                 294,
                 130
               ]
             },
             {
-              "time": "2026-10-31T12:30:00Z",
-              "pass": false,
-              "snr": 2.87,
+              "time": "2026-10-31T13:00:00Z",
+              "pass": true,
+              "snr": 4.72,
               "peak_residual": 22.0,
-              "compact_pixels": 0,
+              "compact_pixels": 4,
               "peak_xy": [
                 295,
                 127
@@ -2004,21 +2038,21 @@
       }
     },
     {
-      "id": "CCOR2-e24770e40aeb",
+      "id": "CCOR2-f7dba1d28b95",
       "camera": "ccor2",
       "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T11:45:00Z",
-      "last": "2026-10-31T12:30:00Z",
+      "first": "2026-10-31T12:15:00Z",
+      "last": "2026-10-31T13:00:00Z",
       "frames": 4,
-      "x_first": 294.0,
-      "y_first": 136.0,
-      "x_last": 296.0,
-      "y_last": 119.0,
-      "vx_px_h": 2.0,
-      "vy_px_h": -22.8,
-      "speed_px_h": 22.89,
-      "sunward_px_h": -22.46,
-      "rms_px": 0.97,
+      "x_first": 295.0,
+      "y_first": 127.0,
+      "x_last": 294.0,
+      "y_last": 137.0,
+      "vx_px_h": -1.2,
+      "vy_px_h": 13.6,
+      "speed_px_h": 13.65,
+      "sunward_px_h": 13.13,
+      "rms_px": 0.35,
       "processing_shape": [
         512,
         512
@@ -2030,28 +2064,28 @@
       "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
       "points": [
         {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 294.0,
-          "y": 136.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:00:00Z",
-          "x": 294.0,
-          "y": 130.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
-        },
-        {
           "time": "2026-10-31T12:15:00Z",
-          "x": 293.0,
-          "y": 124.0,
+          "x": 295.0,
+          "y": 127.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T12:30:00Z",
-          "x": 296.0,
-          "y": 119.0,
+          "x": 294.0,
+          "y": 130.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:45:00Z",
+          "x": 294.0,
+          "y": 134.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1245_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T13:00:00Z",
+          "x": 294.0,
+          "y": 137.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1300_ccor2_1024by960.jpg"
         }
       ],
       "precap_evidence_status": "PASS",
@@ -2060,8 +2094,8 @@
         "status": "PROVISIONALLY_CONSISTENT",
         "reason": "No large local kinks detected",
         "triples_checked": 2,
-        "max_kink_px": 2.06,
-        "max_velocity_change_px_h": 16.49,
+        "max_kink_px": 0.71,
+        "max_velocity_change_px_h": 5.66,
         "large_kinks": 0,
         "direction_reversals": 0,
         "thresholds": {
@@ -2071,7 +2105,7 @@
       },
       "review_motion_evidence": {
         "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 17.12,
+        "displacement_px_512": 10.05,
         "duration_hours": 0.75,
         "observation_count": 4,
         "minimum_displacement_px_512": 6.0,
@@ -2104,47 +2138,47 @@
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 3.2,
-              "peak_residual": 26.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                294,
-                136
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 3.2,
-              "peak_residual": 26.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                292,
-                132
-              ]
-            },
-            {
               "time": "2026-10-31T12:15:00Z",
-              "pass": false,
-              "snr": 1.82,
-              "peak_residual": 21.0,
-              "compact_pixels": 0,
+              "pass": true,
+              "snr": 3.37,
+              "peak_residual": 19.0,
+              "compact_pixels": 2,
               "peak_xy": [
                 295,
-                125
+                127
               ]
             },
             {
               "time": "2026-10-31T12:30:00Z",
               "pass": true,
-              "snr": 3.08,
-              "peak_residual": 21.0,
-              "compact_pixels": 1,
+              "snr": 3.37,
+              "peak_residual": 18.0,
+              "compact_pixels": 3,
               "peak_xy": [
-                296,
-                119
+                294,
+                130
+              ]
+            },
+            {
+              "time": "2026-10-31T12:45:00Z",
+              "pass": false,
+              "snr": 2.92,
+              "peak_residual": 19.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                294,
+                134
+              ]
+            },
+            {
+              "time": "2026-10-31T13:00:00Z",
+              "pass": true,
+              "snr": 3.24,
+              "peak_residual": 16.0,
+              "compact_pixels": 3,
+              "peak_xy": [
+                294,
+                137
               ]
             }
           ]
@@ -2152,21 +2186,21 @@
       }
     },
     {
-      "id": "CCOR2-3f6efab04841",
+      "id": "CCOR2-09387cbafc59",
       "camera": "ccor2",
       "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T10:30:00Z",
-      "last": "2026-10-31T12:30:00Z",
-      "frames": 8,
-      "x_first": 191.0,
-      "y_first": 182.0,
-      "x_last": 193.0,
-      "y_last": 165.0,
-      "vx_px_h": 0.9,
-      "vy_px_h": -8.05,
-      "speed_px_h": 8.1,
-      "sunward_px_h": -6.09,
-      "rms_px": 1.09,
+      "first": "2026-10-31T10:45:00Z",
+      "last": "2026-10-31T13:00:00Z",
+      "frames": 7,
+      "x_first": 345.0,
+      "y_first": 133.0,
+      "x_last": 354.0,
+      "y_last": 131.0,
+      "vx_px_h": 4.65,
+      "vy_px_h": -1.18,
+      "speed_px_h": 4.79,
+      "sunward_px_h": -3.12,
+      "rms_px": 1.15,
       "processing_shape": [
         512,
         512
@@ -2178,52 +2212,46 @@
       "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
       "points": [
         {
-          "time": "2026-10-31T10:30:00Z",
-          "x": 191.0,
-          "y": 182.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1030_ccor2_1024by960.jpg"
-        },
-        {
           "time": "2026-10-31T10:45:00Z",
-          "x": 191.0,
-          "y": 180.0,
+          "x": 345.0,
+          "y": 133.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1045_ccor2_1024by960.jpg"
         },
         {
+          "time": "2026-10-31T11:00:00Z",
+          "x": 346.0,
+          "y": 133.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1100_ccor2_1024by960.jpg"
+        },
+        {
           "time": "2026-10-31T11:15:00Z",
-          "x": 191.0,
-          "y": 177.0,
+          "x": 346.0,
+          "y": 133.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1115_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T11:30:00Z",
-          "x": 192.0,
-          "y": 172.0,
+          "x": 346.0,
+          "y": 133.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
         },
         {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 192.0,
-          "y": 171.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:00:00Z",
-          "x": 192.0,
-          "y": 171.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
-        },
-        {
           "time": "2026-10-31T12:15:00Z",
-          "x": 192.0,
-          "y": 169.0,
+          "x": 353.0,
+          "y": 131.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T12:30:00Z",
-          "x": 193.0,
-          "y": 165.0,
+          "x": 353.0,
+          "y": 131.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T13:00:00Z",
+          "x": 354.0,
+          "y": 131.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1300_ccor2_1024by960.jpg"
         }
       ],
       "precap_evidence_status": "PASS",
@@ -2231,9 +2259,9 @@
       "motion_consistency": {
         "status": "PROVISIONALLY_CONSISTENT",
         "reason": "No large local kinks detected",
-        "triples_checked": 6,
-        "max_kink_px": 2.43,
-        "max_velocity_change_px_h": 16.49,
+        "triples_checked": 5,
+        "max_kink_px": 1.82,
+        "max_velocity_change_px_h": 9.71,
         "large_kinks": 0,
         "direction_reversals": 0,
         "thresholds": {
@@ -2243,9 +2271,9 @@
       },
       "review_motion_evidence": {
         "status": "MEASURABLE_MOTION",
-        "displacement_px_512": 17.12,
-        "duration_hours": 2.0,
-        "observation_count": 8,
+        "displacement_px_512": 9.22,
+        "duration_hours": 2.25,
+        "observation_count": 7,
         "minimum_displacement_px_512": 6.0,
         "minimum_duration_hours": 1.5,
         "minimum_observations": 5
@@ -2253,7 +2281,7 @@
       "review_stage": "ESTABLISHED",
       "field_rim_review": {
         "status": "CLEAR",
-        "checked": 8,
+        "checked": 7,
         "rim_hits": 0,
         "margin_px_512": 8
       },
@@ -2261,106 +2289,95 @@
         "status": "PASS",
         "continuity": {
           "status": "PASS",
-          "matched": 8,
-          "available": 9,
-          "coverage": 0.889,
-          "longest_missing_run": 1,
+          "matched": 7,
+          "available": 10,
+          "coverage": 0.7,
+          "longest_missing_run": 2,
           "minimum_coverage": 0.7,
           "maximum_missing_run": 2
         },
         "pixels": {
           "status": "PASS",
-          "evaluated": 8,
+          "evaluated": 7,
           "passed": 7,
-          "pass_fraction": 0.875,
+          "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T10:30:00Z",
-              "pass": false,
-              "snr": 2.7,
-              "peak_residual": 12.0,
-              "compact_pixels": 0,
+              "time": "2026-10-31T10:45:00Z",
+              "pass": true,
+              "snr": 29.0,
+              "peak_residual": 29.0,
+              "compact_pixels": 1,
               "peak_xy": [
-                191,
-                180
+                345,
+                133
               ]
             },
             {
-              "time": "2026-10-31T10:45:00Z",
+              "time": "2026-10-31T11:00:00Z",
               "pass": true,
-              "snr": 3.82,
-              "peak_residual": 34.0,
-              "compact_pixels": 7,
+              "snr": 10.79,
+              "peak_residual": 16.0,
+              "compact_pixels": 2,
               "peak_xy": [
-                191,
-                180
+                345,
+                133
               ]
             },
             {
               "time": "2026-10-31T11:15:00Z",
               "pass": true,
-              "snr": 3.04,
-              "peak_residual": 18.0,
-              "compact_pixels": 4,
+              "snr": 20.91,
+              "peak_residual": 32.0,
+              "compact_pixels": 3,
               "peak_xy": [
-                191,
-                177
+                346,
+                133
               ]
             },
             {
               "time": "2026-10-31T11:30:00Z",
               "pass": true,
-              "snr": 4.5,
-              "peak_residual": 21.0,
-              "compact_pixels": 10,
+              "snr": 31.7,
+              "peak_residual": 49.0,
+              "compact_pixels": 3,
               "peak_xy": [
-                192,
-                172
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 4.72,
-              "peak_residual": 21.0,
-              "compact_pixels": 11,
-              "peak_xy": [
-                192,
-                169
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 4.95,
-              "peak_residual": 22.0,
-              "compact_pixels": 11,
-              "peak_xy": [
-                192,
-                171
+                346,
+                133
               ]
             },
             {
               "time": "2026-10-31T12:15:00Z",
               "pass": true,
-              "snr": 5.17,
-              "peak_residual": 23.0,
-              "compact_pixels": 9,
+              "snr": 13.49,
+              "peak_residual": 22.0,
+              "compact_pixels": 1,
               "peak_xy": [
-                192,
-                171
+                353,
+                131
               ]
             },
             {
               "time": "2026-10-31T12:30:00Z",
               "pass": true,
-              "snr": 4.53,
-              "peak_residual": 21.0,
-              "compact_pixels": 10,
+              "snr": 8.77,
+              "peak_residual": 14.0,
+              "compact_pixels": 2,
               "peak_xy": [
-                193,
-                165
+                353,
+                131
+              ]
+            },
+            {
+              "time": "2026-10-31T13:00:00Z",
+              "pass": true,
+              "snr": 16.19,
+              "peak_residual": 25.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                354,
+                131
               ]
             }
           ]
@@ -2368,20 +2385,20 @@
       }
     },
     {
-      "id": "CCOR2-39964de986bf",
+      "id": "CCOR2-4cc90188e553",
       "camera": "ccor2",
       "review_class": "UNVERIFIED_MOTION",
       "first": "2026-10-31T11:30:00Z",
-      "last": "2026-10-31T12:15:00Z",
-      "frames": 4,
-      "x_first": 296.0,
-      "y_first": 119.0,
-      "x_last": 294.0,
-      "y_last": 136.0,
-      "vx_px_h": -2.8,
-      "vy_px_h": 22.4,
-      "speed_px_h": 22.57,
-      "sunward_px_h": 22.46,
+      "last": "2026-10-31T12:45:00Z",
+      "frames": 5,
+      "x_first": 85.0,
+      "y_first": 323.0,
+      "x_last": 74.0,
+      "y_last": 330.0,
+      "vx_px_h": -8.92,
+      "vy_px_h": 5.68,
+      "speed_px_h": 10.57,
+      "sunward_px_h": -10.25,
       "rms_px": 0.35,
       "processing_shape": [
         512,
@@ -2395,27 +2412,33 @@
       "points": [
         {
           "time": "2026-10-31T11:30:00Z",
-          "x": 296.0,
-          "y": 119.0,
+          "x": 85.0,
+          "y": 323.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T11:45:00Z",
-          "x": 295.0,
-          "y": 125.0,
+          "x": 83.0,
+          "y": 324.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T12:00:00Z",
-          "x": 294.0,
-          "y": 130.0,
+          "x": 80.0,
+          "y": 326.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T12:15:00Z",
-          "x": 294.0,
-          "y": 136.0,
+          "x": 78.0,
+          "y": 327.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:45:00Z",
+          "x": 74.0,
+          "y": 330.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1245_ccor2_1024by960.jpg"
         }
       ],
       "precap_evidence_status": "PASS",
@@ -2423,7 +2446,7 @@
       "motion_consistency": {
         "status": "PROVISIONALLY_CONSISTENT",
         "reason": "No large local kinks detected",
-        "triples_checked": 2,
+        "triples_checked": 3,
         "max_kink_px": 0.71,
         "max_velocity_change_px_h": 5.66,
         "large_kinks": 0,
@@ -2435,9 +2458,9 @@
       },
       "review_motion_evidence": {
         "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 17.12,
-        "duration_hours": 0.75,
-        "observation_count": 4,
+        "displacement_px_512": 13.04,
+        "duration_hours": 1.25,
+        "observation_count": 5,
         "minimum_displacement_px_512": 6.0,
         "minimum_duration_hours": 1.5,
         "minimum_observations": 5
@@ -2445,7 +2468,7 @@
       "review_stage": "EARLY",
       "field_rim_review": {
         "status": "CLEAR",
-        "checked": 4,
+        "checked": 5,
         "rim_hits": 0,
         "margin_px_512": 8
       },
@@ -2453,62 +2476,73 @@
         "status": "PASS",
         "continuity": {
           "status": "PASS",
-          "matched": 4,
-          "available": 4,
-          "coverage": 1.0,
-          "longest_missing_run": 0,
+          "matched": 5,
+          "available": 6,
+          "coverage": 0.833,
+          "longest_missing_run": 1,
           "minimum_coverage": 0.7,
           "maximum_missing_run": 2
         },
         "pixels": {
           "status": "PASS",
-          "evaluated": 4,
-          "passed": 3,
-          "pass_fraction": 0.75,
+          "evaluated": 5,
+          "passed": 5,
+          "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
             {
               "time": "2026-10-31T11:30:00Z",
               "pass": true,
-              "snr": 4.05,
-              "peak_residual": 24.0,
-              "compact_pixels": 2,
+              "snr": 3.24,
+              "peak_residual": 29.0,
+              "compact_pixels": 1,
               "peak_xy": [
-                296,
-                119
+                83,
+                324
               ]
             },
             {
               "time": "2026-10-31T11:45:00Z",
-              "pass": false,
-              "snr": 2.7,
-              "peak_residual": 23.0,
-              "compact_pixels": 0,
+              "pass": true,
+              "snr": 3.04,
+              "peak_residual": 28.0,
+              "compact_pixels": 1,
               "peak_xy": [
-                295,
-                127
+                83,
+                324
               ]
             },
             {
               "time": "2026-10-31T12:00:00Z",
               "pass": true,
-              "snr": 3.2,
-              "peak_residual": 26.0,
-              "compact_pixels": 1,
+              "snr": 3.22,
+              "peak_residual": 27.0,
+              "compact_pixels": 4,
               "peak_xy": [
-                292,
-                132
+                82,
+                324
               ]
             },
             {
               "time": "2026-10-31T12:15:00Z",
               "pass": true,
-              "snr": 3.04,
+              "snr": 3.37,
               "peak_residual": 25.0,
+              "compact_pixels": 14,
+              "peak_xy": [
+                78,
+                327
+              ]
+            },
+            {
+              "time": "2026-10-31T12:45:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 35.0,
               "compact_pixels": 2,
               "peak_xy": [
-                294,
-                135
+                72,
+                330
               ]
             }
           ]
@@ -2516,21 +2550,21 @@
       }
     },
     {
-      "id": "CCOR2-6dcd7e00e0b4",
+      "id": "CCOR2-15b5cb519c12",
       "camera": "ccor2",
       "review_class": "UNVERIFIED_MOTION",
       "first": "2026-10-31T11:30:00Z",
-      "last": "2026-10-31T12:15:00Z",
+      "last": "2026-10-31T12:30:00Z",
       "frames": 4,
-      "x_first": 205.0,
-      "y_first": 161.0,
-      "x_last": 204.0,
-      "y_last": 166.0,
-      "vx_px_h": -1.6,
-      "vy_px_h": 7.2,
-      "speed_px_h": 7.38,
-      "sunward_px_h": 5.18,
-      "rms_px": 0.71,
+      "x_first": 296.0,
+      "y_first": 111.0,
+      "x_last": 294.0,
+      "y_last": 140.0,
+      "vx_px_h": -2.17,
+      "vy_px_h": 29.26,
+      "speed_px_h": 29.34,
+      "sunward_px_h": 28.35,
+      "rms_px": 0.72,
       "processing_shape": [
         512,
         512
@@ -2543,27 +2577,27 @@
       "points": [
         {
           "time": "2026-10-31T11:30:00Z",
-          "x": 205.0,
-          "y": 161.0,
+          "x": 296.0,
+          "y": 111.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T11:45:00Z",
-          "x": 205.0,
-          "y": 163.0,
+          "x": 296.0,
+          "y": 118.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T12:00:00Z",
-          "x": 204.0,
-          "y": 166.0,
+          "x": 295.0,
+          "y": 127.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
         },
         {
-          "time": "2026-10-31T12:15:00Z",
-          "x": 204.0,
-          "y": 166.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
+          "time": "2026-10-31T12:30:00Z",
+          "x": 294.0,
+          "y": 140.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
         }
       ],
       "precap_evidence_status": "PASS",
@@ -2572,8 +2606,8 @@
         "status": "PROVISIONALLY_CONSISTENT",
         "reason": "No large local kinks detected",
         "triples_checked": 2,
-        "max_kink_px": 1.58,
-        "max_velocity_change_px_h": 12.65,
+        "max_kink_px": 1.7,
+        "max_velocity_change_px_h": 10.2,
         "large_kinks": 0,
         "direction_reversals": 0,
         "thresholds": {
@@ -2583,7 +2617,155 @@
       },
       "review_motion_evidence": {
         "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 5.1,
+        "displacement_px_512": 29.07,
+        "duration_hours": 1.0,
+        "observation_count": 4,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "EARLY",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 4,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 4,
+          "available": 5,
+          "coverage": 0.8,
+          "longest_missing_run": 1,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 4,
+          "passed": 3,
+          "pass_fraction": 0.75,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T11:30:00Z",
+              "pass": true,
+              "snr": 3.71,
+              "peak_residual": 14.0,
+              "compact_pixels": 4,
+              "peak_xy": [
+                297,
+                109
+              ]
+            },
+            {
+              "time": "2026-10-31T11:45:00Z",
+              "pass": false,
+              "snr": 2.25,
+              "peak_residual": 15.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                297,
+                116
+              ]
+            },
+            {
+              "time": "2026-10-31T12:00:00Z",
+              "pass": true,
+              "snr": 4.38,
+              "peak_residual": 16.0,
+              "compact_pixels": 10,
+              "peak_xy": [
+                295,
+                127
+              ]
+            },
+            {
+              "time": "2026-10-31T12:30:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 18.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                294,
+                140
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR2-c28970059787",
+      "camera": "ccor2",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T10:15:00Z",
+      "last": "2026-10-31T11:00:00Z",
+      "frames": 4,
+      "x_first": 192.0,
+      "y_first": 186.0,
+      "x_last": 190.0,
+      "y_last": 166.0,
+      "vx_px_h": -2.4,
+      "vy_px_h": -27.6,
+      "speed_px_h": 27.7,
+      "sunward_px_h": -22.35,
+      "rms_px": 1.21,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T10:15:00Z",
+          "x": 192.0,
+          "y": 186.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1015_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T10:30:00Z",
+          "x": 192.0,
+          "y": 179.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1030_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T10:45:00Z",
+          "x": 192.0,
+          "y": 170.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1045_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T11:00:00Z",
+          "x": 190.0,
+          "y": 166.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1100_ccor2_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 2,
+        "max_kink_px": 2.69,
+        "max_velocity_change_px_h": 21.54,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "LIMITED_MOTION_EVIDENCE",
+        "displacement_px_512": 20.1,
         "duration_hours": 0.75,
         "observation_count": 4,
         "minimum_displacement_px_512": 6.0,
@@ -2616,47 +2798,229 @@
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T11:30:00Z",
-              "pass": true,
-              "snr": 4.27,
-              "peak_residual": 18.0,
-              "compact_pixels": 4,
-              "peak_xy": [
-                205,
-                161
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 3.54,
-              "peak_residual": 19.0,
-              "compact_pixels": 5,
-              "peak_xy": [
-                205,
-                163
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 3.07,
-              "peak_residual": 19.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                204,
-                166
-              ]
-            },
-            {
-              "time": "2026-10-31T12:15:00Z",
+              "time": "2026-10-31T10:15:00Z",
               "pass": false,
-              "snr": 2.97,
-              "peak_residual": 20.0,
+              "snr": 2.7,
+              "peak_residual": 18.0,
               "compact_pixels": 0,
               "peak_xy": [
-                204,
-                166
+                192,
+                186
+              ]
+            },
+            {
+              "time": "2026-10-31T10:30:00Z",
+              "pass": true,
+              "snr": 3.2,
+              "peak_residual": 19.0,
+              "compact_pixels": 4,
+              "peak_xy": [
+                192,
+                179
+              ]
+            },
+            {
+              "time": "2026-10-31T10:45:00Z",
+              "pass": true,
+              "snr": 4.5,
+              "peak_residual": 20.0,
+              "compact_pixels": 6,
+              "peak_xy": [
+                192,
+                170
+              ]
+            },
+            {
+              "time": "2026-10-31T11:00:00Z",
+              "pass": true,
+              "snr": 6.07,
+              "peak_residual": 18.0,
+              "compact_pixels": 8,
+              "peak_xy": [
+                190,
+                164
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR2-7aadc696f954",
+      "camera": "ccor2",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T09:15:00Z",
+      "last": "2026-10-31T10:45:00Z",
+      "frames": 6,
+      "x_first": 193.0,
+      "y_first": 181.0,
+      "x_last": 193.0,
+      "y_last": 162.0,
+      "vx_px_h": 0.43,
+      "vy_px_h": -12.14,
+      "speed_px_h": 12.15,
+      "sunward_px_h": -10.14,
+      "rms_px": 0.85,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T09:15:00Z",
+          "x": 193.0,
+          "y": 181.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_0915_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T09:30:00Z",
+          "x": 193.0,
+          "y": 178.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_0930_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T09:45:00Z",
+          "x": 193.0,
+          "y": 176.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_0945_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T10:15:00Z",
+          "x": 194.0,
+          "y": 170.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1015_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T10:30:00Z",
+          "x": 194.0,
+          "y": 167.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1030_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T10:45:00Z",
+          "x": 193.0,
+          "y": 162.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1045_ccor2_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 4,
+        "max_kink_px": 1.12,
+        "max_velocity_change_px_h": 8.94,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "MEASURABLE_MOTION",
+        "displacement_px_512": 19.0,
+        "duration_hours": 1.5,
+        "observation_count": 6,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "ESTABLISHED",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 6,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 6,
+          "available": 7,
+          "coverage": 0.857,
+          "longest_missing_run": 1,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 6,
+          "passed": 5,
+          "pass_fraction": 0.833,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T09:15:00Z",
+              "pass": true,
+              "snr": 3.6,
+              "peak_residual": 17.0,
+              "compact_pixels": 6,
+              "peak_xy": [
+                193,
+                180
+              ]
+            },
+            {
+              "time": "2026-10-31T09:30:00Z",
+              "pass": true,
+              "snr": 4.05,
+              "peak_residual": 19.0,
+              "compact_pixels": 8,
+              "peak_xy": [
+                193,
+                177
+              ]
+            },
+            {
+              "time": "2026-10-31T09:45:00Z",
+              "pass": true,
+              "snr": 4.5,
+              "peak_residual": 20.0,
+              "compact_pixels": 8,
+              "peak_xy": [
+                193,
+                176
+              ]
+            },
+            {
+              "time": "2026-10-31T10:15:00Z",
+              "pass": true,
+              "snr": 3.82,
+              "peak_residual": 18.0,
+              "compact_pixels": 5,
+              "peak_xy": [
+                194,
+                168
+              ]
+            },
+            {
+              "time": "2026-10-31T10:30:00Z",
+              "pass": false,
+              "snr": 1.96,
+              "peak_residual": 18.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                194,
+                167
+              ]
+            },
+            {
+              "time": "2026-10-31T10:45:00Z",
+              "pass": true,
+              "snr": 4.72,
+              "peak_residual": 20.0,
+              "compact_pixels": 8,
+              "peak_xy": [
+                193,
+                162
               ]
             }
           ]
@@ -2786,7 +3150,7 @@
               "pass": true,
               "snr": 18.21,
               "peak_residual": 28.0,
-              "compact_pixels": 2,
+              "compact_pixels": 3,
               "peak_xy": [
                 96,
                 262
@@ -2806,9 +3170,9 @@
             {
               "time": "2026-10-31T09:30:00Z",
               "pass": true,
-              "snr": 19.5,
+              "snr": 12.82,
               "peak_residual": 20.0,
-              "compact_pixels": 2,
+              "compact_pixels": 1,
               "peak_xy": [
                 97,
                 262
@@ -2828,9 +3192,9 @@
             {
               "time": "2026-10-31T10:00:00Z",
               "pass": true,
-              "snr": 8.09,
-              "peak_residual": 13.0,
-              "compact_pixels": 3,
+              "snr": 8.77,
+              "peak_residual": 14.0,
+              "compact_pixels": 4,
               "peak_xy": [
                 98,
                 262
@@ -2839,9 +3203,9 @@
             {
               "time": "2026-10-31T10:30:00Z",
               "pass": true,
-              "snr": 11.47,
-              "peak_residual": 17.0,
-              "compact_pixels": 4,
+              "snr": 10.12,
+              "peak_residual": 16.0,
+              "compact_pixels": 3,
               "peak_xy": [
                 101,
                 263
@@ -2850,12 +3214,524 @@
             {
               "time": "2026-10-31T10:45:00Z",
               "pass": true,
-              "snr": 10.79,
-              "peak_residual": 16.0,
+              "snr": 10.12,
+              "peak_residual": 15.0,
               "compact_pixels": 4,
               "peak_xy": [
                 101,
                 263
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR2-80908854eee6",
+      "camera": "ccor2",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T11:00:00Z",
+      "last": "2026-10-31T12:45:00Z",
+      "frames": 8,
+      "x_first": 294.0,
+      "y_first": 138.0,
+      "x_last": 293.0,
+      "y_last": 124.0,
+      "vx_px_h": 0.14,
+      "vy_px_h": -8.19,
+      "speed_px_h": 8.19,
+      "sunward_px_h": -7.5,
+      "rms_px": 1.24,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T11:00:00Z",
+          "x": 294.0,
+          "y": 138.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1100_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T11:15:00Z",
+          "x": 294.0,
+          "y": 136.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1115_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T11:30:00Z",
+          "x": 294.0,
+          "y": 136.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T11:45:00Z",
+          "x": 292.0,
+          "y": 132.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:00:00Z",
+          "x": 294.0,
+          "y": 130.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:15:00Z",
+          "x": 295.0,
+          "y": 127.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:30:00Z",
+          "x": 295.0,
+          "y": 127.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:45:00Z",
+          "x": 293.0,
+          "y": 124.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1245_ccor2_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "FAIL",
+      "precap_review_eligible": false,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 6,
+        "max_kink_px": 2.24,
+        "max_velocity_change_px_h": 17.89,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "MEASURABLE_MOTION",
+        "displacement_px_512": 14.04,
+        "duration_hours": 1.75,
+        "observation_count": 8,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "ESTABLISHED",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 8,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 8,
+          "available": 8,
+          "coverage": 1.0,
+          "longest_missing_run": 0,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 8,
+          "passed": 6,
+          "pass_fraction": 0.75,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T11:00:00Z",
+              "pass": true,
+              "snr": 4.32,
+              "peak_residual": 18.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                292,
+                136
+              ]
+            },
+            {
+              "time": "2026-10-31T11:15:00Z",
+              "pass": true,
+              "snr": 3.71,
+              "peak_residual": 13.0,
+              "compact_pixels": 5,
+              "peak_xy": [
+                294,
+                134
+              ]
+            },
+            {
+              "time": "2026-10-31T11:30:00Z",
+              "pass": false,
+              "snr": 2.47,
+              "peak_residual": 15.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                294,
+                136
+              ]
+            },
+            {
+              "time": "2026-10-31T11:45:00Z",
+              "pass": true,
+              "snr": 3.37,
+              "peak_residual": 20.0,
+              "compact_pixels": 2,
+              "peak_xy": [
+                294,
+                130
+              ]
+            },
+            {
+              "time": "2026-10-31T12:00:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 18.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                294,
+                130
+              ]
+            },
+            {
+              "time": "2026-10-31T12:15:00Z",
+              "pass": true,
+              "snr": 3.37,
+              "peak_residual": 19.0,
+              "compact_pixels": 2,
+              "peak_xy": [
+                295,
+                127
+              ]
+            },
+            {
+              "time": "2026-10-31T12:30:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 18.0,
+              "compact_pixels": 2,
+              "peak_xy": [
+                295,
+                127
+              ]
+            },
+            {
+              "time": "2026-10-31T12:45:00Z",
+              "pass": false,
+              "snr": 2.25,
+              "peak_residual": 15.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                295,
+                122
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR2-117d3b840fa7",
+      "camera": "ccor2",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T11:45:00Z",
+      "last": "2026-10-31T12:30:00Z",
+      "frames": 4,
+      "x_first": 294.0,
+      "y_first": 130.0,
+      "x_last": 294.0,
+      "y_last": 140.0,
+      "vx_px_h": -0.0,
+      "vy_px_h": 13.2,
+      "speed_px_h": 13.2,
+      "sunward_px_h": 12.72,
+      "rms_px": 0.27,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T11:45:00Z",
+          "x": 294.0,
+          "y": 130.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:00:00Z",
+          "x": 294.0,
+          "y": 134.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:15:00Z",
+          "x": 294.0,
+          "y": 137.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:30:00Z",
+          "x": 294.0,
+          "y": 140.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 2,
+        "max_kink_px": 0.5,
+        "max_velocity_change_px_h": 4.0,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "LIMITED_MOTION_EVIDENCE",
+        "displacement_px_512": 10.0,
+        "duration_hours": 0.75,
+        "observation_count": 4,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "EARLY",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 4,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 4,
+          "available": 4,
+          "coverage": 1.0,
+          "longest_missing_run": 0,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 4,
+          "passed": 3,
+          "pass_fraction": 0.75,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T11:45:00Z",
+              "pass": true,
+              "snr": 3.37,
+              "peak_residual": 20.0,
+              "compact_pixels": 3,
+              "peak_xy": [
+                294,
+                130
+              ]
+            },
+            {
+              "time": "2026-10-31T12:00:00Z",
+              "pass": false,
+              "snr": 2.7,
+              "peak_residual": 16.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                294,
+                133
+              ]
+            },
+            {
+              "time": "2026-10-31T12:15:00Z",
+              "pass": true,
+              "snr": 3.71,
+              "peak_residual": 15.0,
+              "compact_pixels": 7,
+              "peak_xy": [
+                294,
+                136
+              ]
+            },
+            {
+              "time": "2026-10-31T12:30:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 18.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                294,
+                140
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR2-e24770e40aeb",
+      "camera": "ccor2",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T11:45:00Z",
+      "last": "2026-10-31T12:30:00Z",
+      "frames": 4,
+      "x_first": 294.0,
+      "y_first": 136.0,
+      "x_last": 295.0,
+      "y_last": 120.0,
+      "vx_px_h": 1.6,
+      "vy_px_h": -21.2,
+      "speed_px_h": 21.26,
+      "sunward_px_h": -20.81,
+      "rms_px": 0.35,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T11:45:00Z",
+          "x": 294.0,
+          "y": 136.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:00:00Z",
+          "x": 294.0,
+          "y": 130.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:15:00Z",
+          "x": 295.0,
+          "y": 125.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:30:00Z",
+          "x": 295.0,
+          "y": 120.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 2,
+        "max_kink_px": 0.71,
+        "max_velocity_change_px_h": 5.66,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "LIMITED_MOTION_EVIDENCE",
+        "displacement_px_512": 16.03,
+        "duration_hours": 0.75,
+        "observation_count": 4,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "EARLY",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 4,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 4,
+          "available": 4,
+          "coverage": 1.0,
+          "longest_missing_run": 0,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 4,
+          "passed": 3,
+          "pass_fraction": 0.75,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T11:45:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 19.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                294,
+                134
+              ]
+            },
+            {
+              "time": "2026-10-31T12:00:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 18.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                294,
+                130
+              ]
+            },
+            {
+              "time": "2026-10-31T12:15:00Z",
+              "pass": false,
+              "snr": 2.53,
+              "peak_residual": 19.0,
+              "compact_pixels": 0,
+              "peak_xy": [
+                295,
+                127
+              ]
+            },
+            {
+              "time": "2026-10-31T12:30:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 16.0,
+              "compact_pixels": 1,
+              "peak_xy": [
+                295,
+                120
               ]
             }
           ]
@@ -2866,166 +3742,18 @@
       "id": "CCOR2-cb4daa2b9484",
       "camera": "ccor2",
       "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T11:30:00Z",
-      "last": "2026-10-31T12:15:00Z",
-      "frames": 4,
-      "x_first": 293.0,
-      "y_first": 143.0,
-      "x_last": 296.0,
-      "y_last": 122.0,
-      "vx_px_h": 3.6,
-      "vy_px_h": -27.6,
-      "speed_px_h": 27.83,
-      "sunward_px_h": -27.92,
-      "rms_px": 0.59,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T11:30:00Z",
-          "x": 293.0,
-          "y": 143.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 294.0,
-          "y": 136.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:00:00Z",
-          "x": 294.0,
-          "y": 130.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:15:00Z",
-          "x": 296.0,
-          "y": 122.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 1.41,
-        "max_velocity_change_px_h": 11.31,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 21.21,
-        "duration_hours": 0.75,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 4,
-          "coverage": 1.0,
-          "longest_missing_run": 0,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 3,
-          "pass_fraction": 0.75,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T11:30:00Z",
-              "pass": true,
-              "snr": 3.37,
-              "peak_residual": 28.0,
-              "compact_pixels": 2,
-              "peak_xy": [
-                293,
-                143
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 3.2,
-              "peak_residual": 26.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                294,
-                136
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 3.2,
-              "peak_residual": 26.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                292,
-                132
-              ]
-            },
-            {
-              "time": "2026-10-31T12:15:00Z",
-              "pass": false,
-              "snr": 2.53,
-              "peak_residual": 22.0,
-              "compact_pixels": 0,
-              "peak_xy": [
-                295,
-                120
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR2-929fff7e2043",
-      "camera": "ccor2",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T11:30:00Z",
-      "last": "2026-10-31T12:15:00Z",
+      "first": "2026-10-31T11:45:00Z",
+      "last": "2026-10-31T12:30:00Z",
       "frames": 4,
       "x_first": 294.0,
-      "y_first": 136.0,
-      "x_last": 296.0,
-      "y_last": 118.0,
-      "vx_px_h": 2.0,
-      "vy_px_h": -24.0,
-      "speed_px_h": 24.08,
-      "sunward_px_h": -23.74,
-      "rms_px": 0.94,
+      "y_first": 140.0,
+      "x_last": 295.0,
+      "y_last": 120.0,
+      "vx_px_h": 1.6,
+      "vy_px_h": -26.8,
+      "speed_px_h": 26.85,
+      "sunward_px_h": -25.89,
+      "rms_px": 0.35,
       "processing_shape": [
         512,
         512
@@ -3037,28 +3765,28 @@
       "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
       "points": [
         {
-          "time": "2026-10-31T11:30:00Z",
-          "x": 294.0,
-          "y": 136.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
-        },
-        {
           "time": "2026-10-31T11:45:00Z",
           "x": 294.0,
-          "y": 130.0,
+          "y": 140.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T12:00:00Z",
-          "x": 293.0,
-          "y": 124.0,
+          "x": 294.0,
+          "y": 134.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
         },
         {
           "time": "2026-10-31T12:15:00Z",
-          "x": 296.0,
-          "y": 118.0,
+          "x": 295.0,
+          "y": 127.0,
           "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T12:30:00Z",
+          "x": 295.0,
+          "y": 120.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
         }
       ],
       "precap_evidence_status": "PASS",
@@ -3067,8 +3795,8 @@
         "status": "PROVISIONALLY_CONSISTENT",
         "reason": "No large local kinks detected",
         "triples_checked": 2,
-        "max_kink_px": 2.0,
-        "max_velocity_change_px_h": 16.0,
+        "max_kink_px": 0.71,
+        "max_velocity_change_px_h": 5.66,
         "large_kinks": 0,
         "direction_reversals": 0,
         "thresholds": {
@@ -3078,7 +3806,7 @@
       },
       "review_motion_evidence": {
         "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 18.11,
+        "displacement_px_512": 20.02,
         "duration_hours": 0.75,
         "observation_count": 4,
         "minimum_displacement_px_512": 6.0,
@@ -3111,673 +3839,47 @@
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T11:30:00Z",
+              "time": "2026-10-31T11:45:00Z",
               "pass": true,
-              "snr": 3.04,
-              "peak_residual": 25.0,
+              "snr": 3.71,
+              "peak_residual": 16.0,
+              "compact_pixels": 4,
+              "peak_xy": [
+                294,
+                140
+              ]
+            },
+            {
+              "time": "2026-10-31T12:00:00Z",
+              "pass": false,
+              "snr": 2.7,
+              "peak_residual": 16.0,
               "compact_pixels": 1,
               "peak_xy": [
                 294,
-                136
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 3.2,
-              "peak_residual": 26.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                292,
-                132
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": false,
-              "snr": 2.53,
-              "peak_residual": 22.0,
-              "compact_pixels": 0,
-              "peak_xy": [
-                295,
-                124
+                133
               ]
             },
             {
               "time": "2026-10-31T12:15:00Z",
               "pass": true,
-              "snr": 3.82,
-              "peak_residual": 22.0,
-              "compact_pixels": 4,
+              "snr": 3.37,
+              "peak_residual": 19.0,
+              "compact_pixels": 2,
+              "peak_xy": [
+                295,
+                127
+              ]
+            },
+            {
+              "time": "2026-10-31T12:30:00Z",
+              "pass": true,
+              "snr": 3.15,
+              "peak_residual": 16.0,
+              "compact_pixels": 1,
               "peak_xy": [
                 295,
                 120
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR2-3fab864ee39e",
-      "camera": "ccor2",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T11:30:00Z",
-      "last": "2026-10-31T12:15:00Z",
-      "frames": 4,
-      "x_first": 210.0,
-      "y_first": 167.0,
-      "x_last": 193.0,
-      "y_last": 164.0,
-      "vx_px_h": -23.6,
-      "vy_px_h": -3.6,
-      "speed_px_h": 23.87,
-      "sunward_px_h": -15.09,
-      "rms_px": 1.16,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T11:30:00Z",
-          "x": 210.0,
-          "y": 167.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 204.0,
-          "y": 166.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:00:00Z",
-          "x": 196.0,
-          "y": 166.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:15:00Z",
-          "x": 193.0,
-          "y": 164.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1215_ccor2_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 2.69,
-        "max_velocity_change_px_h": 21.54,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 17.26,
-        "duration_hours": 0.75,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 4,
-          "coverage": 1.0,
-          "longest_missing_run": 0,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 3,
-          "pass_fraction": 0.75,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T11:30:00Z",
-              "pass": false,
-              "snr": 2.7,
-              "peak_residual": 18.0,
-              "compact_pixels": 0,
-              "peak_xy": [
-                210,
-                167
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 3.46,
-              "peak_residual": 19.0,
-              "compact_pixels": 3,
-              "peak_xy": [
-                204,
-                166
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 3.76,
-              "peak_residual": 18.0,
-              "compact_pixels": 5,
-              "peak_xy": [
-                196,
-                165
-              ]
-            },
-            {
-              "time": "2026-10-31T12:15:00Z",
-              "pass": true,
-              "snr": 3.2,
-              "peak_residual": 18.0,
-              "compact_pixels": 3,
-              "peak_xy": [
-                193,
-                164
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR2-e383c103696f",
-      "camera": "ccor2",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T11:15:00Z",
-      "last": "2026-10-31T12:00:00Z",
-      "frames": 4,
-      "x_first": 191.0,
-      "y_first": 177.0,
-      "x_last": 193.0,
-      "y_last": 164.0,
-      "vx_px_h": 2.4,
-      "vy_px_h": -16.8,
-      "speed_px_h": 16.97,
-      "sunward_px_h": -12.27,
-      "rms_px": 0.5,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T11:15:00Z",
-          "x": 191.0,
-          "y": 177.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1115_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:30:00Z",
-          "x": 192.0,
-          "y": 172.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:45:00Z",
-          "x": 192.0,
-          "y": 169.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1145_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:00:00Z",
-          "x": 193.0,
-          "y": 164.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 1.12,
-        "max_velocity_change_px_h": 8.94,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 13.15,
-        "duration_hours": 0.75,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 4,
-          "coverage": 1.0,
-          "longest_missing_run": 0,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 4,
-          "pass_fraction": 1.0,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T11:15:00Z",
-              "pass": true,
-              "snr": 3.04,
-              "peak_residual": 18.0,
-              "compact_pixels": 4,
-              "peak_xy": [
-                191,
-                177
-              ]
-            },
-            {
-              "time": "2026-10-31T11:30:00Z",
-              "pass": true,
-              "snr": 4.5,
-              "peak_residual": 21.0,
-              "compact_pixels": 10,
-              "peak_xy": [
-                192,
-                172
-              ]
-            },
-            {
-              "time": "2026-10-31T11:45:00Z",
-              "pass": true,
-              "snr": 7.42,
-              "peak_residual": 21.0,
-              "compact_pixels": 15,
-              "peak_xy": [
-                192,
-                169
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 3.54,
-              "peak_residual": 19.0,
-              "compact_pixels": 5,
-              "peak_xy": [
-                193,
-                164
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR2-7dd2a166bc59",
-      "camera": "ccor2",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T10:45:00Z",
-      "last": "2026-10-31T12:00:00Z",
-      "frames": 5,
-      "x_first": 193.0,
-      "y_first": 164.0,
-      "x_last": 190.0,
-      "y_last": 193.0,
-      "vx_px_h": -2.27,
-      "vy_px_h": 22.76,
-      "speed_px_h": 22.87,
-      "sunward_px_h": 16.21,
-      "rms_px": 0.92,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T10:45:00Z",
-          "x": 193.0,
-          "y": 164.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1045_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:00:00Z",
-          "x": 192.0,
-          "y": 170.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1100_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:15:00Z",
-          "x": 191.0,
-          "y": 177.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1115_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:30:00Z",
-          "x": 191.0,
-          "y": 180.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:00:00Z",
-          "x": 190.0,
-          "y": 193.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "FAIL",
-      "precap_review_eligible": false,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 3,
-        "max_kink_px": 2.36,
-        "max_velocity_change_px_h": 16.49,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 29.15,
-        "duration_hours": 1.25,
-        "observation_count": 5,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 5,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 5,
-          "available": 6,
-          "coverage": 0.833,
-          "longest_missing_run": 1,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 5,
-          "passed": 5,
-          "pass_fraction": 1.0,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T10:45:00Z",
-              "pass": true,
-              "snr": 5.56,
-              "peak_residual": 32.0,
-              "compact_pixels": 9,
-              "peak_xy": [
-                193,
-                162
-              ]
-            },
-            {
-              "time": "2026-10-31T11:00:00Z",
-              "pass": true,
-              "snr": 3.44,
-              "peak_residual": 24.0,
-              "compact_pixels": 4,
-              "peak_xy": [
-                192,
-                170
-              ]
-            },
-            {
-              "time": "2026-10-31T11:15:00Z",
-              "pass": true,
-              "snr": 3.04,
-              "peak_residual": 18.0,
-              "compact_pixels": 4,
-              "peak_xy": [
-                191,
-                177
-              ]
-            },
-            {
-              "time": "2026-10-31T11:30:00Z",
-              "pass": true,
-              "snr": 3.04,
-              "peak_residual": 19.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                191,
-                180
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 3.6,
-              "peak_residual": 18.0,
-              "compact_pixels": 3,
-              "peak_xy": [
-                190,
-                193
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR2-4e36eb20b646",
-      "camera": "ccor2",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T10:45:00Z",
-      "last": "2026-10-31T12:00:00Z",
-      "frames": 5,
-      "x_first": 194.0,
-      "y_first": 154.0,
-      "x_last": 190.0,
-      "y_last": 193.0,
-      "vx_px_h": -3.24,
-      "vy_px_h": 31.62,
-      "speed_px_h": 31.79,
-      "sunward_px_h": 22.5,
-      "rms_px": 1.03,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T10:45:00Z",
-          "x": 194.0,
-          "y": 154.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1045_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:00:00Z",
-          "x": 193.0,
-          "y": 162.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1100_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:15:00Z",
-          "x": 192.0,
-          "y": 171.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1115_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T11:30:00Z",
-          "x": 191.0,
-          "y": 180.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T12:00:00Z",
-          "x": 190.0,
-          "y": 193.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1200_ccor2_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "FAIL",
-      "precap_review_eligible": false,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 3,
-        "max_kink_px": 1.7,
-        "max_velocity_change_px_h": 10.2,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 39.2,
-        "duration_hours": 1.25,
-        "observation_count": 5,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 5,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 5,
-          "available": 6,
-          "coverage": 0.833,
-          "longest_missing_run": 1,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 5,
-          "passed": 4,
-          "pass_fraction": 0.8,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T10:45:00Z",
-              "pass": true,
-              "snr": 4.72,
-              "peak_residual": 19.0,
-              "compact_pixels": 8,
-              "peak_xy": [
-                194,
-                154
-              ]
-            },
-            {
-              "time": "2026-10-31T11:00:00Z",
-              "pass": false,
-              "snr": 2.7,
-              "peak_residual": 18.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                193,
-                162
-              ]
-            },
-            {
-              "time": "2026-10-31T11:15:00Z",
-              "pass": true,
-              "snr": 4.34,
-              "peak_residual": 23.0,
-              "compact_pixels": 7,
-              "peak_xy": [
-                192,
-                171
-              ]
-            },
-            {
-              "time": "2026-10-31T11:30:00Z",
-              "pass": true,
-              "snr": 3.04,
-              "peak_residual": 19.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                191,
-                180
-              ]
-            },
-            {
-              "time": "2026-10-31T12:00:00Z",
-              "pass": true,
-              "snr": 3.6,
-              "peak_residual": 18.0,
-              "compact_pixels": 3,
-              "peak_xy": [
-                190,
-                193
               ]
             }
           ]
@@ -3787,14 +3889,6 @@
   ],
   "frame_manifests": {
     "ccor1": [
-      {
-        "time": "2026-10-30T23:00:00Z",
-        "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261030_2300_ccor1_1024by960.jpg"
-      },
-      {
-        "time": "2026-10-30T23:15:00Z",
-        "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261030_2315_ccor1_1024by960.jpg"
-      },
       {
         "time": "2026-10-30T23:30:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261030_2330_ccor1_1024by960.jpg"
@@ -4006,17 +4100,17 @@
       {
         "time": "2026-10-31T12:30:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1230_ccor1_1024by960.jpg"
+      },
+      {
+        "time": "2026-10-31T12:45:00Z",
+        "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1245_ccor1_1024by960.jpg"
+      },
+      {
+        "time": "2026-10-31T13:00:00Z",
+        "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1300_ccor1_1024by960.jpg"
       }
     ],
     "ccor2": [
-      {
-        "time": "2026-10-30T23:00:00Z",
-        "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261030_2300_ccor2_1024by960.jpg"
-      },
-      {
-        "time": "2026-10-30T23:15:00Z",
-        "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261030_2315_ccor2_1024by960.jpg"
-      },
       {
         "time": "2026-10-30T23:30:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261030_2330_ccor2_1024by960.jpg"
@@ -4228,34 +4322,42 @@
       {
         "time": "2026-10-31T12:30:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1230_ccor2_1024by960.jpg"
+      },
+      {
+        "time": "2026-10-31T12:45:00Z",
+        "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1245_ccor2_1024by960.jpg"
+      },
+      {
+        "time": "2026-10-31T13:00:00Z",
+        "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1300_ccor2_1024by960.jpg"
       }
     ]
   },
   "review_shortlist_ids": [
+    "CCOR1-2aabb49272ac",
+    "CCOR1-f5d3e7528961",
     "CCOR1-841f11121e35",
+    "CCOR1-259e7e9d5bd5",
     "CCOR1-8bb55f5f626e",
     "CCOR1-a5239a8091d3",
+    "CCOR1-456d4c59e445",
     "CCOR1-3d952ad71f30",
+    "CCOR1-0370b120d1e3",
     "CCOR1-1574a2e905d8",
     "CCOR1-3f5ad1a58dbd",
-    "CCOR1-22d244eeba0c",
     "CCOR1-86295a1dc763",
-    "CCOR1-0370b120d1e3",
-    "CCOR1-0c6011da5da5",
-    "CCOR1-0969be34a527",
-    "CCOR1-95874c5091f6",
-    "CCOR2-e1dbf31dfc6b",
-    "CCOR2-e24770e40aeb",
-    "CCOR2-3f6efab04841",
-    "CCOR2-39964de986bf",
-    "CCOR2-6dcd7e00e0b4",
+    "CCOR2-34e52a48c143",
+    "CCOR2-f7dba1d28b95",
+    "CCOR2-09387cbafc59",
+    "CCOR2-4cc90188e553",
+    "CCOR2-15b5cb519c12",
+    "CCOR2-c28970059787",
+    "CCOR2-7aadc696f954",
     "CCOR2-b1755822ccb7",
-    "CCOR2-cb4daa2b9484",
-    "CCOR2-929fff7e2043",
-    "CCOR2-3fab864ee39e",
-    "CCOR2-e383c103696f",
-    "CCOR2-7dd2a166bc59",
-    "CCOR2-4e36eb20b646"
+    "CCOR2-80908854eee6",
+    "CCOR2-117d3b840fa7",
+    "CCOR2-e24770e40aeb",
+    "CCOR2-cb4daa2b9484"
   ],
   "review_shortlist_policy": "Dynamic outer-field rim mask and camera masks; recent early and established trajectory review; cached-frame continuity >=70%, no gap >2, residual compact source evidence on >=75% observed frames; nonpassing tracks retained locally",
   "temporal_overlaps_not_duplicates": [],
