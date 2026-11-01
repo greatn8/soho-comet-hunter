@@ -198,6 +198,8 @@ def main():
     p.add_argument('--fits-dir', type=Path, help='Read local native science FITS instead of downloading')
     p.add_argument('--output', type=Path, required=True, help='New portable HTML file')
     a = p.parse_args()
+    if a.output.expanduser().resolve().exists():
+        p.error('Use a new output HTML filename; an existing review will not be overwritten')
     if a.fits_dir:
         paths = sorted(a.fits_dir.glob('*.fits'))+sorted(a.fits_dir.glob('*.fits.gz'))
         if not 3 <= len(paths) <= MAX_FRAMES:
@@ -228,7 +230,7 @@ HTML = r'''<!doctype html>
 <h1>CCOR · native coordinate review</h1>
 <p id="heading"></p>
 <div class="controls"><span class="badge">2048 × 1920 · original FITS grid</span><span>Report origin: Upper Left (0,0)</span></div>
-<p>Click the same visible object in at least three frames. Pink marks are your measurements. The preview keeps every native pixel; zoom changes only its screen size.</p>
+<p>Click the same visible object in at least three frames at 100% zoom or higher. Pink marks are your measurements. Use smaller zoom to navigate; zoom changes only the screen size.</p>
 <div class="controls"><button id="previous">← Frame</button><button id="play">Play</button><button id="next">Frame →</button><strong id="frameNumber"></strong><label>View <select id="view"><option value="original">Original · intensity stretch</option><option value="temporal">Temporal contrast</option></select></label><label>Zoom <input id="zoom" type="range" min="25" max="200" value="50"><span id="zoomValue">50%</span></label></div>
 <p id="frameInfo" class="small"></p><p id="position">Move over the image to read native coordinates.</p>
 <div id="viewport"><div id="stage"><img id="image" alt="Original CCOR FITS pixels"><svg id="marks" viewBox="0 0 2048 1920"></svg></div></div>
@@ -260,7 +262,7 @@ function step(n){index=(index+n+config.frames.length)%config.frames.length;draw(
 $('previous').onclick=()=>{stop();step(-1)};$('next').onclick=()=>{stop();step(1)};$('play').onclick=()=>{if(timer)stop();else{timer=setInterval(()=>step(1),700);$('play').textContent='Pause'}};
 $('view').onchange=draw;$('zoom').oninput=()=>{img.style.width=(2048*Number($('zoom').value)/100)+'px';$('zoomValue').textContent=$('zoom').value+'%'};
 img.onmousemove=e=>{if(!loaded)return;const p=pixelAt(e.clientX,e.clientY,img.getBoundingClientRect());if(p)$('position').textContent='Native X '+p.x+' · Y '+p.y+' | FITS one-based '+p.fits_pixel_1based.join(', ')};
-img.onclick=e=>{if(!loaded)return;const p=pixelAt(e.clientX,e.clientY,img.getBoundingClientRect());if(!p)return;stop();const f=config.frames[index];measurements.set(f.source_file,{...p,source_file:f.source_file,source_sha256:f.source_sha256,time_utc:f.time_utc});render();$('status').textContent='Position recorded. Advance to the next frame and mark the same object.'};
+img.onclick=e=>{if(!loaded)return;if(Number($('zoom').value)<100){$('status').textContent='Set zoom to 100% or higher before marking a native pixel.';return;}const p=pixelAt(e.clientX,e.clientY,img.getBoundingClientRect());if(!p)return;stop();const f=config.frames[index];measurements.set(f.source_file,{...p,source_file:f.source_file,source_sha256:f.source_sha256,time_utc:f.time_utc});render();$('status').textContent='Position recorded. Advance to the next frame and mark the same object.'};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(reportText(result()));$('status').textContent='Report copied.'}catch(e){$('report').focus();$('report').select();$('status').textContent='Press Ctrl+C to copy the selected report.'}};
 function download(json){const r=result(),url=URL.createObjectURL(new Blob([json?JSON.stringify(r,null,2):reportText(r)],{type:json?'application/json':'text/plain'})),a=document.createElement('a');a.href=url;a.download=String(config.candidate).replace(/[^A-Za-z0-9_-]/g,'_')+'-native-coordinates.'+(json?'json':'txt');a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 $('download').onclick=()=>download(false);$('json').onclick=()=>download(true);

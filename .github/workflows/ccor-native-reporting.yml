@@ -38,3 +38,11 @@ jobs:
       - run: node tests/test_ccor_native_reporting_browser.cjs
         env:
           CCOR_NATIVE_HTML: /tmp/ccor-native-browser.html
+          CCOR_NATIVE_SCREENSHOT: /tmp/ccor-native-browser.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-report-browser-check
+          path: /tmp/ccor-native-browser.png
+          if-no-files-found: ignore
+          retention-days: 3

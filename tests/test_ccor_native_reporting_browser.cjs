@@ -15,18 +15,22 @@ try{
  const expected=[];
  for(let i=0;i<3;i++){
   const x=1200+i*3,y=1619-i;
-  const zoom=[25,75,125][i];
+  const zoom=[100,125,200][i];
   await page.locator('#zoom').fill(String(zoom));
   await page.locator('#zoom').dispatchEvent('input');
   await page.evaluate(({x,y})=>{
    const v=document.getElementById('viewport'),im=document.getElementById('image');
    const s=im.getBoundingClientRect().width/2048;v.scrollLeft=Math.max(0,x*s-v.clientWidth/2);v.scrollTop=Math.max(0,y*s-v.clientHeight/2);
   },{x,y});
-  const pixel=await page.locator('#image').evaluate((im,{x,y})=>{const r=im.getBoundingClientRect();return {x:r.left+(x+.5)*r.width/2048,y:r.top+(y+.5)*r.height/1920}},{x,y});
+  const pixel=await page.locator('#image').evaluate((im,{x,y})=>{const r=im.getBoundingClientRect();return {x:Math.ceil(r.left+x*r.width/2048),y:Math.ceil(r.top+y*r.height/1920)}},{x,y});
   await page.mouse.click(pixel.x,pixel.y);
   expected.push({x,y});
   if(i<2){await page.locator('#next').click();await page.waitForFunction(()=>document.getElementById('image').complete&&document.getElementById('image').naturalWidth===2048);}
  }
+ assert.equal(await page.locator('#count').innerText(),'3 frames marked');
+ await page.locator('#zoom').fill('25');await page.locator('#zoom').dispatchEvent('input');
+ await page.locator('#image').click({position:{x:10,y:10}});
+ assert.match(await page.locator('#status').innerText(),/100%/);
  assert.equal(await page.locator('#count').innerText(),'3 frames marked');
  assert.equal(await page.locator('#download').isDisabled(),false);
  const text=await page.locator('#report').inputValue();assert.match(text,/2048x1920/);assert.match(text,/Upper Left/);assert.match(text,/25.736000Z/);

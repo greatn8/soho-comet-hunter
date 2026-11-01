@@ -8,7 +8,10 @@ import tempfile
 import unittest
 import numpy as np
 from PIL import Image
-from astropy.io import fits
+try:
+    from astropy.io import fits
+except ImportError:
+    fits = None
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tools'))
 import ccor_native_reporting as report
 
@@ -26,6 +29,7 @@ def sources():
     return rows
 
 
+@unittest.skipUnless(fits is not None, 'Astropy tests run in the dedicated native-coordinate workflow')
 class NativeReportingTests(unittest.TestCase):
     def test_exact_native_geometry_and_vertical_origin(self):
         self.assertEqual(report.native_pixel(0, 0), (1919, 0, [1, 1920]))
