@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-01T01:07:50Z",
+  "generated_at": "2026-11-01T01:23:20Z",
   "mode": "EXPERIMENTAL_REVIEW_ONLY",
   "automatic_email_alerts": false,
   "independently_confirmed": false,
@@ -8,8 +8,8 @@
     "ccor1": {
       "camera": "ccor1",
       "new_images": 0,
-      "indexed_images": 26,
-      "cached_recent_frames": 15,
+      "indexed_images": 25,
+      "cached_recent_frames": 14,
       "last_frame": "2026-10-31T23:45:00Z",
       "detected_this_cycle": 40,
       "retained_review_tracks": 100,
@@ -22,20 +22,20 @@
       "timestamp_excluded_new_tracks": 0,
       "irregular_motion_review_tracks": 6,
       "field_rim_excluded_tracks": 0,
-      "evidence_pass_tracks": 72,
-      "evidence_fail_tracks": 21,
+      "evidence_pass_tracks": 74,
+      "evidence_fail_tracks": 19,
       "limited_motion_review_tracks": 68,
       "detector_hit_40_hypothesis_cap": false,
       "detector_search": {
         "complete_search": true,
         "scan_completed": true,
         "stop_reason": null,
-        "seed_pairs_examined": 58800,
-        "distinct_hypotheses": 83,
+        "seed_pairs_examined": 53900,
+        "distinct_hypotheses": 65,
         "selected_hypotheses": 40,
         "per_frame_peak_cap": 70,
         "distinct_hypothesis_budget": 5000,
-        "precap_eligible_hypotheses": 24,
+        "precap_eligible_hypotheses": 13,
         "fell_back_to_legacy": false
       },
       "status": "REVIEW_ONLY",
@@ -43,8 +43,8 @@
     },
     "ccor2": {
       "camera": "ccor2",
-      "new_images": 5,
-      "indexed_images": 12,
+      "new_images": 0,
+      "indexed_images": 11,
       "cached_recent_frames": 5,
       "last_frame": "2026-10-31T23:00:00Z",
       "detected_this_cycle": 0,
@@ -174,8 +174,8 @@
         "pixels": {
           "status": "PASS",
           "evaluated": 4,
-          "passed": 3,
-          "pass_fraction": 0.75,
+          "passed": 4,
+          "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
             {
@@ -183,7 +183,7 @@
               "pass": true,
               "snr": 10.79,
               "peak_residual": 17.0,
-              "compact_pixels": 7,
+              "compact_pixels": 8,
               "peak_xy": [
                 380,
                 251
@@ -203,9 +203,9 @@
             {
               "time": "2026-10-31T23:30:00Z",
               "pass": true,
-              "snr": 5.73,
-              "peak_residual": 19.0,
-              "compact_pixels": 11,
+              "snr": 7.19,
+              "peak_residual": 17.5,
+              "compact_pixels": 14,
               "peak_xy": [
                 370,
                 251
@@ -213,10 +213,10 @@
             },
             {
               "time": "2026-10-31T23:45:00Z",
-              "pass": false,
-              "snr": 12.14,
+              "pass": true,
+              "snr": 8.32,
               "peak_residual": 20.0,
-              "compact_pixels": 21,
+              "compact_pixels": 18,
               "peak_xy": [
                 365,
                 250
@@ -329,8 +329,8 @@
             {
               "time": "2026-10-31T23:00:00Z",
               "pass": false,
-              "snr": 2.92,
-              "peak_residual": 16.0,
+              "snr": 2.7,
+              "peak_residual": 14.5,
               "compact_pixels": 1,
               "peak_xy": [
                 355,
@@ -340,20 +340,20 @@
             {
               "time": "2026-10-31T23:15:00Z",
               "pass": true,
-              "snr": 5.06,
-              "peak_residual": 17.0,
-              "compact_pixels": 11,
+              "snr": 4.18,
+              "peak_residual": 17.5,
+              "compact_pixels": 2,
               "peak_xy": [
-                363,
+                364,
                 250
               ]
             },
             {
               "time": "2026-10-31T23:30:00Z",
               "pass": true,
-              "snr": 12.14,
-              "peak_residual": 19.0,
-              "compact_pixels": 18,
+              "snr": 8.9,
+              "peak_residual": 17.5,
+              "compact_pixels": 17,
               "peak_xy": [
                 370,
                 251
@@ -368,154 +368,6 @@
               "peak_xy": [
                 378,
                 251
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "CCOR1-0924bedf0c1a",
-      "camera": "ccor1",
-      "review_class": "UNVERIFIED_MOTION",
-      "first": "2026-10-31T23:00:00Z",
-      "last": "2026-10-31T23:45:00Z",
-      "frames": 4,
-      "x_first": 153.0,
-      "y_first": 384.0,
-      "x_last": 154.0,
-      "y_last": 379.0,
-      "vx_px_h": 1.2,
-      "vy_px_h": -6.0,
-      "speed_px_h": 6.12,
-      "sunward_px_h": 6.01,
-      "rms_px": 0.67,
-      "processing_shape": [
-        512,
-        512
-      ],
-      "source_jpeg_shape": [
-        1204,
-        1205
-      ],
-      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
-      "points": [
-        {
-          "time": "2026-10-31T23:00:00Z",
-          "x": 153.0,
-          "y": 384.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_2300_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T23:15:00Z",
-          "x": 154.0,
-          "y": 382.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_2315_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T23:30:00Z",
-          "x": 154.0,
-          "y": 382.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_2330_ccor1_1024by960.jpg"
-        },
-        {
-          "time": "2026-10-31T23:45:00Z",
-          "x": 154.0,
-          "y": 379.0,
-          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_2345_ccor1_1024by960.jpg"
-        }
-      ],
-      "precap_evidence_status": "PASS",
-      "precap_review_eligible": true,
-      "motion_consistency": {
-        "status": "PROVISIONALLY_CONSISTENT",
-        "reason": "No large local kinks detected",
-        "triples_checked": 2,
-        "max_kink_px": 1.5,
-        "max_velocity_change_px_h": 12.0,
-        "large_kinks": 0,
-        "direction_reversals": 0,
-        "thresholds": {
-          "kink_px": 3.0,
-          "velocity_change_px_h": 12.0
-        }
-      },
-      "review_motion_evidence": {
-        "status": "LIMITED_MOTION_EVIDENCE",
-        "displacement_px_512": 5.1,
-        "duration_hours": 0.75,
-        "observation_count": 4,
-        "minimum_displacement_px_512": 6.0,
-        "minimum_duration_hours": 1.5,
-        "minimum_observations": 5
-      },
-      "review_stage": "EARLY",
-      "field_rim_review": {
-        "status": "CLEAR",
-        "checked": 4,
-        "rim_hits": 0,
-        "margin_px_512": 8
-      },
-      "review_validation": {
-        "status": "PASS",
-        "continuity": {
-          "status": "PASS",
-          "matched": 4,
-          "available": 4,
-          "coverage": 1.0,
-          "longest_missing_run": 0,
-          "minimum_coverage": 0.7,
-          "maximum_missing_run": 2
-        },
-        "pixels": {
-          "status": "PASS",
-          "evaluated": 4,
-          "passed": 3,
-          "pass_fraction": 0.75,
-          "minimum_fraction": 0.75,
-          "samples": [
-            {
-              "time": "2026-10-31T23:00:00Z",
-              "pass": true,
-              "snr": 4.45,
-              "peak_residual": 17.0,
-              "compact_pixels": 4,
-              "peak_xy": [
-                153,
-                384
-              ]
-            },
-            {
-              "time": "2026-10-31T23:15:00Z",
-              "pass": true,
-              "snr": 6.74,
-              "peak_residual": 21.0,
-              "compact_pixels": 5,
-              "peak_xy": [
-                154,
-                382
-              ]
-            },
-            {
-              "time": "2026-10-31T23:30:00Z",
-              "pass": true,
-              "snr": 3.37,
-              "peak_residual": 15.0,
-              "compact_pixels": 4,
-              "peak_xy": [
-                154,
-                382
-              ]
-            },
-            {
-              "time": "2026-10-31T23:45:00Z",
-              "pass": false,
-              "snr": 1.85,
-              "peak_residual": 15.0,
-              "compact_pixels": 0,
-              "peak_xy": [
-                154,
-                379
               ]
             }
           ]
@@ -626,7 +478,7 @@
               "time": "2026-10-31T23:00:00Z",
               "pass": true,
               "snr": 4.38,
-              "peak_residual": 14.0,
+              "peak_residual": 13.5,
               "compact_pixels": 4,
               "peak_xy": [
                 140,
@@ -638,7 +490,7 @@
               "pass": true,
               "snr": 4.72,
               "peak_residual": 15.0,
-              "compact_pixels": 4,
+              "compact_pixels": 3,
               "peak_xy": [
                 144,
                 243
@@ -647,8 +499,8 @@
             {
               "time": "2026-10-31T23:30:00Z",
               "pass": true,
-              "snr": 3.15,
-              "peak_residual": 16.0,
+              "snr": 3.5,
+              "peak_residual": 15.5,
               "compact_pixels": 3,
               "peak_xy": [
                 151,
@@ -658,9 +510,9 @@
             {
               "time": "2026-10-31T23:45:00Z",
               "pass": true,
-              "snr": 3.91,
+              "snr": 4.5,
               "peak_residual": 17.0,
-              "compact_pixels": 2,
+              "compact_pixels": 3,
               "peak_xy": [
                 151,
                 249
@@ -779,9 +631,9 @@
             {
               "time": "2026-10-31T22:30:00Z",
               "pass": true,
-              "snr": 8.09,
-              "peak_residual": 12.0,
-              "compact_pixels": 11,
+              "snr": 7.08,
+              "peak_residual": 10.5,
+              "compact_pixels": 9,
               "peak_xy": [
                 145,
                 244
@@ -790,8 +642,8 @@
             {
               "time": "2026-10-31T22:45:00Z",
               "pass": true,
-              "snr": 5.4,
-              "peak_residual": 16.0,
+              "snr": 5.68,
+              "peak_residual": 15.0,
               "compact_pixels": 5,
               "peak_xy": [
                 147,
@@ -801,9 +653,9 @@
             {
               "time": "2026-10-31T23:00:00Z",
               "pass": true,
-              "snr": 7.42,
+              "snr": 6.46,
               "peak_residual": 17.0,
-              "compact_pixels": 6,
+              "compact_pixels": 4,
               "peak_xy": [
                 151,
                 246
@@ -823,9 +675,9 @@
             {
               "time": "2026-10-31T23:45:00Z",
               "pass": false,
-              "snr": 2.45,
-              "peak_residual": 20.0,
-              "compact_pixels": 1,
+              "snr": 2.56,
+              "peak_residual": 19.5,
+              "compact_pixels": 0,
               "peak_xy": [
                 156,
                 247
@@ -939,7 +791,7 @@
               "time": "2026-10-31T22:30:00Z",
               "pass": true,
               "snr": 4.38,
-              "peak_residual": 13.0,
+              "peak_residual": 12.5,
               "compact_pixels": 4,
               "peak_xy": [
                 150,
@@ -949,9 +801,9 @@
             {
               "time": "2026-10-31T22:45:00Z",
               "pass": true,
-              "snr": 3.71,
-              "peak_residual": 11.0,
-              "compact_pixels": 6,
+              "snr": 3.54,
+              "peak_residual": 10.5,
+              "compact_pixels": 3,
               "peak_xy": [
                 148,
                 397
@@ -960,7 +812,7 @@
             {
               "time": "2026-10-31T23:00:00Z",
               "pass": false,
-              "snr": 2.47,
+              "snr": 2.39,
               "peak_residual": 12.0,
               "compact_pixels": 0,
               "peak_xy": [
@@ -971,12 +823,160 @@
             {
               "time": "2026-10-31T23:15:00Z",
               "pass": true,
-              "snr": 3.37,
-              "peak_residual": 19.0,
+              "snr": 3.58,
+              "peak_residual": 18.5,
               "compact_pixels": 1,
               "peak_xy": [
                 147,
                 412
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "CCOR1-d1b99b33ca5e",
+      "camera": "ccor1",
+      "review_class": "UNVERIFIED_MOTION",
+      "first": "2026-10-31T22:15:00Z",
+      "last": "2026-10-31T23:15:00Z",
+      "frames": 4,
+      "x_first": 149.0,
+      "y_first": 392.0,
+      "x_last": 154.0,
+      "y_last": 382.0,
+      "vx_px_h": 5.2,
+      "vy_px_h": -10.4,
+      "speed_px_h": 11.63,
+      "sunward_px_h": 10.94,
+      "rms_px": 0.35,
+      "processing_shape": [
+        512,
+        512
+      ],
+      "source_jpeg_shape": [
+        1204,
+        1205
+      ],
+      "source": "NOAA SWPC calibrated, background-subtracted L3 JPEG",
+      "points": [
+        {
+          "time": "2026-10-31T22:15:00Z",
+          "x": 149.0,
+          "y": 392.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_2215_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T22:30:00Z",
+          "x": 150.0,
+          "y": 390.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_2230_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T23:00:00Z",
+          "x": 153.0,
+          "y": 384.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_2300_ccor1_1024by960.jpg"
+        },
+        {
+          "time": "2026-10-31T23:15:00Z",
+          "x": 154.0,
+          "y": 382.0,
+          "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_2315_ccor1_1024by960.jpg"
+        }
+      ],
+      "precap_evidence_status": "PASS",
+      "precap_review_eligible": true,
+      "motion_consistency": {
+        "status": "PROVISIONALLY_CONSISTENT",
+        "reason": "No large local kinks detected",
+        "triples_checked": 2,
+        "max_kink_px": 0.75,
+        "max_velocity_change_px_h": 4.47,
+        "large_kinks": 0,
+        "direction_reversals": 0,
+        "thresholds": {
+          "kink_px": 3.0,
+          "velocity_change_px_h": 12.0
+        }
+      },
+      "review_motion_evidence": {
+        "status": "LIMITED_MOTION_EVIDENCE",
+        "displacement_px_512": 11.18,
+        "duration_hours": 1.0,
+        "observation_count": 4,
+        "minimum_displacement_px_512": 6.0,
+        "minimum_duration_hours": 1.5,
+        "minimum_observations": 5
+      },
+      "review_stage": "EARLY",
+      "field_rim_review": {
+        "status": "CLEAR",
+        "checked": 4,
+        "rim_hits": 0,
+        "margin_px_512": 8
+      },
+      "review_validation": {
+        "status": "PASS",
+        "continuity": {
+          "status": "PASS",
+          "matched": 4,
+          "available": 5,
+          "coverage": 0.8,
+          "longest_missing_run": 1,
+          "minimum_coverage": 0.7,
+          "maximum_missing_run": 2
+        },
+        "pixels": {
+          "status": "PASS",
+          "evaluated": 4,
+          "passed": 4,
+          "pass_fraction": 1.0,
+          "minimum_fraction": 0.75,
+          "samples": [
+            {
+              "time": "2026-10-31T22:15:00Z",
+              "pass": true,
+              "snr": 3.88,
+              "peak_residual": 10.5,
+              "compact_pixels": 4,
+              "peak_xy": [
+                149,
+                392
+              ]
+            },
+            {
+              "time": "2026-10-31T22:30:00Z",
+              "pass": true,
+              "snr": 4.38,
+              "peak_residual": 12.5,
+              "compact_pixels": 4,
+              "peak_xy": [
+                150,
+                390
+              ]
+            },
+            {
+              "time": "2026-10-31T23:00:00Z",
+              "pass": true,
+              "snr": 4.72,
+              "peak_residual": 16.5,
+              "compact_pixels": 4,
+              "peak_xy": [
+                153,
+                384
+              ]
+            },
+            {
+              "time": "2026-10-31T23:15:00Z",
+              "pass": true,
+              "snr": 6.58,
+              "peak_residual": 20.0,
+              "compact_pixels": 5,
+              "peak_xy": [
+                154,
+                382
               ]
             }
           ]
@@ -1127,7 +1127,7 @@
       "review_stage": "ESTABLISHED",
       "field_rim_review": {
         "status": "CLEAR",
-        "checked": 9,
+        "checked": 8,
         "rim_hits": 0,
         "margin_px_512": 8
       },
@@ -1135,8 +1135,8 @@
         "status": "PASS",
         "continuity": {
           "status": "PASS",
-          "matched": 9,
-          "available": 9,
+          "matched": 8,
+          "available": 8,
           "coverage": 1.0,
           "longest_missing_run": 0,
           "minimum_coverage": 0.7,
@@ -1144,27 +1144,16 @@
         },
         "pixels": {
           "status": "PASS",
-          "evaluated": 9,
-          "passed": 9,
+          "evaluated": 8,
+          "passed": 8,
           "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T20:15:00Z",
-              "pass": true,
-              "snr": 21.0,
-              "peak_residual": 21.0,
-              "compact_pixels": 1,
-              "peak_xy": [
-                140,
-                292
-              ]
-            },
-            {
               "time": "2026-10-31T20:30:00Z",
               "pass": true,
-              "snr": 32.0,
-              "peak_residual": 32.0,
+              "snr": 32.5,
+              "peak_residual": 32.5,
               "compact_pixels": 1,
               "peak_xy": [
                 140,
@@ -1174,8 +1163,8 @@
             {
               "time": "2026-10-31T20:45:00Z",
               "pass": true,
-              "snr": 24.0,
-              "peak_residual": 24.0,
+              "snr": 24.5,
+              "peak_residual": 24.5,
               "compact_pixels": 4,
               "peak_xy": [
                 140,
@@ -1185,8 +1174,8 @@
             {
               "time": "2026-10-31T21:00:00Z",
               "pass": true,
-              "snr": 16.19,
-              "peak_residual": 24.0,
+              "snr": 24.5,
+              "peak_residual": 24.5,
               "compact_pixels": 2,
               "peak_xy": [
                 141,
@@ -1196,8 +1185,8 @@
             {
               "time": "2026-10-31T21:15:00Z",
               "pass": true,
-              "snr": 11.47,
-              "peak_residual": 17.0,
+              "snr": 11.8,
+              "peak_residual": 17.5,
               "compact_pixels": 2,
               "peak_xy": [
                 141,
@@ -1229,8 +1218,8 @@
             {
               "time": "2026-10-31T22:00:00Z",
               "pass": true,
-              "snr": 14.0,
-              "peak_residual": 14.0,
+              "snr": 13.0,
+              "peak_residual": 13.0,
               "compact_pixels": 1,
               "peak_xy": [
                 143,
@@ -1240,8 +1229,8 @@
             {
               "time": "2026-10-31T22:15:00Z",
               "pass": true,
-              "snr": 33.0,
-              "peak_residual": 33.0,
+              "snr": 32.0,
+              "peak_residual": 32.0,
               "compact_pixels": 3,
               "peak_xy": [
                 143,
@@ -1396,7 +1385,7 @@
       "review_stage": "ESTABLISHED",
       "field_rim_review": {
         "status": "CLEAR",
-        "checked": 9,
+        "checked": 8,
         "rim_hits": 0,
         "margin_px_512": 8
       },
@@ -1404,8 +1393,8 @@
         "status": "PASS",
         "continuity": {
           "status": "PASS",
-          "matched": 9,
-          "available": 9,
+          "matched": 8,
+          "available": 8,
           "coverage": 1.0,
           "longest_missing_run": 0,
           "minimum_coverage": 0.7,
@@ -1413,28 +1402,17 @@
         },
         "pixels": {
           "status": "PASS",
-          "evaluated": 9,
-          "passed": 9,
+          "evaluated": 8,
+          "passed": 8,
           "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T20:15:00Z",
-              "pass": true,
-              "snr": 8.43,
-              "peak_residual": 23.0,
-              "compact_pixels": 3,
-              "peak_xy": [
-                386,
-                315
-              ]
-            },
-            {
               "time": "2026-10-31T20:30:00Z",
               "pass": true,
-              "snr": 16.19,
+              "snr": 11.02,
               "peak_residual": 23.0,
-              "compact_pixels": 3,
+              "compact_pixels": 2,
               "peak_xy": [
                 387,
                 315
@@ -1454,7 +1432,7 @@
             {
               "time": "2026-10-31T21:00:00Z",
               "pass": true,
-              "snr": 18.89,
+              "snr": 12.59,
               "peak_residual": 28.0,
               "compact_pixels": 2,
               "peak_xy": [
@@ -1465,7 +1443,7 @@
             {
               "time": "2026-10-31T21:15:00Z",
               "pass": true,
-              "snr": 22.93,
+              "snr": 18.62,
               "peak_residual": 34.0,
               "compact_pixels": 2,
               "peak_xy": [
@@ -1487,8 +1465,8 @@
             {
               "time": "2026-10-31T21:45:00Z",
               "pass": true,
-              "snr": 17.54,
-              "peak_residual": 26.0,
+              "snr": 16.86,
+              "peak_residual": 25.0,
               "compact_pixels": 5,
               "peak_xy": [
                 389,
@@ -1498,8 +1476,8 @@
             {
               "time": "2026-10-31T22:00:00Z",
               "pass": true,
-              "snr": 35.75,
-              "peak_residual": 53.0,
+              "snr": 35.07,
+              "peak_residual": 52.0,
               "compact_pixels": 3,
               "peak_xy": [
                 389,
@@ -1665,7 +1643,7 @@
       "review_stage": "ESTABLISHED",
       "field_rim_review": {
         "status": "CLEAR",
-        "checked": 9,
+        "checked": 8,
         "rim_hits": 0,
         "margin_px_512": 8
       },
@@ -1673,8 +1651,8 @@
         "status": "PASS",
         "continuity": {
           "status": "PASS",
-          "matched": 9,
-          "available": 9,
+          "matched": 8,
+          "available": 8,
           "coverage": 1.0,
           "longest_missing_run": 0,
           "minimum_coverage": 0.7,
@@ -1682,27 +1660,16 @@
         },
         "pixels": {
           "status": "PASS",
-          "evaluated": 9,
-          "passed": 9,
+          "evaluated": 8,
+          "passed": 8,
           "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T20:15:00Z",
-              "pass": true,
-              "snr": 26.5,
-              "peak_residual": 27.0,
-              "compact_pixels": 17,
-              "peak_xy": [
-                399,
-                251
-              ]
-            },
-            {
               "time": "2026-10-31T20:30:00Z",
               "pass": true,
-              "snr": 13.49,
-              "peak_residual": 21.0,
+              "snr": 13.83,
+              "peak_residual": 21.5,
               "compact_pixels": 5,
               "peak_xy": [
                 399,
@@ -1712,9 +1679,9 @@
             {
               "time": "2026-10-31T20:45:00Z",
               "pass": true,
-              "snr": 10.79,
-              "peak_residual": 17.0,
-              "compact_pixels": 10,
+              "snr": 11.13,
+              "peak_residual": 17.5,
+              "compact_pixels": 9,
               "peak_xy": [
                 399,
                 251
@@ -1723,7 +1690,7 @@
             {
               "time": "2026-10-31T21:00:00Z",
               "pass": true,
-              "snr": 19.56,
+              "snr": 15.51,
               "peak_residual": 29.0,
               "compact_pixels": 4,
               "peak_xy": [
@@ -1745,8 +1712,8 @@
             {
               "time": "2026-10-31T21:30:00Z",
               "pass": true,
-              "snr": 16.86,
-              "peak_residual": 25.0,
+              "snr": 17.2,
+              "peak_residual": 25.5,
               "compact_pixels": 6,
               "peak_xy": [
                 401,
@@ -1756,8 +1723,8 @@
             {
               "time": "2026-10-31T21:45:00Z",
               "pass": true,
-              "snr": 18.21,
-              "peak_residual": 27.0,
+              "snr": 18.55,
+              "peak_residual": 27.5,
               "compact_pixels": 6,
               "peak_xy": [
                 401,
@@ -1778,8 +1745,8 @@
             {
               "time": "2026-10-31T22:15:00Z",
               "pass": true,
-              "snr": 17.54,
-              "peak_residual": 26.0,
+              "snr": 17.2,
+              "peak_residual": 25.5,
               "compact_pixels": 5,
               "peak_xy": [
                 402,
@@ -1928,7 +1895,7 @@
       "review_stage": "ESTABLISHED",
       "field_rim_review": {
         "status": "CLEAR",
-        "checked": 8,
+        "checked": 7,
         "rim_hits": 0,
         "margin_px_512": 8
       },
@@ -1936,37 +1903,26 @@
         "status": "PASS",
         "continuity": {
           "status": "PASS",
-          "matched": 8,
-          "available": 9,
-          "coverage": 0.889,
+          "matched": 7,
+          "available": 8,
+          "coverage": 0.875,
           "longest_missing_run": 1,
           "minimum_coverage": 0.7,
           "maximum_missing_run": 2
         },
         "pixels": {
           "status": "PASS",
-          "evaluated": 8,
-          "passed": 8,
+          "evaluated": 7,
+          "passed": 7,
           "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T20:15:00Z",
-              "pass": true,
-              "snr": 10.12,
-              "peak_residual": 29.0,
-              "compact_pixels": 2,
-              "peak_xy": [
-                408,
-                142
-              ]
-            },
-            {
               "time": "2026-10-31T20:30:00Z",
               "pass": true,
-              "snr": 8.43,
+              "snr": 11.24,
               "peak_residual": 25.0,
-              "compact_pixels": 1,
+              "compact_pixels": 2,
               "peak_xy": [
                 408,
                 142
@@ -1977,7 +1933,7 @@
               "pass": true,
               "snr": 5.06,
               "peak_residual": 15.0,
-              "compact_pixels": 2,
+              "compact_pixels": 1,
               "peak_xy": [
                 408,
                 142
@@ -1986,8 +1942,8 @@
             {
               "time": "2026-10-31T21:00:00Z",
               "pass": true,
-              "snr": 10.12,
-              "peak_residual": 15.0,
+              "snr": 9.44,
+              "peak_residual": 14.0,
               "compact_pixels": 2,
               "peak_xy": [
                 409,
@@ -1997,8 +1953,8 @@
             {
               "time": "2026-10-31T21:15:00Z",
               "pass": true,
-              "snr": 25.63,
-              "peak_residual": 37.0,
+              "snr": 16.64,
+              "peak_residual": 36.0,
               "compact_pixels": 3,
               "peak_xy": [
                 409,
@@ -2008,8 +1964,8 @@
             {
               "time": "2026-10-31T21:30:00Z",
               "pass": true,
-              "snr": 16.19,
-              "peak_residual": 24.0,
+              "snr": 15.51,
+              "peak_residual": 23.0,
               "compact_pixels": 2,
               "peak_xy": [
                 409,
@@ -2180,7 +2136,7 @@
       "review_stage": "ESTABLISHED",
       "field_rim_review": {
         "status": "CLEAR",
-        "checked": 8,
+        "checked": 7,
         "rim_hits": 0,
         "margin_px_512": 8
       },
@@ -2188,35 +2144,24 @@
         "status": "PASS",
         "continuity": {
           "status": "PASS",
-          "matched": 8,
-          "available": 9,
-          "coverage": 0.889,
+          "matched": 7,
+          "available": 8,
+          "coverage": 0.875,
           "longest_missing_run": 1,
           "minimum_coverage": 0.7,
           "maximum_missing_run": 2
         },
         "pixels": {
           "status": "PASS",
-          "evaluated": 8,
-          "passed": 8,
+          "evaluated": 7,
+          "passed": 7,
           "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
             {
-              "time": "2026-10-31T20:15:00Z",
-              "pass": true,
-              "snr": 10.79,
-              "peak_residual": 15.0,
-              "compact_pixels": 2,
-              "peak_xy": [
-                137,
-                81
-              ]
-            },
-            {
               "time": "2026-10-31T20:30:00Z",
               "pass": true,
-              "snr": 10.57,
+              "snr": 12.82,
               "peak_residual": 23.0,
               "compact_pixels": 2,
               "peak_xy": [
@@ -2238,8 +2183,8 @@
             {
               "time": "2026-10-31T21:00:00Z",
               "pass": true,
-              "snr": 15.51,
-              "peak_residual": 22.0,
+              "snr": 15.18,
+              "peak_residual": 21.5,
               "compact_pixels": 4,
               "peak_xy": [
                 138,
@@ -2249,8 +2194,8 @@
             {
               "time": "2026-10-31T21:15:00Z",
               "pass": true,
-              "snr": 17.54,
-              "peak_residual": 26.0,
+              "snr": 11.69,
+              "peak_residual": 25.5,
               "compact_pixels": 4,
               "peak_xy": [
                 138,
@@ -2260,8 +2205,8 @@
             {
               "time": "2026-10-31T21:30:00Z",
               "pass": true,
-              "snr": 8.09,
-              "peak_residual": 12.0,
+              "snr": 8.43,
+              "peak_residual": 12.5,
               "compact_pixels": 5,
               "peak_xy": [
                 139,
@@ -2271,8 +2216,8 @@
             {
               "time": "2026-10-31T21:45:00Z",
               "pass": true,
-              "snr": 16.86,
-              "peak_residual": 25.0,
+              "snr": 17.2,
+              "peak_residual": 25.5,
               "compact_pixels": 3,
               "peak_xy": [
                 139,
@@ -2282,8 +2227,8 @@
             {
               "time": "2026-10-31T22:15:00Z",
               "pass": true,
-              "snr": 8.09,
-              "peak_residual": 18.0,
+              "snr": 7.87,
+              "peak_residual": 17.5,
               "compact_pixels": 2,
               "peak_xy": [
                 140,
@@ -2432,7 +2377,7 @@
       "review_stage": "ESTABLISHED",
       "field_rim_review": {
         "status": "CLEAR",
-        "checked": 9,
+        "checked": 8,
         "rim_hits": 0,
         "margin_px_512": 8
       },
@@ -2440,8 +2385,8 @@
         "status": "PASS",
         "continuity": {
           "status": "PASS",
-          "matched": 9,
-          "available": 9,
+          "matched": 8,
+          "available": 8,
           "coverage": 1.0,
           "longest_missing_run": 0,
           "minimum_coverage": 0.7,
@@ -2449,22 +2394,11 @@
         },
         "pixels": {
           "status": "PASS",
-          "evaluated": 9,
-          "passed": 9,
+          "evaluated": 8,
+          "passed": 8,
           "pass_fraction": 1.0,
           "minimum_fraction": 0.75,
           "samples": [
-            {
-              "time": "2026-10-31T20:15:00Z",
-              "pass": true,
-              "snr": 17.54,
-              "peak_residual": 26.0,
-              "compact_pixels": 2,
-              "peak_xy": [
-                349,
-                381
-              ]
-            },
             {
               "time": "2026-10-31T20:30:00Z",
               "pass": true,
@@ -2512,7 +2446,7 @@
             {
               "time": "2026-10-31T21:30:00Z",
               "pass": true,
-              "snr": 11.47,
+              "snr": 17.0,
               "peak_residual": 17.0,
               "compact_pixels": 2,
               "peak_xy": [
@@ -2534,8 +2468,8 @@
             {
               "time": "2026-10-31T22:00:00Z",
               "pass": true,
-              "snr": 27.65,
-              "peak_residual": 41.0,
+              "snr": 26.98,
+              "peak_residual": 40.0,
               "compact_pixels": 2,
               "peak_xy": [
                 352,
@@ -2545,8 +2479,8 @@
             {
               "time": "2026-10-31T22:15:00Z",
               "pass": true,
-              "snr": 18.89,
-              "peak_residual": 28.0,
+              "snr": 18.21,
+              "peak_residual": 27.0,
               "compact_pixels": 3,
               "peak_xy": [
                 352,
@@ -2560,10 +2494,6 @@
   ],
   "frame_manifests": {
     "ccor1": [
-      {
-        "time": "2026-10-31T11:15:00Z",
-        "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1115_ccor1_1024by960.jpg"
-      },
       {
         "time": "2026-10-31T11:30:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor1/jpegs/20261031_1130_ccor1_1024by960.jpg"
@@ -2763,10 +2693,6 @@
     ],
     "ccor2": [
       {
-        "time": "2026-10-31T11:15:00Z",
-        "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1115_ccor2_1024by960.jpg"
-      },
-      {
         "time": "2026-10-31T11:30:00Z",
         "image_url": "https://services.swpc.noaa.gov/products/ccor2/jpegs/20261031_1130_ccor2_1024by960.jpg"
       },
@@ -2911,10 +2837,10 @@
   "review_shortlist_ids": [
     "CCOR1-ed6281f047bd",
     "CCOR1-613ec83b1759",
-    "CCOR1-0924bedf0c1a",
     "CCOR1-c821a59aba7f",
     "CCOR1-459e54330e69",
     "CCOR1-1ec3fb968fba",
+    "CCOR1-d1b99b33ca5e",
     "CCOR1-b13afd3c8cbb",
     "CCOR1-4706a8b8a8d4",
     "CCOR1-598b50191edb",
