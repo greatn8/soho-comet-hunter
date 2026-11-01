@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b14">
   <title>SOHO Comet Hunter</title>
   <meta name="description" content="Live candidate dashboard for an automated SOHO comet-hunting pipeline.">
-  <link rel="stylesheet" href="./styles.css?v=20261026-source-pixels">
+  <link rel="stylesheet" href="./styles.css?v=20261101-fixed-field">
 </head>
 <body>
   <div class="stars" aria-hidden="true"></div>
@@ -126,6 +126,7 @@
         </div>
       </div>
       <div id="ccorStatus" class="realtime-source-note">CCOR hunter not yet enabled.</div>
+      <p class="ccor-review-explainer">These are unidentified moving signals. Pixel checks show repeatability; movement different from stars still needs verification. <a href="https://sungrazer.nrl.navy.mil/sites/sungrazer/files/images/ccor001_comet.mp4" target="_blank" rel="noopener noreferrer">Watch a confirmed faint CCOR comet ↗</a></p>
       <div class="ccor-controls">
         <label for="ccorCameraFilter">Camera</label>
         <select id="ccorCameraFilter">
@@ -152,7 +153,7 @@
               <button type="button" id="ccorCandidateNext" title="Next candidate (↓)">Candidate →</button>
             </div>
             <div class="ccor-navigation-group">
-              <button type="button" id="ccorFrameMode">Include intermediate frames</button>
+              <button type="button" id="ccorFrameMode">Show measured frames only</button>
               <button type="button" id="ccorReviewPrev" title="Previous image (←)">← Frame</button>
               <strong id="ccorFramePosition" aria-live="polite">Frame 1 / 1</strong>
               <button type="button" id="ccorReviewPlay" title="Play or pause (Space)">▶ Play</button>
@@ -162,6 +163,16 @@
         </div>
         <p id="ccorReviewFrameEvidence" class="ccor-evidence-label" role="status">MEASURED PEAK IN THIS FRAME</p>
         <p class="ccor-review-help">Original NOAA frames: green shows the proposed motion track; amber marks a measured point in this frame. These are unverified detections, not confirmed comets.</p>
+        <p id="ccorMotionContext" class="ccor-motion-context" role="status"></p>
+        <div class="ccor-controls ccor-inspection-tools">
+          <label>Zoom view <select id="ccorZoomMode"><option value="fixed">Fixed wider field</option><option value="follow">Follow detection · 4×</option></select></label>
+          <label>Brightness <input id="ccorBrightness" type="range" min="0.5" max="8" step="0.25" value="1"><output id="ccorBrightnessValue">1×</output></label>
+          <label>Contrast <input id="ccorContrast" type="range" min="0.5" max="3" step="0.1" value="1"><output id="ccorContrastValue">1×</output></label>
+          <button type="button" id="ccorRevealFaint">Brighten faint detail</button>
+          <button type="button" id="ccorResetDisplay">Reset display</button>
+          <label><input type="checkbox" id="ccorShowMarkers" checked> Detector markers</label>
+        </div>
+        <p class="ccor-review-help">Fixed field keeps the same image coordinates through playback. Brightness and contrast affect viewing only and may also brighten noise. Missing peaks remain visible in playback.</p>
         <div class="ccor-controls">
           <button type="button" id="ccorReportMark" aria-pressed="false">Mark positions: off</button>
           <strong id="ccorReportCount">0 frames marked</strong>
@@ -174,8 +185,11 @@
             <svg id="ccorReportOverlay" aria-hidden="true" preserveAspectRatio="none"></svg>
           </div>
           <div class="ccor-zoom-wrap">
-            <strong>Detection zoom · 4×</strong>
+            <strong id="ccorZoomLabel">Fixed field · current frame</strong>
             <div id="ccorReviewZoom" class="ccor-zoom"></div>
+            <strong id="ccorReferenceLabel">First available frame · same field</strong>
+            <div id="ccorReferenceZoom" class="ccor-zoom"></div>
+            <p class="ccor-review-help">Compare the same field above and below. Mark positions on the current frame only. The first frame is a reference, not a star-motion measurement.</p>
           </div>
         </div>
         <p id="ccorReviewCaption" class="ccor-caption"></p>
@@ -279,11 +293,9 @@
     <div id="dialogBody"></div>
   </dialog>
 
+  <script src="./ccor-review-tools.js?v=20261101-fixed-field"></script>
   <script src="./ccor-coordinates.js?v=20261026-source-pixels"></script>
   <script src="./ccor-report-ui.js?v=20261101-native-report"></script>
-  <script src="./app.js?v=20261101-temporal-review"></script>
+  <script src="./app.js?v=20261101-fixed-field"></script>
 </body>
 </html>
-
-
-

@@ -49,6 +49,8 @@ await page.screenshot({path:process.env.CCOR_SCREENSHOT||'/tmp/ccor-report-ui.pn
 await page.locator('#ccorReviewNext').click();
 await page.waitForFunction(()=>document.getElementById('ccorReportCursor').textContent.includes('1204'));
 const canvas=page.locator('#ccorReviewZoom canvas');await canvas.scrollIntoViewIfNeeded();
+await page.locator('#ccorZoomMode').selectOption('follow');
+await page.waitForSelector('#ccorReviewZoom canvas');
 const cb=await canvas.boundingBox();await page.mouse.click(cb.x+cb.width/2,cb.y+cb.height/2);
 assert.equal(await page.locator('#ccorReportCount').innerText(),'4 frames marked');
 const zoomSaved=JSON.parse(await page.evaluate(()=>localStorage.getItem('ccor-source-image-measurements-v1')))[0].rows;
@@ -61,4 +63,3 @@ await page.locator('#ccorReportPositions button').first().click();assert.equal(a
 console.log('PASS: browser click → three frames → exact source pixel export → restore → remove. Page errors:',JSON.stringify(errors));
 await browser.close();server.close();if(errors.length)process.exitCode=1;
 })().catch(e=>{console.error(e);if(server)server.close();process.exit(1)});
-
