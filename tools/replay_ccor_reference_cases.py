@@ -68,7 +68,7 @@ def replay(name, output, no_download=False):
             row['runs'].append(dict(strategy='MULTI_BASELINE' if enhanced else 'ADJACENT_ONLY',
                 search=diag, selected_tracks=len(found),
                 review_eligible=sum(bool(r.get('precap_review_eligible')) for r in found),
-                isolated_shortlist_ids=[r['id'] for r in shortlist],
+                isolated_shortlist_ids=shortlist,
                 ranked_tracks=[dict(r, blind_rank=i+1) for i, r in enumerate(ranked)]))
         if row['status'] != 'INCOMPLETE_SEARCH':
             row['status'] = 'BLIND_REPLAY_COMPLETE'

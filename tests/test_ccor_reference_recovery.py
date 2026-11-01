@@ -69,7 +69,8 @@ class RecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             with patch.object(replay, 'acquire_frames', return_value=([], [])), \
                  patch.object(replay.ch, 'load_frames', return_value=(frames, times, [(512, 512)]*6)), \
-                 patch.object(replay.ch, 'track_points', return_value=([], {'scan_completed':True})) as detect:
+                 patch.object(replay.ch, 'track_points', return_value=([], {'scan_completed':True})) as detect, \
+                 patch.object(replay.ch, 'review_shortlist', return_value=['example']):
                 row = replay.replay('ccor1-20261029-wage', Path(folder), True)
         self.assertEqual(row['status'], 'BLIND_REPLAY_COMPLETE')
         calls = detect.call_args_list
@@ -78,6 +79,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertTrue(all(c.kwargs['complete_search'] for c in calls))
         self.assertFalse(calls[0].kwargs['multi_baseline_seeds'])
         self.assertTrue(calls[1].kwargs['multi_baseline_seeds'])
+        self.assertEqual(row['runs'][1]['isolated_shortlist_ids'], ['example'])
 
 
 if __name__ == '__main__':
