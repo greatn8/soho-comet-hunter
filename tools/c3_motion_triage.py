@@ -1,4 +1,4 @@
-"""Shadow-only motion triage. No speed floor; no detector/alert mutations."""
+"""C3 review and notification policy. No speed floor or raw-track rejection."""
 import math
 
 
@@ -25,7 +25,9 @@ def triage(row):
                  and temporal.get('status') == 'MEASURED'
                  and finite(temporal.get('tested')) >= 3
                  and finite(temporal.get('supported')) >= 2
-                 and finite(temporal.get('support_fraction')) >= .5)
+                 and .5 <= finite(temporal.get('support_fraction')) <= 1
+                 and finite(temporal.get('supported')) <= finite(temporal.get('tested'))
+                 and finite(temporal.get('supported')) / max(1, finite(temporal.get('tested'))) >= .5)
     if supported:
         return {'stage': 'MOTION_SUPPORTED_REVIEW',
                 'reason': 'Temporal source evidence passes; different motion from stars still unverified'}
@@ -45,3 +47,12 @@ def assessed(row):
     temporal = pixel.get('temporal_motion') or {}
     return (temporal.get('status') == 'MEASURED' and
             isinstance(temporal.get('tested'), (int, float)) and temporal['tested'] >= 3)
+
+
+def motion_supported(row):
+    return triage(row)['stage'] == 'MOTION_SUPPORTED_REVIEW'
+
+
+def primary_review(row):
+    """Preserve known/manually protected objects without claiming a test pass."""
+    return protected(row) or (row.get('review_class') == 'STRONG_REVIEW' and motion_supported(row))

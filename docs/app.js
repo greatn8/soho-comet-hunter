@@ -490,6 +490,9 @@ function realtimeCandidateCard(c, emailIssue = null) {
       </div>
       ${media}
       ${trajectoryWarning}
+      <small>${c3ProtectedReview(c) ? "Known/report-labelled or manually protected review; identity still requires verification." : c3MotionSupported(c)
+        ? "Temporal source evidence passes; motion relative to stars remains unverified."
+        : "Secondary review: temporal motion is insufficient/unavailable, or the track has star-like/quality evidence."}</small>
       ${(c.quality_issues || []).includes("FRAME_COUNT_EXCEEDS_SOURCE_IMAGES") ? '<div class="realtime-media-missing">Reported track frames exceed distinct available source images. This event is not validated as a comet.</div>' : ''}
       ${c.pixel_verification?.endpoint_model ? '<small>Alternate endpoint-path pixel check: ' + escapeHtml(c.pixel_verification.endpoint_model.status || "UNAVAILABLE") + ' (' + escapeHtml(String(c.pixel_verification.endpoint_model.hits ?? 0)) + '/' + escapeHtml(String(c.pixel_verification.endpoint_model.samples ?? 0)) + ' hits). Independent observation review required.</small>' : ''}
       <div class="realtime-candidate-meta">\n        <div><span>Review class</span><strong>${escapeHtml(prettyClass(c.review_class || "UNCLASSIFIED"))}</strong></div>\n        <div><span>Frames</span><strong>${escapeHtml(c.frames ?? "—")}</strong></div>\n        <div><span>Speed</span><strong>${escapeHtml(metricText(c.speed))} px/h</strong></div>\n        <div><span>Fit RMS</span><strong>${escapeHtml(metricText(c.rms))}</strong></div>\n        <div><span>Sunward</span><strong>${escapeHtml(metricText(c.sunward))} px/h</strong></div>\n        <div><span>Pixel hits</span><strong>${escapeHtml((c.pixel_verification?.hits ?? "—") + "/" + (c.pixel_verification?.samples ?? "—"))}</strong></div>\n        <div><span>Peak SNR</span><strong>${escapeHtml(metricText(c.pixel_verification?.peak_snr))}</strong></div>\n        <div><span>Pixel status</span><strong>${escapeHtml(c.pixel_verification?.status || "—")}</strong></div>\n      </div>\n      <div class="realtime-track">
@@ -505,10 +508,31 @@ function realtimeCandidateCard(c, emailIssue = null) {
 // Weak exploratory tracks are retained for engineering review, but must not
 // crowd out events with pixel support or a known-report match. This is a
 // DISPLAY decision only: all detections and clips remain in the raw archive.
+// Match tools/c3_motion_triage.py. Temporal support is review evidence,
+// not proof of motion relative to stars or of comet identity.
+function c3MotionSupported(row) {
+  const pixel = row?.pixel_verification || {};
+  const motion = pixel.temporal_motion || {};
+  const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+  const starLike = row?.image_star_motion?.status === "STAR_LIKE" ||
+    row?.star_field?.status === "STAR_LIKE";
+  const issues = row?.quality_issues;
+  if (starLike || row?.trajectory_warning || (Array.isArray(issues) ? issues.length : issues)) return false;
+  const tested = number(motion.tested), supported = number(motion.supported);
+  return pixel.status === "STRONG" && number(pixel.hits) >= 5 &&
+    number(pixel.hit_fraction) >= 0.6 && number(pixel.longest_hit_run) >= 4 &&
+    motion.status === "MEASURED" && tested >= 3 && supported >= 2 &&
+    number(motion.support_fraction) >= 0.5 && number(motion.support_fraction) <= 1 &&
+    supported <= tested && supported / Math.max(1, tested) >= 0.5;
+}
+function c3ProtectedReview(row) {
+  return Boolean(row?.known_object || row?.report_id || row?.status === "KNOWN_REPORT" ||
+    row?.realtime_status === "KNOWN_REPORT" || row?.review_state === "KNOWN_OBJECT" ||
+    row?.review_locked || row?.starred || row?.star_locked);
+}
 function isRealtimeDiagnosticOnly(row) {
-  const cls = normalizeClass(row?.review_class);
-  const status = normalizeClass(row?.status);
-  return (cls === "LOW_SUPPORT" || cls === "VISUAL_REJECT") && status !== "KNOWN_REPORT";
+  return !c3ProtectedReview(row) &&
+    (normalizeClass(row?.review_class) !== "STRONG_REVIEW" || !c3MotionSupported(row));
 }
 
 function realtimeReviewGroups(rows) {
@@ -688,6 +712,8 @@ function c3OpenReview(identifier, payload = state.realtime) {
       ". It may be awaiting publication or older than the live retention window. Check the GitHub alert issue.";
     return false;
   }
+  if (isRealtimeDiagnosticOnly(row)) state.showLowSupportRealtime = true;
+  if (normalizeClass(row.status) === "SEEN_ALREADY") state.showSeenAlreadyRealtime = true;
   state.liveReviewVisible = 1000;
   renderRealtime(payload);
   const id = "c3-review-" + (row.review_id || row.candidate + "-" + row.first);
@@ -798,7 +824,11 @@ function renderRealtime(payload) {
     frameCaption.textContent = "—";
   }
 
-  const latestAlert = String(payload.latest_alert || "").trim();
+  const rawLatestAlert = String(payload.latest_alert || "").trim();
+  const bannerId = String(rawLatestAlert.match(/(?:^|\n)Candidate:\s*(C\d+)/i)?.[1] || "");
+  const bannerEligible = (payload.latest_candidates || []).some(row =>
+    row.candidate === bannerId && row.status === "UNMATCHED" && !isRealtimeDiagnosticOnly(row));
+  const latestAlert = bannerEligible ? rawLatestAlert : "";
   if (latestAlert) {
     alertBox.classList.remove("hidden");
     alertBox.innerHTML =
@@ -815,15 +845,15 @@ function renderRealtime(payload) {
     : currentRows;
   const { primary, diagnostics } = realtimeReviewGroups(reviewRows);
   const githubIssues = currentC3GitHubAlerts(payload);
-  // Keep an alerted candidate accessible even if an older classification
-  // would otherwise put it in the diagnostics or previously-seen filter.
+  // Keep eligible alerted candidates prominent. Older email links still
+  // open secondary reviews explicitly through c3OpenReview.
   // A C3 candidate number may be reused; for email prioritization require
   // the exact issue review ID. The most recent email issue gets first place.
   const latestAlertId = String(latestAlert.match(/(?:^|\n)Candidate:\s*(C\d+)/i)?.[1] || "").toUpperCase();
   const latestAlertRow = reviewRows.find(row =>
     String(row.candidate || "").toUpperCase() === latestAlertId &&
     String(row.review_class || "").toUpperCase() === "STRONG_REVIEW");
-  const emailRows = reviewRows.filter(row => githubEmailForReview(row, githubIssues));
+  const emailRows = reviewRows.filter(row => !isRealtimeDiagnosticOnly(row) && githubEmailForReview(row, githubIssues));
   const quickNav = $("#realtimeEmailQuickNav");
   if (quickNav) {
     // The earlier list silently truncated to eight alerts. A batch of nine
@@ -869,13 +899,9 @@ function renderRealtime(payload) {
 
   const seenCount = primary.filter(c => normalizeClass(c.status) === "SEEN_ALREADY").length;
   const visiblePrimary = visiblePrimaryReviews(primary, state.showSeenAlreadyRealtime);
-  // Never leave an active discovery dashboard visually empty when the only
-  // results are unverified. Show a *small* preview of CURRENT weak tracks,
-  // clearly labelled, while retaining the full diagnostic toggle. Do not
-  // promote them to alerts or mix them into the permanent archive.
-  const currentDiagnosticPreviews = !state.showLowSupportRealtime && !primary.length
-    ? currentRows.filter(isRealtimeDiagnosticOnly).slice(0, 3)
-    : [];
+  // Secondary reviews remain accessible through the toggle or a direct
+  // candidate link. Do not silently promote old email alerts or previews.
+  const currentDiagnosticPreviews = []; // Secondary footage requires explicit inspection.
   const baseRows = state.showLowSupportRealtime
     ? [...visiblePrimary, ...diagnostics]
     : [...visiblePrimary, ...currentDiagnosticPreviews];
@@ -902,9 +928,9 @@ function renderRealtime(payload) {
   </div>` : "";
 
   const diagnosticControls = diagnostics.length ? `<div class="realtime-review-more">
-    <small>${diagnostics.length} low-support / inconsistent track(s) retained for engineering diagnostics, not validated comets.</small>
+    <small>${diagnostics.length} secondary review(s): insufficient temporal evidence, star-like motion, or other quality issues. Footage remains available.</small>
     <button type="button" id="toggleWeakRealtime">
-      ${state.showLowSupportRealtime ? "Hide weak diagnostic tracks" : `Show ${diagnostics.length} weak diagnostic tracks`}
+      ${state.showLowSupportRealtime ? "Hide secondary reviews" : `Show ${diagnostics.length} secondary reviews`}
     </button>
   </div>` : "";
 
@@ -912,7 +938,7 @@ function renderRealtime(payload) {
     candidatesEl.innerHTML = '<div class="realtime-empty">' +
       (seenCount && !state.showSeenAlreadyRealtime
         ? "No new unmatched reviews in this retained set. Previously seen reviews are hidden below."
-        : "No evidence-supported realtime candidates yet. The detector is running, but its current tracks have not passed review.") +
+        : "No candidates in this retained set pass the temporal-evidence shortlist. Use Show secondary reviews to inspect weaker or unassessed tracks.") +
       '</div>' + seenControls + diagnosticControls;
     attachPreviouslySeenToggle(payload);
     const toggle = $("#toggleWeakRealtime");
@@ -1373,3 +1399,4 @@ document.addEventListener("ccor-report-measure", () => {
   ccorPlayback = null;
   document.getElementById("ccorReviewPlay").textContent = "▶ Play";
 });
+

@@ -13,6 +13,9 @@ def candidate(status):
     now=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d_%H%M")
     return {"candidate":"C0120031","review_id":"RT_SAMPLE",
             "review_class":"STRONG_REVIEW","status":status,
+            "pixel_verification":{"status":"STRONG","hits":8,"hit_fraction":.8,
+                "longest_hit_run":5,"temporal_motion":{"status":"MEASURED",
+                "tested":6,"supported":4,"support_fraction":4/6}},
             "last":f"{now}_c3_1024.jpg","first":f"{now}_c3_1024.jpg"}
 
 
@@ -57,3 +60,4 @@ class EmailDedupTests(unittest.TestCase):
 
 if __name__=="__main__":
     unittest.main()
+
