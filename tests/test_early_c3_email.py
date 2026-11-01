@@ -16,9 +16,9 @@ def candidate():
       "first":stamp+"_c3_1024.jpg","last":stamp+"_c3_1024.jpg",
       "status":"EARLY_ALERT_READY","report_check_status":"CHECKED_RECENT_LIST",
       "report_id":"","early_alert_reasons":[],"review_class":"STRONG_REVIEW",
-      "frames":6,"pixel_verification":{"hits":6,"samples":6,"hit_fraction":1,
+      "frames":6,"pixel_verification":{"status":"STRONG","hits":6,"samples":6,"hit_fraction":1,
       "longest_hit_run":6,"peak_snr":12,"temporal_motion":{
-      "tested":2,"supported":2,"support_fraction":1}},
+      "status":"MEASURED","tested":3,"supported":3,"support_fraction":1}},
       "trajectory_warning":"","star_field":{"status":"NO_CONSENSUS"},
       "edge_review":{"status":"CLEAR"},
       "track":{"first_x":300,"first_y":350,"last_x":299,"last_y":345,"vx":-1,"vy":-4}
@@ -79,3 +79,4 @@ class EarlyEmail(unittest.TestCase):
         self.assertIn("UNCONFIRMED",calls[0][2]["body"])
 if __name__=="__main__":
     unittest.main()
+

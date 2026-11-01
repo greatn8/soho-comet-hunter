@@ -22,6 +22,7 @@ import subprocess
 import sys
 import time
 from urllib.request import Request, urlopen
+from c3_motion_triage import motion_supported
 
 REPO = "greatn8/soho-comet-hunter"
 ASSIGNEE = "greatn8"
@@ -57,6 +58,12 @@ def normalize(candidate, track=None):
         "frames": candidate.get("frames"),
         "resolution": int(candidate.get("resolution") or (1024 if "_c3_1024.jpg" in str(candidate.get("first", "")) else 512)),
         "pixel_verification": candidate.get("pixel_verification") or {},
+        **{key: candidate.get(key) or {} for key in (
+            "image_star_motion", "star_field", "edge_review",
+            "bright_streak_review", "coronal_structure_review")},
+        **{key: candidate.get(key) for key in (
+            "trajectory_warning", "quality_issues", "report_check_status",
+            "report_id", "early_alert_reasons")},
         "official_report_check": candidate.get("official_report_check") or {},
         "submission_frames": candidate.get("submission_frames") or [],
         "submission_frame_status": candidate.get("submission_frame_status") or "",
@@ -75,6 +82,8 @@ def is_recent_strong(candidate, hours=12):
     # Missing/unknown status is deliberately ineligible for email alerts.
     if str(candidate.get("status") or "").upper() != "UNMATCHED":
         return False
+    if candidate.get("report_id") or not motion_supported(candidate):
+        return False
     try:
         age = (dt.datetime.now(dt.timezone.utc) - utc_of_frame(candidate["last"])).total_seconds()/3600.0
         return -2 <= age <= hours
@@ -85,6 +94,8 @@ def is_recent_strong(candidate, hours=12):
 def early_eligible_normalized(candidate):
     from early_c3_review import eligibility
     if candidate.get("status")!="EARLY_ALERT_READY" or candidate.get("report_check_status")!="CHECKED_RECENT_LIST" or candidate.get("report_id") or candidate.get("early_alert_reasons")!=[]:
+        return False
+    if not motion_supported(candidate):
         return False
     return not eligibility({**candidate,"status":"UNMATCHED"},reports_ok=True,now=dt.datetime.now(dt.timezone.utc))
 
@@ -462,3 +473,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
