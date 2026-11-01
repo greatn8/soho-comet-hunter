@@ -26,6 +26,7 @@ await page.route('**/data/ccor.json?*',route=>route.fulfill({contentType:'applic
 await page.goto('http://127.0.0.1:'+server.address().port+'/');
 await page.waitForSelector('[data-ccor-id]');await page.locator('[data-ccor-id]').first().click();
 await page.waitForFunction(()=>document.getElementById('ccorReportCursor').textContent.includes('1204'));
+assert.match(await page.locator('#ccorNativeReport').getAttribute('href'),/candidate=CCOR1-coordinate-test/);
 await page.locator('#ccorReportMark').click();
 for(let i=0;i<3;i++){
  const pos=await page.locator('#ccorReviewImage').evaluate(img=>{
@@ -60,3 +61,4 @@ await page.locator('#ccorReportPositions button').first().click();assert.equal(a
 console.log('PASS: browser click → three frames → exact source pixel export → restore → remove. Page errors:',JSON.stringify(errors));
 await browser.close();server.close();if(errors.length)process.exitCode=1;
 })().catch(e=>{console.error(e);if(server)server.close();process.exit(1)});
+

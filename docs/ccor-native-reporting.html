@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prepare a native CCOR report</title>
+<style>body{font:16px system-ui,sans-serif;background:#0b1422;color:#e1edff;max-width:880px;margin:40px auto;padding:20px;line-height:1.6}h1{line-height:1.2}a{color:#a7d0ff}input,textarea,button{font:inherit;border:1px solid #587396;border-radius:7px;background:#152840;color:#edf5ff;padding:10px}input{width:100%}textarea{width:100%;font:13px monospace}button{cursor:pointer;margin:10px 0}button:disabled{opacity:.4}code{color:#b6e7ce}.hint{color:#b0c5de}</style>
+<a href="./">← Comet dashboard</a><h1>Prepare a native CCOR report</h1>
+<p>This opens a report reviewer using the original <strong>2048 × 1920 FITS pixels</strong>. Mark the same object in at least three frames, then copy the coordinates into Sungrazer with <strong>Upper Left</strong> as the origin.</p>
+<p>The NOAA quicklook is rotated for viewing. Native reporting measures the original frames directly, so that display rotation does not affect your report coordinates.</p>
+<label for="candidate">Candidate ID</label><input id="candidate" placeholder="CCOR1-…" maxlength="90" autocomplete="off">
+<h2>1. Prepare on Bourbaki</h2>
+<p>Paste this command into your Bourbaki terminal. It reads the candidate’s measured times and retrieves up to six matching original frames. Downloads and any extra Python environment use temporary storage. Your completed HTML reviewer stays in your home folder.</p>
+<button id="copy" disabled>Copy preparation command</button><p id="status" class="hint" role="status"></p><textarea id="command" readonly rows="16" aria-label="Bourbaki preparation command"></textarea>
+<h2>2. Open the reviewer on your computer</h2>
+<p>Copy the resulting HTML file from Bourbaki to your computer and open it in your browser. It contains its own images and works offline. For example, run this in your computer’s terminal:</p>
+<textarea id="transfer" readonly rows="2" aria-label="Transfer reviewer command"></textarea>
+<h2>3. Measure and export</h2>
+<p>Use the frame arrows and zoom to inspect the object. Set zoom to <strong>100% or higher</strong>, then click its centre in at least three frames. Check both the original view and temporal contrast, then choose <strong>Copy report</strong> or <strong>Download report</strong>.</p>
+<p class="hint">The export includes image size, coordinate origin, native FITS pixel references, exact observation times and original filenames. It prepares your measurements; you decide whether the moving source warrants a comet report. If the originals are no longer on NOAA’s rolling feed, preparation stops and requires archive FITS files.</p>
+<script>
+'use strict';const $=id=>document.getElementById(id);
+function render(){const id=$('candidate').value.trim(),valid=/^CCOR[12]-[A-Za-z0-9_-]{1,80}$/.test(id);$('copy').disabled=!valid;if(!valid){$('command').value='Enter a CCOR candidate ID to prepare the command.';$('transfer').value='';return;}
+const filename=id+'-native-report.html';
+const lines=[
+'(',
+'set -e',
+'ccor_report_tmp=$(mktemp -d /tmp/ccor-native-report.XXXXXX)',
+'trap \'rm -rf "$ccor_report_tmp"\' EXIT',
+'curl -fsSL https://raw.githubusercontent.com/greatn8/soho-comet-hunter/main/tools/ccor_native_reporting.py -o "$ccor_report_tmp/report.py"',
+'ccor_report_python=python3',
+'if ! python3 -c "import numpy, PIL, astropy" 2>/dev/null; then',
+'  python3 -m venv "$ccor_report_tmp/venv"',
+'  ccor_report_python="$ccor_report_tmp/venv/bin/python"',
+'  "$ccor_report_python" -m pip install --quiet --no-cache-dir numpy pillow astropy',
+'fi',
+'"$ccor_report_python" "$ccor_report_tmp/report.py" \\',
+'  --candidate "'+id+'" \\',
+'  --dashboard "$HOME/comethunting/comet_hunter_native_cuda_v7_archive/results/ccor/ccor.json" \\',
+'  --output "$HOME/'+filename+'"',
+')'];
+$('command').value=lines.join('\n');$('transfer').value='scp nshorter@bourbaki:/home/nshorter/'+filename+' .';}
+$('candidate').value=new URLSearchParams(location.search).get('candidate')||'';$('candidate').addEventListener('input',render);
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('command').value);$('status').textContent='Preparation command copied.'}catch(e){$('command').focus();$('command').select();$('status').textContent='Press Ctrl+C to copy the selected command.'}};render();
+</script></html>

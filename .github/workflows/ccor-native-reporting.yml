@@ -1,0 +1,48 @@
+name: CCOR native coordinate reporting
+on:
+  pull_request:
+    paths:
+      - 'tools/ccor_native_reporting.py'
+      - 'tests/test_ccor_native_reporting*'
+      - 'docs/ccor-native-reporting.html'
+      - '.github/workflows/ccor-native-reporting.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native_coordinates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install numpy pillow astropy
+      - run: python -m unittest discover -s tests -p 'test_ccor_native_reporting.py' -v
+      - name: Prepare a native-grid source recovery fixture
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path[:0]=['tools','tests']
+          from test_ccor_native_reporting import sources
+          from ccor_native_reporting import prepare
+          prepare(sources(),Path('/tmp/ccor-native-browser.html'))
+          PY
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/test_ccor_native_reporting_browser.cjs
+        env:
+          CCOR_NATIVE_HTML: /tmp/ccor-native-browser.html
+          CCOR_NATIVE_SCREENSHOT: /tmp/ccor-native-browser.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-report-browser-check
+          path: /tmp/ccor-native-browser.png
+          if-no-files-found: ignore
+          retention-days: 3
