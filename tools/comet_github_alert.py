@@ -58,10 +58,12 @@ def normalize(candidate, track=None):
         "frames": candidate.get("frames"),
         "resolution": int(candidate.get("resolution") or (1024 if "_c3_1024.jpg" in str(candidate.get("first", "")) else 512)),
         "pixel_verification": candidate.get("pixel_verification") or {},
-        **{key: candidate.get(key) for key in (
-            "image_star_motion", "star_field", "trajectory_warning", "quality_issues",
-            "report_check_status", "report_id", "early_alert_reasons", "edge_review",
+        **{key: candidate.get(key) or {} for key in (
+            "image_star_motion", "star_field", "edge_review",
             "bright_streak_review", "coronal_structure_review")},
+        **{key: candidate.get(key) for key in (
+            "trajectory_warning", "quality_issues", "report_check_status",
+            "report_id", "early_alert_reasons")},
         "official_report_check": candidate.get("official_report_check") or {},
         "submission_frames": candidate.get("submission_frames") or [],
         "submission_frame_status": candidate.get("submission_frame_status") or "",
@@ -80,7 +82,7 @@ def is_recent_strong(candidate, hours=12):
     # Missing/unknown status is deliberately ineligible for email alerts.
     if str(candidate.get("status") or "").upper() != "UNMATCHED":
         return False
-    if not motion_supported(candidate):
+    if candidate.get("report_id") or not motion_supported(candidate):
         return False
     try:
         age = (dt.datetime.now(dt.timezone.utc) - utc_of_frame(candidate["last"])).total_seconds()/3600.0

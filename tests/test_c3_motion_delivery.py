@@ -49,6 +49,10 @@ class DeliveryTests(unittest.TestCase):
             with self.subTest(candidate=c):
                 self.assertFalse(alerts.is_recent_strong(alerts.normalize(c)))
 
+    def test_report_label_is_never_a_new_unmatched_email(self):
+        c = row(); c['report_id'] = 'report_known'
+        self.assertFalse(alerts.is_recent_strong(alerts.normalize(c)))
+
     def test_dispatch_and_push_cannot_emit_for_brightness_only(self):
         c = row(); c['pixel_verification']['temporal_motion'] = {'status': 'UNAVAILABLE'}
         for name, data in [('push', {'review_candidates': [c]}),
