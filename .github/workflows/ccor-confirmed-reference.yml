@@ -1,0 +1,39 @@
+name: CCOR confirmed historical visual reference
+on:
+  pull_request:
+    paths:
+      - 'tools/build_ccor_confirmed_reference.py'
+      - 'docs/ccor-reference*'
+      - 'docs/data/ccor-reference/**'
+      - 'tests/test_ccor_confirmed_reference.py'
+      - 'tests/test_ccor_reference_browser.cjs'
+      - '.github/workflows/ccor-confirmed-reference.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference_review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy pillow
+      - run: python -m unittest discover -s tests -p test_ccor_confirmed_reference.py -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/test_ccor_reference_browser.cjs
+        env:
+          CCOR_REFERENCE_SCREENSHOT: /tmp/ccor-confirmed-reference.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ccor-confirmed-reference-review
+          path: /tmp/ccor-confirmed-reference.png
+          if-no-files-found: ignore
+          retention-days: 3

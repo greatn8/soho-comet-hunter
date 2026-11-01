@@ -1076,6 +1076,7 @@ let ccorCurrent = null;
 let ccorFrameIndex = 0;
 let ccorPlayback = null;
 let ccorShowIntermediateFrames = true;
+let ccorContextMinutes = 90;
 let ccorCamera = "all";
 let ccorSort = "newest";
 let ccorVisibleTracks = [];
@@ -1167,8 +1168,8 @@ function ccorFrameEntries(track, includeIntermediate = ccorShowIntermediateFrame
   const last = Date.parse(track.last);
   // Include intermediate frames to distinguish a moving object from stars.
   const available = manifest.filter(f => f.image_url && Number.isFinite(Date.parse(f.time)) &&
-    Date.parse(f.time) >= first - 15 * 60000 &&
-    Date.parse(f.time) <= last + 15 * 60000);
+    Date.parse(f.time) >= first - ccorContextMinutes * 60000 &&
+    Date.parse(f.time) <= last + ccorContextMinutes * 60000);
   if (available.length) {
     const withEvidence = available.map(f => ({...f, point: byTime.get(f.time) || null}));
     // Show all available images by default; absent peaks remain explicitly
@@ -1402,6 +1403,14 @@ document.getElementById("ccorSortOrder")?.addEventListener("change", e => {
 document.getElementById("ccorCameraFilter")?.addEventListener("change", e => {
   ccorCamera = e.target.value; ccorRenderCards();
 });
+document.getElementById("ccorContextWindow")?.addEventListener("change", e => {
+  ccorContextMinutes = e.target.value === "15" ? 15 : 90;
+  if (ccorPlayback) clearInterval(ccorPlayback);
+  ccorPlayback = null;
+  document.getElementById("ccorReviewPlay").textContent = "▶ Play";
+  ccorFrameIndex = 0;
+  ccorDraw();
+});
 document.getElementById("ccorFrameMode")?.addEventListener("click", e => {
   if (ccorPlayback) clearInterval(ccorPlayback);
   ccorPlayback = null;
@@ -1472,3 +1481,4 @@ document.addEventListener("ccor-report-measure", () => {
   ccorPlayback = null;
   document.getElementById("ccorReviewPlay").textContent = "▶ Play";
 });
+
