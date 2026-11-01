@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Historical CCOR comet reference</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0d1624;color:#e7eef7;font:16px system-ui,sans-serif}main{max-width:1450px;margin:auto;padding:24px}a{color:#9bd2ff}h1{font-size:28px}p{line-height:1.5;color:#c0cede}.badge{display:inline-block;padding:7px 12px;background:#164b43;border-radius:5px}.note{padding:14px;border-left:3px solid #f0bc62;background:#1e2938}.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:16px 0}button,select{font:inherit;background:#263c56;color:white;border:1px solid #6883a3;border-radius:5px;padding:9px;cursor:pointer}button:disabled{opacity:.4;cursor:default}label{display:inline-flex;gap:8px;align-items:center}input[type=range]{width:180px}.layout{display:grid;grid-template-columns:1fr 1fr;gap:22px}.panel{padding:15px;background:#121f30;border:1px solid #38506b;border-radius:8px}video{display:block;width:100%;background:#111}#viewport{height:72vh;overflow:auto;background:#03070b;border:1px solid #425a77}#frame{display:block;max-width:none;image-rendering:pixelated}#frameInfo{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}#timeline{width:min(95%,700px)}details{margin:18px 0}code{overflow-wrap:anywhere}#status{color:#ffdc92}.muted{font-size:14px;color:#b6c5d8}@media(max-width:950px){.layout{grid-template-columns:1fr}main{padding:14px}}
+</style></head><body><main>
+<a href="./#ccorPanel">← Live CCOR dashboard</a>
+<h1>Learn from a confirmed CCOR comet</h1>
+<span class="badge">Historical reference · CCOR-0001</span>
+<p id="summary">Loading the original observation sequence…</p>
+<p class="note"><strong>This is a historical visual control.</strong> Sungrazer confirmed the comet’s identity. Our live detector’s recovery of this object has <strong>not yet been scored</strong>. The official animation is cropped and processed differently from the native FITS frames. Its circle cannot be transferred without independent registration.</p>
+<div class="layout"><section class="panel"><h2>Official identified example</h2>
+<video id="official" controls playsinline preload="none" aria-label="Official Sungrazer animation of CCOR-0001"><source src="https://sungrazer.nrl.navy.mil/sites/sungrazer/files/images/ccor001_comet.mp4" type="video/mp4"></video>
+<p>The white circle in the official animation identifies the comet. Follow its continuous path relative to other points. A bright point elsewhere is not automatically another comet.</p>
+<p><a href="https://sungrazer.nrl.navy.mil/confs-Feb2025-CCOR1" target="_blank" rel="noopener">Sungrazer confirmation and original example ↗</a></p>
+<p class="muted">The official animation and the native sequence are not synchronized. Their orientations and fields of view differ. The native viewer opens near the example time, in a manually selected practice area. This is a viewing guide, not a calibrated comet position or a detector result.</p>
+</section><section class="panel"><h2>Original NOAA observations</h2>
+<p>Use the fixed image field, first/last buttons and timeline to judge the amount of motion. Playback compresses hours into seconds; the frame timestamp is the observation time.</p>
+<div class="controls"><button id="first" disabled>First</button><button id="previous" disabled>← Frame</button><button id="play" disabled>Play</button><button id="next" disabled>Frame →</button><button id="last" disabled>Last</button><button id="reference" disabled>Example time · 08:45 UTC</button><button id="practice" disabled>Fixed practice area</button></div>
+<div class="controls"><label>View <select id="mode" disabled><option value="temporal">Grayscale · temporal contrast</option><option value="original">Grayscale · original intensity</option></select></label><label>Display <select id="zoom" disabled><option value="50">50%</option><option value="100">100% preview pixels</option><option value="200" selected>200%</option></select></label><label>Frame interval <select id="speed" disabled><option value="1000">1 second</option><option value="500">½ second</option><option value="2000">2 seconds</option></select></label></div>
+<input id="timeline" type="range" min="0" max="0" value="0" disabled aria-label="Historical observation frame">
+<strong id="frameNumber"></strong><p id="frameInfo"></p><p id="status" role="status"></p>
+<div id="viewport"><img id="frame" alt="Grayscale rendering of original NOAA CCOR-1 FITS data"></div>
+<p class="muted">Previews are 1024 × 960, reduced by two from the 2048 × 1920 FITS array. Only the array row direction is flipped; there is no solar-north rotation. The same stretch is used throughout each view. Temporal contrast can suppress slow sources and emphasize artifacts; check the original intensity view too.</p>
+<p><a id="source">Download this original FITS observation</a></p>
+<details><summary>Source provenance</summary><p id="provenance"></p><code id="hash"></code></details>
+</section></div>
+<p id="error" role="alert"></p>
+</main><script src="./ccor-reference.js"></script></body></html>

@@ -1,0 +1,36 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'../docs');let server,browser;
+(async()=>{
+ server=http.createServer((req,res)=>{const url=new URL(req.url,'http://local'),f=path.resolve(root,'.'+url.pathname);if(!f.startsWith(root+path.sep)){res.writeHead(403).end();return;}fs.readFile(f,(e,b)=>{if(e){res.writeHead(404).end();return;}res.setHeader('Content-Type',f.endsWith('.js')?'text/javascript':f.endsWith('.json')?'application/json':f.endsWith('.png')?'image/png':'text/html');res.end(b);});});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ const page=await browser.newPage({viewport:{width:1400,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:'+server.address().port+'/ccor-reference.html');
+ await page.waitForFunction(()=>document.getElementById('frame').naturalWidth===1024&&document.getElementById('status').textContent==='');
+ assert.match(await page.locator('#summary').innerText(),/17 original observations.*4.00 hours/);
+ assert.match(await page.locator('#frameNumber').innerText(),/8 \/ 17/);
+ assert.match(await page.locator('#frameInfo').innerText(),/08:45:20.*1.75 hours/);
+ assert.equal(await page.locator('#zoom').inputValue(),'200');
+ assert.ok(await page.locator('#viewport').evaluate(e=>e.scrollTop)>100);
+ assert.match(await page.locator('.note').innerText(),/not yet been scored/);
+ await page.locator('#last').click();await page.waitForFunction(()=>document.getElementById('status').textContent==='');
+ assert.match(await page.locator('#frameNumber').innerText(),/17 \/ 17/);
+ assert.match(await page.locator('#frameInfo').innerText(),/11:00:20.*4.00 hours/);
+ assert.match(await page.locator('#source').getAttribute('href'),/CCOR1_1B_20250211T110020/);
+ await page.locator('#mode').selectOption('original');await page.waitForFunction(()=>document.getElementById('status').textContent==='');
+ assert.match(await page.locator('#frame').getAttribute('src'),/16-original.png/);
+ await page.locator('#first').click();await page.waitForFunction(()=>document.getElementById('status').textContent==='');
+ assert.match(await page.locator('#frameNumber').innerText(),/1 \/ 17/);
+ await page.locator('#next').click();await page.waitForFunction(()=>document.getElementById('status').textContent==='');assert.match(await page.locator('#frameNumber').innerText(),/2 \/ 17/);
+ await page.locator('#previous').click();await page.waitForFunction(()=>document.getElementById('status').textContent==='');assert.match(await page.locator('#frameNumber').innerText(),/1 \/ 17/);
+ await page.locator('#mode').selectOption('temporal');await page.locator('#reference').click();await page.waitForFunction(()=>document.getElementById('status').textContent==='');
+ await page.locator('#practice').click();
+ assert.match(await page.locator('#frameNumber').innerText(),/8 \/ 17/);
+ if(process.env.CCOR_REFERENCE_SCREENSHOT)await page.screenshot({path:process.env.CCOR_REFERENCE_SCREENSHOT,fullPage:true});
+ await page.locator('#mode').selectOption('original');await page.waitForFunction(()=>document.getElementById('status').textContent==='');
+ // A failed observation must never leave a stale earlier frame looking current.
+ await page.route('**/CCOR-0001-16-original.png',route=>route.abort());await page.locator('#last').click();
+ await page.waitForFunction(()=>document.getElementById('status').textContent.includes('unavailable'));
+ assert.equal(await page.locator('#frame').evaluate(e=>e.style.visibility),'hidden');
+ assert.deepEqual(errors,[]);console.log('PASS: actual 17-frame manifest, four-hour timeline, original/temporal switching, provenance, navigation and stale-frame protection');
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{if(browser)await browser.close();if(server)server.close();});

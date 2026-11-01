@@ -127,6 +127,7 @@
       </div>
       <div id="ccorStatus" class="realtime-source-note">CCOR hunter not yet enabled.</div>
       <p class="ccor-review-explainer">These are unidentified moving signals. Pixel checks show repeatability; movement different from stars still needs verification. <a href="https://sungrazer.nrl.navy.mil/sites/sungrazer/files/images/ccor001_comet.mp4" target="_blank" rel="noopener noreferrer">Watch a confirmed faint CCOR comet ↗</a></p>
+      <p class="ccor-review-explainer"><a href="./ccor-reference.html">Historical comet reference: inspect CCOR-0001 across 17 original observations over four hours ↗</a></p>
       <div class="ccor-controls">
         <label for="ccorCameraFilter">Camera</label>
         <select id="ccorCameraFilter">
@@ -167,6 +168,7 @@
         <p class="ccor-review-help">Original NOAA frames: green shows the proposed motion track; amber marks a measured point in this frame. These are unverified detections, not confirmed comets.</p>
         <p id="ccorMotionContext" class="ccor-motion-context" role="status"></p>
         <div class="ccor-controls ccor-inspection-tools">
+          <label>Source context <select id="ccorContextWindow"><option value="90" selected>Track ±90 minutes</option><option value="15">Track ±15 minutes</option></select></label>
           <label>Zoom view <select id="ccorZoomMode"><option value="fixed">Fixed wider field</option><option value="follow">Follow detection · 4×</option></select></label>
           <label>Brightness <input id="ccorBrightness" type="range" min="0.5" max="8" step="0.25" value="1"><output id="ccorBrightnessValue">1×</output></label>
           <label>Contrast <input id="ccorContrast" type="range" min="0.5" max="3" step="0.1" value="1"><output id="ccorContrastValue">1×</output></label>
@@ -174,7 +176,7 @@
           <button type="button" id="ccorResetDisplay">Reset display</button>
           <label><input type="checkbox" id="ccorShowMarkers" checked> Detector markers</label>
         </div>
-        <p class="ccor-review-help">Fixed field keeps the same image coordinates through playback. Brightness and contrast affect viewing only and may also brighten noise. Missing peaks remain visible in playback.</p>
+        <p class="ccor-review-help">Fixed field keeps the same image coordinates through playback. Brightness and contrast affect viewing only and may also brighten noise. Missing peaks remain visible in playback. Longer context includes available cached images before and after the recorded track; extra frames do not establish a longer detection.</p>
         <div class="ccor-controls">
           <button type="button" id="ccorReportMark" aria-pressed="false">Mark positions: off</button>
           <strong id="ccorReportCount">0 frames marked</strong>
@@ -301,3 +303,4 @@
   <script src="./app.js?v=20261101-fixed-field"></script>
 </body>
 </html>
+

@@ -16,6 +16,7 @@ let server,browser;
  page.on('pageerror',e=>errors.push(e.message));
  const times=['0415','0430','0445','0500','0515','0530','0545','0600'];
  const entries=times.map(t=>({time:'2026-11-01T'+t.slice(0,2)+':'+t.slice(2)+':00Z',image_url:'https://services.swpc.noaa.gov/products/ccor2/jpegs/20261101_'+t+'_ccor2_1024by960.jpg'}));
+ const contextual=[{time:'2026-11-01T03:00:00Z',image_url:'https://services.swpc.noaa.gov/products/ccor2/jpegs/20261101_0300_ccor2_1024by960.jpg'},...entries,{time:'2026-11-01T07:15:00Z',image_url:'https://services.swpc.noaa.gov/products/ccor2/jpegs/20261101_0715_ccor2_1024by960.jpg'}];
  const observed=[1,3,4,5,6].map((i,j)=>({...entries[i],x:180+j,y:73}));
  const track={id:'CCOR2-fixed-test',camera:'ccor2',first:observed[0].time,last:observed.at(-1).time,
   frames:5,points:observed,processing_shape:[512,512],source_jpeg_shape:[1204,1205],
@@ -31,7 +32,7 @@ let server,browser;
  });
  await page.route('**/data/*.json?*',route=>{
   const name=new URL(route.request().url()).pathname.split('/').pop();
-  const data=name==='ccor.json'?{tracks,review_shortlist_ids:tracks.map(r=>r.id),frame_manifests:{ccor2:entries},generated_at:'2026-11-01T06:00:00Z'}:{candidates:[],available:false};
+  const data=name==='ccor.json'?{tracks,review_shortlist_ids:tracks.map(r=>r.id),frame_manifests:{ccor2:contextual},generated_at:'2026-11-01T06:00:00Z'}:{candidates:[],available:false};
   return route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
  });
  await page.goto('http://127.0.0.1:'+server.address().port+'/');
@@ -40,6 +41,11 @@ let server,browser;
  await page.locator('[data-ccor-id="'+track.id+'"]').click();
  const ready=()=>page.waitForFunction(()=>document.getElementById('ccorReportCursor').textContent.includes('1204')&&document.querySelector('#ccorReviewZoom canvas')&&document.querySelector('#ccorReferenceZoom canvas'));
  await ready();
+ assert.equal(await page.locator('#ccorContextWindow').inputValue(),'90');
+ assert.match(await page.locator('#ccorFramePosition').innerText(),/1 \/ 10/);
+ assert.match(await page.locator('#ccorReviewFrameEvidence').innerText(),/NO MEASURED/);
+ assert.equal(await page.locator('#ccorReviewOverlay circle[stroke="#ffcc62"]').count(),0);
+ await page.locator('#ccorContextWindow').selectOption('15');await ready();
  assert.equal(await page.locator('#ccorZoomMode').inputValue(),'fixed');
  assert.match(await page.locator('#ccorFramePosition').innerText(),/1 \/ 8/);
  assert.match(await page.locator('#ccorReviewFrameEvidence').innerText(),/NO MEASURED/);
@@ -86,3 +92,4 @@ let server,browser;
  assert.deepEqual(errors,[]);
  console.log('PASS: fixed/reference crops, all frames, missing peaks, contrast, shared-drift context, marker toggle and source-coordinate identity');
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{if(browser)await browser.close();if(server)server.close();});
+
