@@ -23,7 +23,7 @@
   function displayFilter(brightness,contrast){
     const b=finite(brightness)?Math.max(.5,Math.min(8,Number(brightness))):1;
     const c=finite(contrast)?Math.max(.5,Math.min(3,Number(contrast))):1;
-    return 'contrast('+c+') brightness('+b+')';
+    return 'brightness('+b+') contrast('+c+')';
   }
   function sharedDrift(track,tracks){
     // This is a comparison of fitted tracks, NOT independently measured stars.

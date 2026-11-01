@@ -78,9 +78,11 @@ let server,browser;
  assert.match(await page.locator('#ccorFramePosition').innerText(),/1 \/ 8/);
  if(process.env.CCOR_REVIEW_SCREENSHOT){await page.locator('#ccorReviewHeading').scrollIntoViewIfNeeded();await page.screenshot({path:process.env.CCOR_REVIEW_SCREENSHOT});}
  // Unavailable current frame clears the previous image's usable measurement state.
- for(let i=0;i<7;i++)await page.locator('#ccorReviewNext').click();
+ await page.locator('#ccorReviewLast').click();
  await page.waitForFunction(()=>document.getElementById('ccorReportCursor').textContent.includes('unavailable'));
  assert.equal(await page.locator('#ccorReviewZoom canvas').count(),0);
+ await page.locator('#ccorReviewFirst').click();await ready();
+ assert.match(await page.locator('#ccorFramePosition').innerText(),/1 \/ 8/);
  assert.deepEqual(errors,[]);
  console.log('PASS: fixed/reference crops, all frames, missing peaks, contrast, shared-drift context, marker toggle and source-coordinate identity');
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{if(browser)await browser.close();if(server)server.close();});

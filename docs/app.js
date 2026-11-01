@@ -1415,6 +1415,14 @@ document.getElementById("ccorFrameMode")?.addEventListener("click", e => {
 document.getElementById("ccorReviewClose")?.addEventListener("click", ccorClose);
 document.getElementById("ccorReviewPrev")?.addEventListener("click", () => ccorStep(-1));
 document.getElementById("ccorReviewNext")?.addEventListener("click", () => ccorStep(1));
+for(const [id,last] of [["ccorReviewFirst",false],["ccorReviewLast",true]])document.getElementById(id)?.addEventListener("click",()=>{
+  if(!ccorCurrent)return;
+  if(ccorPlayback)clearInterval(ccorPlayback);
+  ccorPlayback=null;
+  document.getElementById("ccorReviewPlay").textContent="▶ Play";
+  ccorFrameIndex=last?ccorFrameEntries(ccorCurrent).length-1:0;
+  ccorDraw();
+});
 document.getElementById("ccorReviewPlay")?.addEventListener("click", ccorTogglePlay);
 for(const id of ["ccorBrightness","ccorContrast"])document.getElementById(id)?.addEventListener("input",ccorRenderZooms);
 for(const id of ["ccorZoomMode","ccorShowMarkers"])document.getElementById(id)?.addEventListener("change",ccorRenderZooms);
@@ -1425,7 +1433,7 @@ document.getElementById("ccorResetDisplay")?.addEventListener("click",()=>{
 });
 document.getElementById("ccorRevealFaint")?.addEventListener("click",()=>{
   document.getElementById("ccorBrightness").value=4;
-  document.getElementById("ccorContrast").value=1.2;
+  document.getElementById("ccorContrast").value=1;
   ccorRenderZooms();
 });
 document.getElementById("ccorCandidatePrev")?.addEventListener("click", () => ccorCandidateStep(-1));

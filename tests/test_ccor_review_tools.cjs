@@ -35,7 +35,7 @@ test('movement is expressed in source JPEG pixels without inferring FITS coordin
  assert.equal(c.hours,3.75);assert.equal(c.native_coordinates,undefined);
 });
 test('display filters are bounded intensity-only adjustments',()=>{
- assert.equal(t.displayFilter(2,1.5),'contrast(1.5) brightness(2)');
- assert.equal(t.displayFilter(100,100),'contrast(3) brightness(8)');
- assert.equal(t.displayFilter(undefined,NaN),'contrast(1) brightness(1)');
+ assert.equal(t.displayFilter(2,1.5),'brightness(2) contrast(1.5)');
+ assert.equal(t.displayFilter(100,100),'brightness(8) contrast(3)');
+ assert.equal(t.displayFilter(undefined,NaN),'brightness(1) contrast(1)');
 });
