@@ -2,6 +2,8 @@ name: CCOR dashboard source coordinates
 on:
   pull_request:
     paths:
+      - 'docs/display-time.js'
+      - 'tests/test_display_time.cjs'
       - 'docs/app.js'
       - 'docs/index.html'
       - 'docs/styles.css'
@@ -22,6 +24,7 @@ jobs:
           node-version: '22'
       - run: node --test tests/test_ccor_coordinates.cjs
       - run: node --test tests/test_ccor_review_tools.cjs
+      - run: node --test tests/test_display_time.cjs
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium
       - run: node tests/test_ccor_report_browser.cjs

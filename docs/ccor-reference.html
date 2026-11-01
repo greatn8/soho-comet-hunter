@@ -14,8 +14,8 @@
 <p><a href="https://sungrazer.nrl.navy.mil/confs-Feb2025-CCOR1" target="_blank" rel="noopener">Sungrazer confirmation and original example ↗</a></p>
 <p class="muted">The official animation and the native sequence are not synchronized. Their orientations and fields of view differ. The native viewer opens near the example time, in a manually selected practice area. This is a viewing guide, not a calibrated comet position or a detector result.</p>
 </section><section class="panel"><h2>Original NOAA observations</h2>
-<p>Use the fixed image field, first/last buttons and timeline to judge the amount of motion. Playback compresses hours into seconds; the frame timestamp is the observation time.</p>
-<div class="controls"><button id="first" disabled>First</button><button id="previous" disabled>← Frame</button><button id="play" disabled>Play</button><button id="next" disabled>Frame →</button><button id="last" disabled>Last</button><button id="reference" disabled>Example time · 08:45 UTC</button><button id="practice" disabled>Fixed practice area</button></div>
+<p>Use the fixed image field, first/last buttons and timeline to judge the amount of motion. Playback compresses hours into seconds; the frame timestamp is the observation time in Sydney (AEST/AEDT). Original FITS timestamps and filenames use UTC.</p>
+<div class="controls"><button id="first" disabled>First</button><button id="previous" disabled>← Frame</button><button id="play" disabled>Play</button><button id="next" disabled>Frame →</button><button id="last" disabled>Last</button><button id="reference" disabled>Example time</button><button id="practice" disabled>Fixed practice area</button></div>
 <div class="controls"><label>View <select id="mode" disabled><option value="temporal">Grayscale · temporal contrast</option><option value="original">Grayscale · original intensity</option></select></label><label>Display <select id="zoom" disabled><option value="50">50%</option><option value="100">100% preview pixels</option><option value="200" selected>200%</option></select></label><label>Frame interval <select id="speed" disabled><option value="1000">1 second</option><option value="500">½ second</option><option value="2000">2 seconds</option></select></label></div>
 <input id="timeline" type="range" min="0" max="0" value="0" disabled aria-label="Historical observation frame">
 <strong id="frameNumber"></strong><p id="frameInfo"></p><p id="status" role="status"></p>
@@ -25,4 +25,4 @@
 <details><summary>Source provenance</summary><p id="provenance"></p><code id="hash"></code></details>
 </section></div>
 <p id="error" role="alert"></p>
-</main><script src="./ccor-reference.js"></script></body></html>
+</main><script src="./display-time.js?v=20261101-sydney"></script><script src="./ccor-reference.js?v=20261101-sydney"></script></body></html>

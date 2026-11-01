@@ -38,13 +38,7 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString(undefined, {
-    year: "numeric", month: "short", day: "2-digit",
-    hour: "2-digit", minute: "2-digit"
-  });
+  return window.SydneyTime.format(value);
 }
 
 function scoreText(value) {
@@ -310,9 +304,9 @@ function reportText(c) {
     "Fit RMS: " + metricText(c.rms),
     "Track frames: " + (c.frames ?? "—"),
     "Verified frames: " + (c.verified_frames ?? "—"),
-    "First seen: " + formatDate(c.first_seen),
-    "Last seen: " + formatDate(c.last_seen),
-    "Verified: " + formatDate(c.verified_at)
+    "First seen (UTC): " + window.SydneyTime.utc(c.first_seen),
+    "Last seen (UTC): " + window.SydneyTime.utc(c.last_seen),
+    "Verified (UTC): " + window.SydneyTime.utc(c.verified_at)
   ].join("\n");
 }
 
@@ -415,17 +409,16 @@ function compactFrameName(value) {
 }
 
 function frameDisplay(value) {
+  const local = window.SydneyTime.frame(value);
   const raw = compactFrameName(value);
-  const m = raw.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})$/);
-  if (!m) return raw || "—";
-  return `${raw}<small>${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]} UTC</small>`;
+  return local === "—" ? escapeHtml(raw || "—") :
+    `${escapeHtml(local)}<small>${escapeHtml(raw)} · source filename (UTC)</small>`;
 }
 
-function realtimeFrameUtc(value) {
-  const match = String(value || "").match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})_c3_(?:512|1024)\.jpg$/i);
-  if (!match) return "—";
-  return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]} UTC`;
+function realtimeFrameSydney(value) {
+  return window.SydneyTime.frame(value);
 }
+
 function realtimeStatusClass(payload) {
   if (!payload || !payload.available) return "waiting";
   const updated = new Date(payload.hunter_heartbeat_at || payload.source_updated_at || 0).getTime();
@@ -485,8 +478,8 @@ function realtimeCandidateCard(c, emailIssue = null) {
       </div>
       
       <div class="realtime-observed-times">
-        <span>First seen <strong>${escapeHtml(realtimeFrameUtc(c.first))}</strong></span>
-        <span>Last seen <strong>${escapeHtml(realtimeFrameUtc(c.last))}</strong></span>
+        <span>First seen <strong>${escapeHtml(realtimeFrameSydney(c.first))}</strong></span>
+        <span>Last seen <strong>${escapeHtml(realtimeFrameSydney(c.last))}</strong></span>
       </div>
       ${media}
       ${trajectoryWarning}
@@ -881,7 +874,7 @@ function renderRealtime(payload) {
             githubEmailForReview(candidate, [issue]));
           const label = escapeHtml(issue.candidate || "Unknown");
           const title = escapeHtml("Issue #" + issue.issue_number +
-            " · " + (issue.created_at || ""));
+            " · " + formatDate(issue.created_at));
           return row
             ? '<button type="button" class="c3-email-chip" data-c3-jump="' +
               escapeHtml(row.review_id || row.candidate) +
@@ -1135,7 +1128,7 @@ function ccorRenderZooms() {
   try {canvasFor(image,zoom,entry.point,true);} catch(error) {zoom.textContent="Zoom unavailable for this source image.";}
   const first=ccorInspectionSnapshot.referenceEntry;
   if(!first){reference.textContent="No reference frame available.";return;}
-  document.getElementById("ccorReferenceLabel").textContent="Reference · "+first.time+" · same image region";
+  document.getElementById("ccorReferenceLabel").textContent="Reference · "+formatDate(first.time)+" · same image region";
   let source=ccorReferenceImages.get(first.image_url);
   if(!source){source=new Image();ccorReferenceImages.set(first.image_url,source);
     if(ccorReferenceImages.size>6)ccorReferenceImages.delete(ccorReferenceImages.keys().next().value);}
@@ -1262,12 +1255,12 @@ function ccorDraw() {
     window.CCORReportUI?.unavailable();
     overlay.innerHTML = ""; zoom.innerHTML = "";
     document.getElementById("ccorReferenceZoom").textContent="Current image unavailable; compare another timestamp.";
-    caption.textContent = "NOAA image not available: " + entry.time +
+    caption.textContent = "NOAA image not available: " + formatDate(entry.time) +
       ". Remote JPEGs can expire; this does not invalidate the stored track measurements.";
   };
   image.src = entry.image_url;
-  caption.textContent = ccorCurrent.id + " · " + entry.time +
-    " UTC · frame " + (ccorFrameIndex+1) + "/" + entries.length +
+  caption.textContent = ccorCurrent.id + " · " + formatDate(entry.time) +
+    " · frame " + (ccorFrameIndex+1) + "/" + entries.length +
     (p ? " · MEASURED detector peak" :
       " · NO DETECTION in this frame (no measurement marker)") +
     " · " + ccorCurrent.points.length + " measured frames / " +
@@ -1348,8 +1341,8 @@ function ccorRenderCards() {
     (t.motion_consistency?.status === "IRREGULAR_MOTION" ?
       '<div class="realtime-media-missing">Irregular motion: abrupt trajectory change; diagnostic review only, not shortlisted.</div>' : '') +
 
-    '<div class="realtime-candidate-meta"><div><span>First</span><strong>' + escapeHtml(t.first) +
-    '</strong></div><div><span>Last</span><strong>' + escapeHtml(t.last) +
+    '<div class="realtime-candidate-meta"><div><span>First</span><strong>' + escapeHtml(formatDate(t.first)) +
+    '</strong></div><div><span>Last</span><strong>' + escapeHtml(formatDate(t.last)) +
     '</strong></div><div><span>Frames</span><strong>' + escapeHtml(t.frames) +
     '</strong></div><div><span>Frames with detections</span><strong>' +
     escapeHtml((t.review_validation?.continuity?.matched ?? "—") + " / " +
@@ -1386,7 +1379,7 @@ async function refreshCCOR() {
         " · frames " + (info.cached_recent_frames || 0) +
         " · reviews " + ((payload.published_per_camera || {})[camera] ?? (payload.tracks || []).filter(t => t.camera === camera).length) +
         (search.distinct_hypotheses != null ? " · hypotheses " + search.distinct_hypotheses : "");
-    }).join(" | ") + " · Last check: " + (payload.generated_at || "unknown");
+    }).join(" | ") + " · Last check: " + formatDate(payload.generated_at);
     ccorRenderCards();
     if (ccorCurrent) {
       const updated = payload.tracks?.find(t => t.id === ccorCurrent.id);
@@ -1481,4 +1474,3 @@ document.addEventListener("ccor-report-measure", () => {
   ccorPlayback = null;
   document.getElementById("ccorReviewPlay").textContent = "▶ Play";
 });
-
