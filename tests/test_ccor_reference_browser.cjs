@@ -11,6 +11,7 @@ const root=path.resolve(__dirname,'../docs');let server,browser;
  assert.match(await page.locator('#frameNumber').innerText(),/8 \/ 17/);
  assert.match(await page.locator('#frameInfo').innerText(),/08:45:20.*1.75 hours/);
  assert.equal(await page.locator('#zoom').inputValue(),'200');
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Reference columns must not overflow the viewport');
  assert.ok(await page.locator('#viewport').evaluate(e=>e.scrollTop)>100);
  assert.match(await page.locator('.note').innerText(),/not yet been scored/);
  await page.locator('#last').click();await page.waitForFunction(()=>document.getElementById('status').textContent==='');
