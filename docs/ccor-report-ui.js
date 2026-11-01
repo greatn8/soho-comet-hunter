@@ -36,7 +36,7 @@
     const marked=rows(), table=$('ccorReportPositions');table.replaceChildren();
     for(const r of marked){
       const li=document.createElement('li'), remove=document.createElement('button');
-      li.append(document.createTextNode(r.time_utc+' · X '+r.x+' · Y '+r.y+' '));
+      li.append(document.createTextNode(window.SydneyTime.format(r.time_utc)+' · X '+r.x+' · Y '+r.y+' '));
       remove.type='button';remove.textContent='Remove';remove.onclick=()=>{records.get(candidate)?.delete(r.time_utc);persist();render();};li.appendChild(remove);table.appendChild(li);
     }
     $('ccorReportCount').textContent=marked.length+' frame'+(marked.length===1?'':'s')+' marked';
@@ -52,7 +52,7 @@
     const r=C.measurement(current,point.x,point.y);
     if(!records.has(candidate))records.set(candidate,new Map());
     records.get(candidate).set(r.time_utc,r);render();
-    $('ccorReportStatus').textContent='Recorded '+r.time_utc+': X '+r.x+', Y '+r.y+'. Move to the next frame and mark the same object.';persist();
+    $('ccorReportStatus').textContent='Recorded '+window.SydneyTime.format(r.time_utc)+': X '+r.x+', Y '+r.y+'. Move to the next frame and mark the same object.';persist();
   }
   function fromImage(event){
     if(!current)return null;
@@ -111,4 +111,3 @@
   window.addEventListener('resize',alignMarker);
   window.CCORReportUI={pending,ready,setZoom,unavailable:()=>{current=null;zoom=null;$('ccorReportCursor').textContent='Source image unavailable — cannot record a position on this frame.';render();}};
 })();
-

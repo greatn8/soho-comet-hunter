@@ -2,6 +2,8 @@ name: CCOR confirmed historical visual reference
 on:
   pull_request:
     paths:
+      - 'docs/display-time.js'
+      - 'tests/test_display_time.cjs'
       - 'tools/build_ccor_confirmed_reference.py'
       - 'docs/ccor-reference*'
       - 'docs/data/ccor-reference/**'
@@ -25,6 +27,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node --test tests/test_display_time.cjs
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium
       - run: node tests/test_ccor_reference_browser.cjs

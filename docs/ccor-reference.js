@@ -10,7 +10,7 @@
   loaded=false;$('status').textContent='Loading observation…';$('frame').style.visibility='hidden';
   $('frame').src=root+frame[$('mode').value];$('frame').style.width=(manifest.preview_shape[0]*Number($('zoom').value)/100)+'px';
   $('frameNumber').textContent=(index+1)+' / '+manifest.frames.length;
-  $('frameInfo').textContent=frame.time_utc+' · '+elapsed.toFixed(2)+' hours after first observation';
+  $('frameInfo').textContent=window.SydneyTime.format(frame.time_utc)+' · '+elapsed.toFixed(2)+' hours after first observation';
   $('timeline').value=index;$('source').href=frame.source_url;$('source').target='_blank';$('source').rel='noopener';
   $('provenance').textContent=frame.name+' · original FITS grid 2048 × 1920';$('hash').textContent='SHA-256: '+frame.source_sha256;
  }
@@ -28,7 +28,7 @@
   const response=await fetch(root+'manifest.json',{cache:'no-store'});if(!response.ok)throw Error('Reference manifest unavailable');manifest=await response.json();
   if(manifest.id!=='CCOR-0001'||manifest.frame_count!==manifest.frames.length||manifest.frames.length<6||manifest.production_modified!==false||manifest.live_detector_recovery!==null)throw Error('Invalid historical reference');
   if(manifest.frames.some(f=>!/^CCOR-0001-\d{2}-original\.png$/.test(f.original)||!/^CCOR-0001-\d{2}-temporal\.png$/.test(f.temporal)||!f.source_url.startsWith('https://archive.data.noaa.gov/satellite-spaceweather/')))throw Error('Invalid source file');
-  $('summary').textContent=manifest.frames.length+' original observations · '+manifest.elapsed_hours.toFixed(2)+' hours · 11 February 2025 (UTC) · confirmed by Sungrazer';
-  index=Math.min(7,manifest.frames.length-1);$('timeline').max=manifest.frames.length-1;controls.forEach(id=>$(id).disabled=false);draw();
+  $('summary').textContent=manifest.frames.length+' original observations · '+manifest.elapsed_hours.toFixed(2)+' hours · '+window.SydneyTime.format(manifest.frames[0].time_utc)+' · confirmed by Sungrazer';
+  index=Math.min(7,manifest.frames.length-1);$('reference').textContent='Example time · '+window.SydneyTime.format(manifest.frames[index].time_utc);$('timeline').max=manifest.frames.length-1;controls.forEach(id=>$(id).disabled=false);draw();
  }catch(e){stop();controls.forEach(id=>$(id).disabled=true);$('summary').textContent='Reference sequence unavailable.';$('error').textContent=e.message;}
 })();
