@@ -348,6 +348,69 @@ def seed_frame_pairs(times, multi_baseline=False):
                 yield i, j
 
 
+def unique_hypothesis_ids(rows):
+    """A shared starting peak is not an object identity: divergent fits differ."""
+    counts = {}
+    for row in rows:
+        counts[row["id"]] = counts.get(row["id"], 0) + 1
+    result = []
+    used = set()
+    for row in rows:
+        item = dict(row)
+        if counts[row["id"]] > 1:
+            identity = {key:row.get(key) for key in (
+                "camera", "first", "last", "x_first", "y_first", "x_last", "y_last",
+                "vx_px_h", "vy_px_h", "points")}
+            digest = hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest()[:20]
+            item["seed_id"] = row["id"]
+            item["id"] = row["camera"].upper()+"-"+digest
+        if item["id"] not in used:
+            used.add(item["id"])
+            result.append(item)
+    return result
+
+
+def extend_track_selection(baseline, hypotheses, limit=40):
+    """Protect baseline eligible trajectories; use free slots across the field.
+
+    Matching improved fits may replace a baseline fit only after passing the
+    same evidence gates and without lowering its quality ranking. Motion
+    similarity alone never rejects spatially distinct sources as stars.
+    """
+    eligible = [r for r in hypotheses if r.get("precap_review_eligible")]
+    selected = []
+    for old in baseline:
+        if not old.get("precap_review_eligible"):
+            continue
+        if any(match_track(old,r,None,None) for r in selected):
+            continue
+        alternatives = [r for r in eligible if match_track(old,r,None,None)]
+        best = max([old]+alternatives,key=track_quality)
+        selected.append(best)
+    if len(selected)>limit:
+        raise ValueError("Baseline protection exceeds the configured track cap")
+
+    def cell(row):
+        width,height = row.get("processing_shape",[512,512])
+        return (int(4*float(row["x_first"])/width),
+                int(4*float(row["y_first"])/height))
+
+    counts = {}
+    for row in selected:
+        key = cell(row); counts[key] = counts.get(key,0)+1
+    pool = list(hypotheses)+[r for r in baseline if not r.get("precap_review_eligible")]
+    while pool and len(selected)<limit:
+        pool = [r for r in pool if not any(match_track(r,old,None,None) for old in selected)]
+        if not pool:
+            break
+        best = max(pool,key=lambda r:(bool(r.get("precap_review_eligible")),
+                                     -counts.get(cell(r),0),track_quality(r)))
+        selected.append(best)
+        key = cell(best); counts[key] = counts.get(key,0)+1
+        pool.remove(best)
+    return unique_hypothesis_ids(selected)
+
+
 def track_points(frames, times, sizes, camera, *, complete_search=False,
                  return_diagnostics=False, multi_baseline_seeds=False):
     """Run the established CCOR seed finder.
@@ -391,8 +454,25 @@ def track_points(frames, times, sizes, camera, *, complete_search=False,
                     and stage in ("EARLY","ESTABLISHED"))
             stats["precap_eligible_hypotheses"]=sum(
                 bool(r["precap_review_eligible"]) for r in rows)
-            chosen=sorted(rows,key=lambda r:(
-                bool(r["precap_review_eligible"]), track_quality(r)),reverse=True)[:40]
+            if multi_baseline_seeds and complete:
+                original, original_info = track_points(
+                    frames,times,sizes,camera,complete_search=True,return_diagnostics=True)
+                stats["baseline_scan_completed"] = original_info["scan_completed"]
+                stats["baseline_seed_pairs_examined"] = original_info["seed_pairs_examined"]
+                if not original_info["scan_completed"]:
+                    stats["scan_completed"] = False
+                    stats["stop_reason"] = "ADJACENT_BASELINE_INCOMPLETE"
+                    chosen = original
+                else:
+                    chosen = extend_track_selection(original,rows)
+                    stats["baseline_eligible_tracks"] = sum(bool(r.get("precap_review_eligible")) for r in original)
+                    stats["baseline_eligible_not_retained"] = sum(
+                        bool(r.get("precap_review_eligible")) and not any(
+                            n.get("precap_review_eligible") and match_track(r,n,None,None)
+                            for n in chosen) for r in original)
+            else:
+                chosen=sorted(rows,key=lambda r:(
+                    bool(r["precap_review_eligible"]), track_quality(r)),reverse=True)[:40]
         else:
             chosen = (sorted(rows, key=track_quality, reverse=True)[:40]
                       if complete_search else rows)

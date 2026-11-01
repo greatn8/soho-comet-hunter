@@ -5,7 +5,6 @@ No image downloads, reports, alerts, production state updates or file removal.
 More hypotheses or eligible tracks are NOT evidence of comet recovery.
 """
 import argparse
-import datetime as dt
 import json
 from pathlib import Path
 import time
@@ -46,6 +45,7 @@ def compare(camera, cache):
             'runs':runs,
             'additional_eligible_tracks':[{k:r.get(k) for k in fields} for r in additions] if complete else None,
             'old_eligible_tracks_not_retained':[{k:r.get(k) for k in fields} for r in losses] if complete else None,
+            'duplicate_selected_ids':[len(rows)-len({r['id'] for r in rows}) for rows in (old,new)],
             'reported_comet_recovery':None,
             'warning':'Synthetic recovery tests pass, but actual report recovery needs calibrated coordinates and source identification. Counts are not comet discoveries.'}
 
@@ -53,10 +53,17 @@ def compare(camera, cache):
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--project',type=Path,required=True)
+    ap.add_argument('--summary',action='store_true',help='Print counts without per-track lists')
     args=ap.parse_args()
     project=args.project.expanduser().resolve()
     report={'mode':'READ_ONLY_AB_COMPARISON',
             'cameras':[compare(camera,project/'cache/ccor'/camera) for camera in ch.CAMERAS]}
+    if args.summary:
+        for camera in report['cameras']:
+            for field in ('additional_eligible_tracks','old_eligible_tracks_not_retained'):
+                if isinstance(camera.get(field),list):
+                    camera[field+'_count']=len(camera[field])
+                    camera.pop(field)
     print(json.dumps(report,indent=2))
 
 

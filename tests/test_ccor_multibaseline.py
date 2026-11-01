@@ -93,5 +93,45 @@ class MultiBaselineTests(unittest.TestCase):
         self.assertFalse(any(r['precap_review_eligible'] for r in rows))
 
 
+class SelectionSafetyTests(unittest.TestCase):
+    def track(self, index, frames=5, x=None, y=100):
+        return {'id':f'CCOR1-{index}', 'camera':'ccor1',
+                'first':'2026-11-01T00:00:00Z','last':'2026-11-01T02:00:00Z',
+                'frames':frames,'x_first':x if x is not None else 30+index*10,
+                'y_first':y,'x_last':50+index*10,'y_last':y,
+                'vx_px_h':2,'vy_px_h':0,'rms_px':.5,
+                'processing_shape':[512,512],'precap_review_eligible':True}
+
+    def test_expanded_search_cannot_crowd_out_eligible_baseline(self):
+        # Reproduce the uploaded 34-versus-131 eligible-hypothesis pressure.
+        baseline=[self.track(i) for i in range(34)]
+        expanded=[self.track(100+i,frames=16,x=20+(i%40)*10,y=300+(i//40)*10)
+                  for i in range(131)]
+        selected=ch.extend_track_selection(baseline,expanded)
+        self.assertLessEqual(len(selected),40)
+        for old in baseline:
+            self.assertTrue(any(ch.match_track(old,new,None,None) for new in selected))
+
+    def test_shared_seed_divergent_fits_get_distinct_stable_ids(self):
+        a=self.track(0); b=self.track(0)
+        b['vx_px_h']=-10
+        forward=ch.unique_hypothesis_ids([a,b])
+        reverse=ch.unique_hypothesis_ids([b,a])
+        self.assertEqual(len({r['id'] for r in forward}),2)
+        self.assertEqual({r['vx_px_h']:r['id'] for r in forward},
+                         {r['vx_px_h']:r['id'] for r in reverse})
+        self.assertEqual(a['id'],b['id'])  # Input records were not mutated.
+
+    def test_exact_duplicate_fit_is_only_returned_once(self):
+        a=self.track(0)
+        self.assertEqual(len(ch.unique_hypothesis_ids([a,dict(a)])),1)
+
+    def test_supplemental_slots_cover_distinct_field_cells(self):
+        crowded=[self.track(i,frames=16,x=30+i*5,y=30) for i in range(15)]
+        isolated=self.track(99,frames=5,x=450,y=450)
+        chosen=ch.extend_track_selection([],crowded+[isolated],limit=4)
+        self.assertIn(isolated['id'],[r['id'] for r in chosen])
+
+
 if __name__ == '__main__':
     unittest.main()
