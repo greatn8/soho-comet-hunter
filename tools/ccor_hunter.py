@@ -330,8 +330,89 @@ def match_track(a, b, time_a, time_b, tolerance=4.0):
     except (KeyError, TypeError, ValueError):
         return False
 
+def seed_frame_pairs(times, multi_baseline=False):
+    """Bounded seeds across up to three frame indices, never across >1.5 h.
+
+    Wider baselines reduce pixel-quantisation velocity error and allow a
+    temporarily missing source peak in the adjacent image. No thresholds,
+    masks, source caps or final evidence gates are relaxed.
+    """
+    lags = (1, 2, 3) if multi_baseline else (1,)
+    for i in range(len(times)-3):
+        for lag in lags:
+            j = i + lag
+            if j >= len(times):
+                continue
+            hours = (times[j]-times[i]).total_seconds()/3600
+            if .12 <= hours <= (1.5 if multi_baseline else .65):
+                yield i, j
+
+
+def unique_hypothesis_ids(rows):
+    """A shared starting peak is not an object identity: divergent fits differ."""
+    counts = {}
+    for row in rows:
+        counts[row["id"]] = counts.get(row["id"], 0) + 1
+    result = []
+    used = set()
+    for row in rows:
+        item = dict(row)
+        if counts[row["id"]] > 1:
+            identity = {key:row.get(key) for key in (
+                "camera", "first", "last", "x_first", "y_first", "x_last", "y_last",
+                "vx_px_h", "vy_px_h", "points")}
+            digest = hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest()[:20]
+            item["seed_id"] = row["id"]
+            item["id"] = row["camera"].upper()+"-"+digest
+        if item["id"] not in used:
+            used.add(item["id"])
+            result.append(item)
+    return result
+
+
+def extend_track_selection(baseline, hypotheses, limit=40):
+    """Protect baseline eligible trajectories; use free slots across the field.
+
+    Matching improved fits may replace a baseline fit only after passing the
+    same evidence gates and without lowering its quality ranking. Motion
+    similarity alone never rejects spatially distinct sources as stars.
+    """
+    eligible = [r for r in hypotheses if r.get("precap_review_eligible")]
+    selected = []
+    for old in baseline:
+        if not old.get("precap_review_eligible"):
+            continue
+        if any(match_track(old,r,None,None) for r in selected):
+            continue
+        alternatives = [r for r in eligible if match_track(old,r,None,None)]
+        best = max([old]+alternatives,key=track_quality)
+        selected.append(best)
+    if len(selected)>limit:
+        raise ValueError("Baseline protection exceeds the configured track cap")
+
+    def cell(row):
+        width,height = row.get("processing_shape",[512,512])
+        return (int(4*float(row["x_first"])/width),
+                int(4*float(row["y_first"])/height))
+
+    counts = {}
+    for row in selected:
+        key = cell(row); counts[key] = counts.get(key,0)+1
+    pool = list(hypotheses)+[r for r in baseline if not r.get("precap_review_eligible")]
+    while pool and len(selected)<limit:
+        pool = [r for r in pool if not any(match_track(r,old,None,None) for old in selected)]
+        if not pool:
+            break
+        best = max(pool,key=lambda r:(bool(r.get("precap_review_eligible")),
+                                     -counts.get(cell(r),0),track_quality(r)))
+        selected.append(best)
+        key = cell(best); counts[key] = counts.get(key,0)+1
+        pool.remove(best)
+    return unique_hypothesis_ids(selected)
+
+
 def track_points(frames, times, sizes, camera, *, complete_search=False,
-                 return_diagnostics=False):
+                 return_diagnostics=False, multi_baseline_seeds=False):
     """Run the established CCOR seed finder.
 
     Legacy calls retain the original first-40 behavior exactly. Opt-in
@@ -343,6 +424,9 @@ def track_points(frames, times, sizes, camera, *, complete_search=False,
     stats = {"complete_search": bool(complete_search),
              "scan_completed": False, "stop_reason": None,
              "seed_pairs_examined": 0, "distinct_hypotheses": 0,
+             "multi_baseline_seeds": bool(multi_baseline_seeds),
+             "seed_frame_lags": [1, 2, 3] if multi_baseline_seeds else [1],
+             "seed_time_pairs": 0,
              "selected_hypotheses": 0, "per_frame_peak_cap": 70,
              "distinct_hypothesis_budget": 5000 if complete_search else 40}
 
@@ -370,8 +454,25 @@ def track_points(frames, times, sizes, camera, *, complete_search=False,
                     and stage in ("EARLY","ESTABLISHED"))
             stats["precap_eligible_hypotheses"]=sum(
                 bool(r["precap_review_eligible"]) for r in rows)
-            chosen=sorted(rows,key=lambda r:(
-                bool(r["precap_review_eligible"]), track_quality(r)),reverse=True)[:40]
+            if multi_baseline_seeds and complete:
+                original, original_info = track_points(
+                    frames,times,sizes,camera,complete_search=True,return_diagnostics=True)
+                stats["baseline_scan_completed"] = original_info["scan_completed"]
+                stats["baseline_seed_pairs_examined"] = original_info["seed_pairs_examined"]
+                if not original_info["scan_completed"]:
+                    stats["scan_completed"] = False
+                    stats["stop_reason"] = "ADJACENT_BASELINE_INCOMPLETE"
+                    chosen = original
+                else:
+                    chosen = extend_track_selection(original,rows)
+                    stats["baseline_eligible_tracks"] = sum(bool(r.get("precap_review_eligible")) for r in original)
+                    stats["baseline_eligible_not_retained"] = sum(
+                        bool(r.get("precap_review_eligible")) and not any(
+                            n.get("precap_review_eligible") and match_track(r,n,None,None)
+                            for n in chosen) for r in original)
+            else:
+                chosen=sorted(rows,key=lambda r:(
+                    bool(r["precap_review_eligible"]), track_quality(r)),reverse=True)[:40]
         else:
             chosen = (sorted(rows, key=track_quality, reverse=True)[:40]
                       if complete_search else rows)
@@ -387,21 +488,22 @@ def track_points(frames, times, sizes, camera, *, complete_search=False,
              for frame in frames[start:]]
     ts = times[start:]
     results = []
-    for i in range(len(spots)-3):
-        if not spots[i] or not spots[i+1]:
+    for i, seed_end in seed_frame_pairs(ts, multi_baseline_seeds):
+        if not spots[i] or not spots[seed_end]:
             continue
-        step = (ts[i+1]-ts[i]).total_seconds()/3600
-        if not 0.12 <= step <= 0.65:
-            continue
+        step = (ts[seed_end]-ts[i]).total_seconds()/3600
+        stats["seed_time_pairs"] += 1
         for x0,y0,v0 in spots[i]:
-            for x1,y1,v1 in spots[i+1]:
+            for x1,y1,v1 in spots[seed_end]:
                 stats["seed_pairs_examined"] += 1
                 speed = math.hypot(x1-x0,y1-y0)/step
                 if not 0.7 <= speed <= 35:
                     continue
                 vx, vy = (x1-x0)/step,(y1-y0)/step
-                points = [(ts[i],x0,y0,v0),(ts[i+1],x1,y1,v1)]
-                for j in range(i+2,len(spots)):
+                points = [(ts[i],x0,y0,v0),(ts[seed_end],x1,y1,v1)]
+                for j in range(i+1,len(spots)):
+                    if j == seed_end:
+                        continue
                     elapsed = (ts[j]-ts[i]).total_seconds()/3600
                     px, py = x0+vx*elapsed, y0+vy*elapsed
                     nearby = [(math.hypot(x-px,y-py),x,y,v) for x,y,v in spots[j]
@@ -409,6 +511,7 @@ def track_points(frames, times, sizes, camera, *, complete_search=False,
                     if nearby:
                         _,x,y,v = min(nearby)
                         points.append((ts[j],x,y,v))
+                points.sort(key=lambda point: point[0])
                 if len(points) < 4 or (points[-1][0]-points[0][0]).total_seconds() < 2700:
                     continue
                 hh = np.array([(p[0]-points[0][0]).total_seconds()/3600 for p in points])
@@ -677,7 +780,8 @@ def atomic_json(path, payload):
     temp.write_text(json.dumps(payload,indent=2)+"\n",encoding="utf-8")
     temp.replace(path)
 
-def run_once(project, now=None, fetch=get, offline=False, complete_search=False):
+def run_once(project, now=None, fetch=get, offline=False, complete_search=False,
+             multi_baseline_seeds=False):
     now = now or utcnow()
     out = project/"results"/"ccor"/"ccor.json"
     previous = {}
@@ -713,9 +817,10 @@ def run_once(project, now=None, fetch=get, offline=False, complete_search=False)
         else:
             listed,new=[],0
         images,times,sizes=load_frames(cache,camera,now)
+        seed_options = {"multi_baseline_seeds": True} if multi_baseline_seeds else {}
         detected, search_info = track_points(
             images,times,sizes,camera,complete_search=complete_search,
-            return_diagnostics=True)
+            return_diagnostics=True, **seed_options)
         if complete_search and not search_info["scan_completed"]:
             # An exhausted search must never be labelled globally ranked.
             # Preserve original first-40 behavior and expose the fallback.
@@ -843,10 +948,14 @@ def main():
     ap.add_argument("--offline",action="store_true",help="Use cached JPEGs only")
     ap.add_argument("--complete-search",action="store_true",
                     help="Opt in to complete selected-peak search and globally rank best 40")
+    ap.add_argument("--multi-baseline-seeds", action="store_true",
+                    help="Use bounded 1/2/3-frame seed baselines; trial on cached images first")
     ap.add_argument("--poll-seconds",type=int,default=920)
     args=ap.parse_args()
     if args.poll_seconds < 900:
         ap.error("NOAA CCOR polls must be at least 900 seconds apart")
+    if args.multi_baseline_seeds and not args.complete_search:
+        ap.error("--multi-baseline-seeds requires --complete-search")
     project=args.project.expanduser().resolve()
     def stop(signum, frame):
         global STOP
@@ -856,7 +965,8 @@ def main():
     while not STOP:
         try:
             payload=run_once(project,offline=args.offline,
-                             complete_search=args.complete_search)
+                             complete_search=args.complete_search,
+                             multi_baseline_seeds=args.multi_baseline_seeds)
             print(f"[{payload['generated_at']}] CCOR "
                   +", ".join(f"{c} {s['status']} {s['retained_review_tracks']} review"
                              for c,s in payload["instruments"].items()),flush=True)
@@ -870,3 +980,4 @@ def main():
 
 if __name__=="__main__":
     main()
+

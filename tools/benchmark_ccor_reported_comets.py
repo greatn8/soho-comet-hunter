@@ -136,7 +136,7 @@ def compare_with_calibration(case, tracks, calibration, median_cap=6.0, worst_ca
     results.sort(key=lambda x:(not x["matched"],x["median_pixel_error"]))
     return results
 
-def replay(case, plan_result, calibration=None, max_frames=28):
+def replay(case, plan_result, calibration=None, max_frames=28, multi_baseline_seeds=False):
     """Download to disposable storage, leaving realtime caches and state alone."""
     selected=plan_result["images"]
     if not selected:
@@ -166,9 +166,10 @@ def replay(case, plan_result, calibration=None, max_frames=28):
         if len(frames)<6:
             outcome["status"]="INSUFFICIENT_IMAGES"
             return outcome
+        seed_options={"multi_baseline_seeds":True} if multi_baseline_seeds else {}
         found,diag=ch.track_points(
             frames,times,sizes,case["camera"],complete_search=True,
-            return_diagnostics=True)
+            return_diagnostics=True, **seed_options)
         outcome["status"]="DETECTOR_REPLAY_COMPLETE"
         outcome["tracks_generated"]=len(found)
         outcome["search_diagnostics"]=diag
@@ -218,6 +219,8 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--case",choices=tuple(CASES),action="append",
                     help="Default: both historical reported candidates")
+    ap.add_argument("--multi-baseline-seeds",action="store_true",
+                    help="Test bounded longer-baseline seeds on the same historical frames")
     ap.add_argument("--execute",action="store_true",
                     help="Download bounded JPEG set into a disposable directory and replay detector")
     ap.add_argument("--calibration",type=Path,
@@ -244,7 +247,8 @@ def main():
                   f"{info['report_times_covered']}/{info['report_times_total']} report times",flush=True)
             if args.execute:
                 info["images"]=images
-                row["replay"]=replay(case,info,calibration=calibrations.get(case["camera"]))
+                row["replay"]=replay(case,info,calibration=calibrations.get(case["camera"]),
+                                     multi_baseline_seeds=args.multi_baseline_seeds)
                 print(f"  replay: {row['replay'].get('status')}, "
                       f"candidates={row['replay'].get('tracks_generated')}, "
                       f"calibrated_recovery={row['replay'].get('recovered_at_configured_tolerance')}",flush=True)
@@ -263,3 +267,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
