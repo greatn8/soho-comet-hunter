@@ -1075,10 +1075,88 @@ let ccorPayload = null;
 let ccorCurrent = null;
 let ccorFrameIndex = 0;
 let ccorPlayback = null;
-let ccorShowIntermediateFrames = false;
+let ccorShowIntermediateFrames = true;
 let ccorCamera = "all";
 let ccorSort = "newest";
 let ccorVisibleTracks = [];
+let ccorInspectionSnapshot = null;
+let ccorZoomRenderVersion = 0;
+const ccorReferenceImages = new Map();
+
+function ccorDisplayFilter() {
+  return window.CCORReviewTools.displayFilter(
+    document.getElementById("ccorBrightness")?.value,
+    document.getElementById("ccorContrast")?.value);
+}
+function ccorRenderZooms() {
+  const track = ccorCurrent, image = document.getElementById("ccorReviewImage");
+  if (!track || !image?.complete || !image.naturalWidth || !ccorInspectionSnapshot) return;
+  const entries = ccorFrameEntries(track), entry = entries[ccorFrameIndex];
+  if (!entry || image.currentSrc !== new URL(entry.image_url,window.location.href).href) return;
+  const mode = document.getElementById("ccorZoomMode").value;
+  const filter = ccorDisplayFilter();
+  image.style.filter = filter;
+  const brightness = document.getElementById("ccorBrightness"), contrast = document.getElementById("ccorContrast");
+  document.getElementById("ccorBrightnessValue").textContent = Number(brightness.value)+"×";
+  document.getElementById("ccorContrastValue").textContent = Number(contrast.value)+"×";
+  const [w,h] = track.processing_shape || [512,512];
+  const fraction = Math.max(0,Math.min(1,(Date.parse(entry.time)-Date.parse(track.first))/
+    (Date.parse(track.last)-Date.parse(track.first)) || 0));
+  const estimate = entry.point || {x:+track.x_first+(track.x_last-track.x_first)*fraction,
+    y:+track.y_first+(track.y_last-track.y_first)*fraction};
+  const view = mode === "fixed" ? ccorInspectionSnapshot.fixedViewport :
+    window.CCORReviewTools.viewport(track,"follow",estimate);
+  if (!view) return;
+  const version = ++ccorZoomRenderVersion;
+  const showMarkers = document.getElementById("ccorShowMarkers").checked;
+  document.getElementById("ccorReviewOverlay").style.visibility = showMarkers ? "visible" : "hidden";
+  function canvasFor(source,container,point,measure) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 288;canvas.height=Math.round(288*view.height/view.width);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    const sx=source.naturalWidth/w, sy=source.naturalHeight/h;
+    ctx.filter = filter;
+    ctx.drawImage(source,view.x*sx,view.y*sy,view.width*sx,view.height*sy,0,0,canvas.width,canvas.height);
+    ctx.filter = "none";
+    if (point && showMarkers) {
+      ctx.strokeStyle="#ffcc62";ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc((point.x-view.x)*canvas.width/view.width,(point.y-view.y)*canvas.height/view.height,13,0,Math.PI*2);ctx.stroke();
+    }
+    canvas.dataset.sourceRect=JSON.stringify({x:view.x*sx,y:view.y*sy,width:view.width*sx,height:view.height*sy});
+    container.replaceChildren(canvas);
+    if(measure)window.CCORReportUI?.setZoom(canvas,{x:view.x*sx,y:view.y*sy,width:view.width*sx,height:view.height*sy});
+  }
+  const zoom=document.getElementById("ccorReviewZoom"), reference=document.getElementById("ccorReferenceZoom");
+  document.getElementById("ccorZoomLabel").textContent = mode === "fixed" ?
+    "Fixed wider field · current frame" : "Following detection · movement is recentered";
+  try {canvasFor(image,zoom,entry.point,true);} catch(error) {zoom.textContent="Zoom unavailable for this source image.";}
+  const first=ccorInspectionSnapshot.referenceEntry;
+  if(!first){reference.textContent="No reference frame available.";return;}
+  document.getElementById("ccorReferenceLabel").textContent="Reference · "+first.time+" · same image region";
+  let source=ccorReferenceImages.get(first.image_url);
+  if(!source){source=new Image();ccorReferenceImages.set(first.image_url,source);
+    if(ccorReferenceImages.size>6)ccorReferenceImages.delete(ccorReferenceImages.keys().next().value);}
+  const drawReference=()=>{
+    if(version!==ccorZoomRenderVersion||ccorCurrent?.id!==track.id)return;
+    if(!source.naturalWidth||source.naturalWidth!==image.naturalWidth||source.naturalHeight!==image.naturalHeight){reference.textContent="Reference image dimensions differ; comparison unavailable.";return;}
+    try{canvasFor(source,reference,first.point,false);}catch(error){reference.textContent="Reference comparison unavailable.";}
+  };
+  reference.textContent="Loading reference frame…";
+  source.onload=drawReference;
+  source.onerror=()=>{if(version===ccorZoomRenderVersion)reference.textContent="Original reference frame unavailable.";};
+  if(source.src!==first.image_url)source.src=first.image_url;
+  if(source.complete&&source.naturalWidth)drawReference();
+}
+
+function ccorContextText(track) {
+  const context=window.CCORReviewTools.context(track,ccorPayload?.tracks||[]);
+  const shift=context.source_displacement_px===null ? "Recorded image shift unavailable." :
+    "Recorded shift: "+context.source_displacement_px.toFixed(1)+" source-image pixels"+
+    (context.hours===null?"":" over "+context.hours.toFixed(2)+" h")+".";
+  return shift+" "+context.peer_note+" Star-field motion has not been independently measured.";
+}
 
 function ccorFrameEntries(track, includeIntermediate = ccorShowIntermediateFrames) {
   const camera = track.camera;
@@ -1093,9 +1171,8 @@ function ccorFrameEntries(track, includeIntermediate = ccorShowIntermediateFrame
     Date.parse(f.time) <= last + 15 * 60000);
   if (available.length) {
     const withEvidence = available.map(f => ({...f, point: byTime.get(f.time) || null}));
-    // Default to frames on which the detector actually measured a peak.
-    // Intermediate source images are important for diagnostics but must
-    // never masquerade as measured points in the normal playback.
+    // Show all available images by default; absent peaks remain explicitly
+    // labelled and never acquire an interpolated measurement marker.
     const selected = includeIntermediate ? withEvidence :
       withEvidence.filter(entry => entry.point);
     if (selected.length) return selected;
@@ -1109,6 +1186,8 @@ function ccorClose() {
   if (ccorPlayback) clearInterval(ccorPlayback);
   ccorPlayback = null;
   ccorCurrent = null;
+  ccorInspectionSnapshot = null;
+  ccorZoomRenderVersion++;
   const dialog = document.getElementById("ccorVisualViewer");
   if (dialog?.open) dialog.close();
   const play = document.getElementById("ccorReviewPlay");
@@ -1125,6 +1204,11 @@ function ccorDraw() {
   const evidence = document.getElementById("ccorReviewFrameEvidence");
   const allEntries = ccorFrameEntries(ccorCurrent, true);
   if (!image || !overlay || !zoom || !caption) return;
+  document.getElementById("ccorMotionContext").textContent=ccorContextText(ccorCurrent);
+  image.style.filter=ccorDisplayFilter();
+  ccorZoomRenderVersion++;
+  zoom.textContent="Loading current frame…";
+  document.getElementById("ccorReferenceZoom").replaceChildren();
   window.CCORReportUI?.pending(ccorCurrent);
   if (!entries.length) {
     document.getElementById("ccorFramePosition").textContent = "No frames";
@@ -1170,47 +1254,13 @@ function ccorDraw() {
     // CSS object is fully contained in the same aspect-ratio box as overlay.
     const sameAspect = Math.abs(srcw / srch - w / h) < 0.02;
     overlay.style.display = sameAspect ? "block" : "none";
-    // Intermediate frames have NO measured position. Center their zoom at
-    // the time-interpolated point only to inspect an absence; never draw an
-    // amber measurement marker for these frames.
-    const t0 = Date.parse(ccorCurrent.first);
-    const t1 = Date.parse(ccorCurrent.last);
-    const tt = Date.parse(entry.time);
-    const fraction = t1 > t0 && Number.isFinite(tt) ?
-      Math.max(0, Math.min(1, (tt - t0) / (t1 - t0))) : 0.5;
-    const currentX = p ? +p.x :
-      +ccorCurrent.x_first + (+ccorCurrent.x_last - +ccorCurrent.x_first) * fraction;
-    const currentY = p ? +p.y :
-      +ccorCurrent.y_first + (+ccorCurrent.y_last - +ccorCurrent.y_first) * fraction;
-    const crop = 72;
-    const sx = srcw / w, sy = srch / h;
-    const viewX = Math.max(0, Math.min(w - crop, currentX - crop / 2));
-    const viewY = Math.max(0, Math.min(h - crop, currentY - crop / 2));
-    zoom.innerHTML = "";
-    const cropCanvas = document.createElement("canvas");
-    cropCanvas.width = cropCanvas.height = 288;
-    const ctx = cropCanvas.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    try {
-      ctx.drawImage(image, viewX * sx, viewY * sy, crop * sx, crop * sy, 0, 0, 288, 288);
-      // A ring is only shown for a REAL peak measurement.
-      if (p) {
-        ctx.strokeStyle = "#ffcc62";
-        ctx.lineWidth = 1;
-        const zx = (currentX - viewX) * 288/crop;
-        const zy = (currentY - viewY) * 288/crop;
-        ctx.beginPath(); ctx.arc(zx,zy,13,0,Math.PI*2); ctx.stroke();
-      }
-      zoom.appendChild(cropCanvas);
-      window.CCORReportUI?.setZoom(cropCanvas, {x:viewX*sx,y:viewY*sy,width:crop*sx,height:crop*sy});
-    } catch (error) {
-      zoom.textContent = "Zoom unavailable (cross-origin NOAA image).";
-    }
+    ccorRenderZooms();
   };
   image.onerror = () => {
+    ccorZoomRenderVersion++;
     window.CCORReportUI?.unavailable();
     overlay.innerHTML = ""; zoom.innerHTML = "";
+    document.getElementById("ccorReferenceZoom").textContent="Current image unavailable; compare another timestamp.";
     caption.textContent = "NOAA image not available: " + entry.time +
       ". Remote JPEGs can expire; this does not invalidate the stored track measurements.";
   };
@@ -1218,7 +1268,7 @@ function ccorDraw() {
   caption.textContent = ccorCurrent.id + " · " + entry.time +
     " UTC · frame " + (ccorFrameIndex+1) + "/" + entries.length +
     (p ? " · MEASURED detector peak" :
-      " · NO DETECTION in this frame (zoom centered at estimated position; no marker)") +
+      " · NO DETECTION in this frame (no measurement marker)") +
     " · " + ccorCurrent.points.length + " measured frames / " +
     allEntries.length + " source frames in viewer · green: proposed track" +
     (p ? " · amber: measured position" : "");
@@ -1235,8 +1285,8 @@ function ccorOpen(id) {
   document.getElementById("ccorReviewPlay").textContent = "▶ Play";
   ccorCurrent = row;
   ccorFrameIndex = 0;
-  // Enter at the first measured peak rather than a potentially empty
-  // pre-track source frame.
+  ccorInspectionSnapshot={fixedViewport:window.CCORReviewTools.viewport(row),
+    referenceEntry:ccorFrameEntries(row,true)[0]||null};
   const viewer = document.getElementById("ccorVisualViewer");
   if (!viewer.open) viewer.showModal();
   ccorUpdateCandidatePosition();
@@ -1286,11 +1336,12 @@ function ccorRenderCards() {
   box.innerHTML = selected.map(t =>
     '<article class="realtime-candidate">' +
     '<div class="realtime-candidate-top"><strong>' + escapeHtml(t.id) +
-    '</strong><span>UNVERIFIED / ' + escapeHtml(t.camera.toUpperCase()) + '</span></div>' +
+    '</strong><span>UNIDENTIFIED / ' + escapeHtml(t.camera.toUpperCase()) + '</span></div>' +
+    '<div class="ccor-motion-context">'+escapeHtml(ccorContextText(t))+'</div>'+
     (t.review_motion_evidence?.status === "LIMITED_MOTION_EVIDENCE" ?
       '<div class="realtime-media-missing">Limited motion evidence: short displacement, duration, or too few observations. Full review only.</div>' : '') +
     (t.review_validation?.status === "PASS" ?
-      '<div class="ccor-evidence-pass">Frame continuity and source-pixel checks passed (not a confirmed comet).</div>' : '') +
+      '<div class="ccor-evidence-pass">Repeatable source pixels: PASS. Object identity remains unknown.</div>' : '') +
     (t.review_stage === "EARLY" ?
       '<div class="realtime-media-missing">Early candidate — shorter motion history; verify original frames carefully.</div>' : '') +
     (t.motion_consistency?.status === "IRREGULAR_MOTION" ?
@@ -1364,13 +1415,35 @@ document.getElementById("ccorFrameMode")?.addEventListener("click", e => {
 document.getElementById("ccorReviewClose")?.addEventListener("click", ccorClose);
 document.getElementById("ccorReviewPrev")?.addEventListener("click", () => ccorStep(-1));
 document.getElementById("ccorReviewNext")?.addEventListener("click", () => ccorStep(1));
+for(const [id,last] of [["ccorReviewFirst",false],["ccorReviewLast",true]])document.getElementById(id)?.addEventListener("click",()=>{
+  if(!ccorCurrent)return;
+  if(ccorPlayback)clearInterval(ccorPlayback);
+  ccorPlayback=null;
+  document.getElementById("ccorReviewPlay").textContent="▶ Play";
+  ccorFrameIndex=last?ccorFrameEntries(ccorCurrent).length-1:0;
+  ccorDraw();
+});
 document.getElementById("ccorReviewPlay")?.addEventListener("click", ccorTogglePlay);
+for(const id of ["ccorBrightness","ccorContrast"])document.getElementById(id)?.addEventListener("input",ccorRenderZooms);
+for(const id of ["ccorZoomMode","ccorShowMarkers"])document.getElementById(id)?.addEventListener("change",ccorRenderZooms);
+document.getElementById("ccorResetDisplay")?.addEventListener("click",()=>{
+  document.getElementById("ccorBrightness").value=1;
+  document.getElementById("ccorContrast").value=1;
+  ccorRenderZooms();
+});
+document.getElementById("ccorRevealFaint")?.addEventListener("click",()=>{
+  document.getElementById("ccorBrightness").value=4;
+  document.getElementById("ccorContrast").value=1;
+  ccorRenderZooms();
+});
 document.getElementById("ccorCandidatePrev")?.addEventListener("click", () => ccorCandidateStep(-1));
 document.getElementById("ccorCandidateNext")?.addEventListener("click", () => ccorCandidateStep(1));
 document.getElementById("ccorVisualViewer")?.addEventListener("close", () => {
   if (ccorPlayback) clearInterval(ccorPlayback);
   ccorPlayback = null;
   ccorCurrent = null;
+  ccorInspectionSnapshot = null;
+  ccorZoomRenderVersion++;
   document.getElementById("ccorReviewPlay").textContent = "▶ Play";
 });
 document.addEventListener("keydown", event => {
@@ -1399,4 +1472,3 @@ document.addEventListener("ccor-report-measure", () => {
   ccorPlayback = null;
   document.getElementById("ccorReviewPlay").textContent = "▶ Play";
 });
-

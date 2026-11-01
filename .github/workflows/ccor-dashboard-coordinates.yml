@@ -8,6 +8,7 @@ on:
       - 'docs/ccor-*.js'
       - 'tests/test_ccor_coordinates.cjs'
       - 'tests/test_ccor_report_browser.cjs'
+      - 'tests/test_ccor_review*'
       - '.github/workflows/ccor-dashboard-coordinates.yml'
   workflow_dispatch:
 jobs:
@@ -20,6 +21,17 @@ jobs:
         with:
           node-version: '22'
       - run: node --test tests/test_ccor_coordinates.cjs
+      - run: node --test tests/test_ccor_review_tools.cjs
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium
       - run: node tests/test_ccor_report_browser.cjs
+      - run: node tests/test_ccor_review_browser.cjs
+        env:
+          CCOR_REVIEW_SCREENSHOT: /tmp/ccor-fixed-field-review.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ccor-fixed-field-review
+          path: /tmp/ccor-fixed-field-review.png
+          if-no-files-found: ignore
+          retention-days: 3
