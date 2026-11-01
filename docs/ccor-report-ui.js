@@ -63,6 +63,8 @@
   }
   function pending(track){
     candidate=track?.id||null;current=null;zoom=null;
+    const nativeLink=$('ccorNativeReport');
+    if(nativeLink)nativeLink.href='./ccor-native-reporting.html'+(candidate?'?candidate='+encodeURIComponent(candidate):'');
     $('ccorReportCursor').textContent='Loading source image — measurement unavailable until loaded.';render();
   }
   function ready(track,entry,image){
@@ -109,3 +111,4 @@
   window.addEventListener('resize',alignMarker);
   window.CCORReportUI={pending,ready,setZoom,unavailable:()=>{current=null;zoom=null;$('ccorReportCursor').textContent='Source image unavailable — cannot record a position on this frame.';render();}};
 })();
+
