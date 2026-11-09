@@ -23,6 +23,14 @@ REPORT_TIME = hunter.image_time(REPORT_FRAME)
 # this is an extrapolated locator, so compatible tracks require visual review.
 REPORT_XY = (591.18, 652.07)
 REPORT_VELOCITY = (-6.61, -9.25)
+REPORT_POINTS = [
+    (hunter.image_time("20261108_" + stamp), x, y)
+    for stamp, x, y in [
+        ("1330", 591, 652), ("1342", 590, 650), ("1354", 589, 648),
+        ("1406", 587, 647), ("1430", 585, 644), ("1442", 583, 640),
+        ("1454", 582, 639),
+    ]
+]
 
 
 def reference_distance(track):
@@ -55,6 +63,22 @@ def review(rows, frames, folder, args, cutoff, control_minutes):
     return {row["candidate"]: row for row in data["candidates"]}
 
 
+def summarize_track(track, reference_error):
+    first, last = track["first"], track["last"]
+    reported_errors = [
+        math.dist(hunter.position_at(track, when, model="endpoints"), (x, y))
+        for when, x, y in REPORT_POINTS if first["time"] <= when <= last["time"]
+    ]
+    return {
+        "first": first["file"], "first_xy": [first["x"], first["y"]],
+        "last": last["file"], "last_xy": [last["x"], last["y"]],
+        "frames": track["frames"],
+        "max_reference_error_px": round(reference_error, 2),
+        "reported_points_inside_track": len(reported_errors),
+        "max_measured_report_error_px": round(max(reported_errors), 2) if reported_errors else None,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", required=True, type=Path)
@@ -62,6 +86,10 @@ def main():
     parser.add_argument("--cutoff", action="append", metavar="YYYYMMDD_HHMM")
     parser.add_argument("--max-candidates", type=int, default=100)
     parser.add_argument("--short-budget-minutes", type=int, default=2)
+    parser.add_argument("--disable-stationary", action="store_true",
+                        help="Disable the stationary filter in this replay only")
+    parser.add_argument("--disable-enhanced", action="store_true",
+                        help="Disable the enhanced spatial, integrity and null filters in this replay only")
     args = parser.parse_args()
     args.resolution = 1024
     args.search_windows = (12,)
@@ -84,8 +112,11 @@ def main():
         root = Path(tmp)
         (root / "comet_hunter_archive").symlink_to(binary)
         (root / "state").mkdir()
-        for flag in ("realtime_cuda_stationary_enabled", "realtime_cuda_enhanced_enabled"):
-            if (project / "state" / flag).is_file():
+        for flag, disabled in (
+            ("realtime_cuda_stationary_enabled", args.disable_stationary),
+            ("realtime_cuda_enhanced_enabled", args.disable_enhanced),
+        ):
+            if not disabled and (project / "state" / flag).is_file():
                 (root / "state" / flag).touch()
         for cutoff in cutoffs:
             inputs = [p for p in frames if p.name[:13] <= cutoff]
@@ -94,15 +125,19 @@ def main():
             started = time.monotonic()
             raw, runs = hunter.run_multiscale_cuda(root, inputs, root, args, cutoff, root)
             search_seconds = time.monotonic() - started
-            compatible = [(track, reference_distance(track)) for track in raw]
-            compatible = [(track, error) for track, error in compatible if error <= 8]
+            distances = [(track, reference_distance(track)) for track in raw]
+            distances = sorted(
+                ((track, error) for track, error in distances if math.isfinite(error)),
+                key=lambda item: item[1],
+            )
+            compatible = [(track, error) for track, error in distances if error <= 8]
+            nearest = [summarize_track(track, error) for track, error in distances[:5]]
             baseline = review(raw, inputs, root / "baseline", args, cutoff, 0) if compatible else {}
             patched = review(raw, inputs, root / "patched", args, cutoff, 90) if compatible else {}
             matches = []
-            for track, error in sorted(compatible, key=lambda item: item[1]):
+            for track, error in compatible:
                 identifier = track["cid"]
-                item = {"first": track["first"]["file"], "last": track["last"]["file"],
-                        "frames": track["frames"], "max_reference_error_px": round(error, 2)}
+                item = summarize_track(track, error)
                 for name, reviews in (("baseline", baseline), ("patched", patched)):
                     row = reviews.get(identifier)
                     if row is None:
@@ -115,6 +150,7 @@ def main():
                 matches.append(item)
             print(json.dumps({"cutoff_utc": cutoff, "search_seconds": round(search_seconds, 1),
                               "search": runs[0], "reference_compatible_tracks": matches,
+                              "nearest_reference_tracks": nearest,
                               "report_gate": "NOT_SIMULATED"}), flush=True)
 
 
