@@ -18,9 +18,13 @@ from bright_streak_review import bright_streak_review_evidence
 from coronal_structure_review import coronal_structure_evidence
 import os
 from pathlib import Path
+from pixel_verify import verify_recent_continuation
 
 
-def eligibility(row, *, reports_ok, now, max_age_minutes=90):
+MAX_ALERT_AGE_MINUTES = 90
+
+
+def eligibility(row, *, reports_ok, now, max_age_minutes=MAX_ALERT_AGE_MINUTES):
     """Reasons a candidate may NOT be surfaced as an early phone review."""
     problems=[]
     if not reports_ok or row.get("status")!="UNMATCHED":
@@ -116,6 +120,13 @@ def process_early_tracks(raw_candidates, frames, results_dir, args, run_id, hunt
             review_class,_=hunter.classify_for_review(c,pixel)
             if review_class!="STRONG_REVIEW":
                 continue
+            if now - c["last"]["time"] > dt.timedelta(minutes=MAX_ALERT_AGE_MINUTES):
+                endpoint = verify_recent_continuation(c, frames, gray_cache)
+                if endpoint is not None:
+                    extended = dict(c, last=endpoint, cuda_last=c["last"]["file"])
+                    extended_pixel = hunter.verify_track_pixels(extended, frames, gray_cache=gray_cache)
+                    if hunter.classify_for_review(extended, extended_pixel)[0] == "STRONG_REVIEW":
+                        c, pixel = extended, extended_pixel
             pixel["temporal_motion"]=hunter.verify_temporal_motion(
                 c,frames,gray_cache=gray_cache,earlier_control_minutes=90)
             c["pixel_verification"]=pixel
@@ -169,6 +180,8 @@ def process_early_tracks(raw_candidates, frames, results_dir, args, run_id, hunt
             "warning":"EARLY REVIEW ONLY. This is not a confirmed comet discovery.",
         }
         row["early_alert_reasons"]=eligibility(row,reports_ok=reports_ok,now=now)
+        if "cuda_last" in c:
+            row["cuda_last"] = c["cuda_last"]
         rows.append(row)
 
     # Deduplicate physically overlapping hypotheses before deciding which

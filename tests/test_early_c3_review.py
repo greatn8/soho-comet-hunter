@@ -125,6 +125,36 @@ class EarlyReviewTests(unittest.TestCase):
             stationary = verifier.verify_temporal_motion(track, frames, earlier_control_minutes=90)
             self.assertEqual(stationary["supported"], 0)
 
+    def test_stale_cuda_track_needs_three_recent_moving_pixel_hits(self):
+        start = dt.datetime(2026, 11, 8, 11, 54, tzinfo=UTC)
+        frames = [
+            Path((start + dt.timedelta(minutes=offset)).strftime("%Y%m%d_%H%M_c3_1024.jpg"))
+            for offset in (0, 48, 60, 96)
+        ]
+        point = {"time": start, "file": frames[0].name, "x": 621, "y": 656}
+        track = {"first": point, "last": point, "vx": -8, "vy": -8}
+        now = start + dt.timedelta(minutes=98)
+        row = sample(now)
+        row["last"] = point["file"]
+        self.assertIn("NOT_A_FRESH_TRACK", early.eligibility(row, reports_ok=True, now=now))
+
+        def signal(frame, x, y):
+            contrast = 0 if frame == frames[0] else 20
+            return {"contrast": contrast, "noise": 1, "snr": contrast}
+
+        with patch.object(verifier, "WIDTH", 1024), patch.object(
+            verifier, "_decode_gray", side_effect=lambda frame, cache: frame
+        ), patch.object(verifier, "_sample_signal", side_effect=signal) as sampler:
+            endpoint = verifier.verify_recent_continuation(track, frames, {})
+            self.assertEqual(endpoint["file"], frames[-1].name)
+            row["last"] = endpoint["file"]
+            self.assertEqual(early.eligibility(row, reports_ok=True, now=now), [])
+            self.assertIsNone(verifier.verify_recent_continuation(track, frames[:-1], {}))
+
+            sampler.side_effect = None
+            sampler.return_value = {"contrast": 20, "noise": 1, "snr": 20}
+            self.assertIsNone(verifier.verify_recent_continuation(track, frames, {}))
+
     def test_reporting_failure_prevents_eligibility(self):
         now=dt.datetime(2026,10,23,14,0,tzinfo=UTC)
         with tempfile.TemporaryDirectory() as temp:

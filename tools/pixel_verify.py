@@ -238,6 +238,40 @@ def verify_track_pixels(candidate, frame_paths, gray_cache=None, max_samples=48,
     }
 
 
+def verify_recent_continuation(candidate, frame_paths, gray_cache):
+    """Extend an older CUDA fit only if it is visible in the newest frames."""
+    first, last = candidate["first"], candidate["last"]
+    recent = sorted(
+        (when, Path(path))
+        for path in frame_paths
+        if last["time"] < (when := _frame_time(path))
+    )[-3:]
+    if (len(recent) < 3 or recent[-1][0] - last["time"] > timedelta(hours=2)
+            or recent[-1][0] - recent[0][0] > timedelta(hours=1)):
+        return None
+
+    baseline_path = next((Path(path) for path in frame_paths
+                          if Path(path).name == last["file"]), None)
+    if baseline_path is None:
+        return None
+    baseline_image = _decode_gray(baseline_path, gray_cache)
+    if baseline_image is None:
+        return None
+    for when, path in recent:
+        hours = (when - first["time"]).total_seconds() / 3600
+        x = first["x"] + hours * candidate["vx"]
+        y = first["y"] + hours * candidate["vy"]
+        if math.dist((x, y), (last["x"], last["y"])) < 4 * WIDTH / 512:
+            return None
+        image = _decode_gray(path, gray_cache)
+        current = _sample_signal(image, x, y) if image is not None else None
+        baseline = _sample_signal(baseline_image, x, y)
+        if (not current or not baseline or current["snr"] < 4
+                or current["contrast"] - baseline["contrast"] < max(3, 2 * current["noise"])):
+            return None
+    return {"file": path.name, "time": when, "x": x, "y": y}
+
+
 def historical_recovery_profile(candidate):
     """Broad envelope containing the known historical recoveries.
 
