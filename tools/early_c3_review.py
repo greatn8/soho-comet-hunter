@@ -91,9 +91,10 @@ def atomic_json(path,data):
 
 
 def process_early_tracks(raw_candidates, frames, results_dir, args, run_id, hunter,
-                         *, notify_enabled=True, report_fetch=None):
+                         *, notify_enabled=True, report_fetch=None, now=None):
     """Early pass is allowed to fail without altering the main live detector."""
-    now=dt.datetime.now(dt.timezone.utc)
+    if now is None:
+        now=dt.datetime.now(dt.timezone.utc)
     output=Path(results_dir)/"early_candidates.json"
     supported=[]
     candidates=[]
