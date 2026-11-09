@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
 import early_c3_review as early
+import pixel_verify as verifier
 import watch_early_c3_email as notify
 
 UTC=dt.timezone.utc
@@ -87,6 +88,43 @@ class EarlyReviewTests(unittest.TestCase):
         row["report_id"]="report_known"
         self.assertEqual(notify.due_for_dispatch(payload,[],now),[])
 
+    def test_short_track_uses_earlier_cached_controls(self):
+        start = dt.datetime(2026, 11, 8, 15, 18, tzinfo=UTC)
+        end = start + dt.timedelta(minutes=84)
+        track = {
+            "first": {"time": start, "x": 587, "y": 634},
+            "last": {"time": end},
+            "vx": -8.21, "vy": -9.29,
+        }
+        frames = [
+            Path((start + dt.timedelta(minutes=offset)).strftime("%Y%m%d_%H%M_c3_1024.jpg"))
+            for offset in range(-84, 85, 12)
+        ]
+
+        def signal(when, x, y):
+            hours = (when - start).total_seconds() / 3600
+            moving_x = 587 + track["vx"] * hours
+            moving_y = 634 + track["vy"] * hours
+            hit = (x - moving_x)**2 + (y - moving_y)**2 < 1
+            return {"contrast": 20 if hit else 0, "noise": 1, "snr": 20 if hit else 0}
+
+        with patch.object(verifier, "WIDTH", 1024), patch.object(
+            verifier, "_decode_gray", side_effect=lambda frame, cache: verifier._frame_time(frame)
+        ), patch.object(verifier, "_sample_signal", side_effect=signal) as sample_signal:
+            self.assertEqual(verifier.verify_temporal_motion(track, frames)["tested"], 0)
+            motion = verifier.verify_temporal_motion(track, frames, earlier_control_minutes=90)
+            self.assertGreaterEqual(motion["tested"], 3)
+            self.assertEqual(motion["supported"], motion["tested"])
+            self.assertEqual(
+                verifier.verify_temporal_motion(track, frames, earlier_control_minutes=12)["tested"],
+                0,
+            )
+
+            sample_signal.side_effect = None
+            sample_signal.return_value = {"contrast": 20, "noise": 1, "snr": 20}
+            stationary = verifier.verify_temporal_motion(track, frames, earlier_control_minutes=90)
+            self.assertEqual(stationary["supported"], 0)
+
     def test_reporting_failure_prevents_eligibility(self):
         now=dt.datetime(2026,10,23,14,0,tzinfo=UTC)
         with tempfile.TemporaryDirectory() as temp:
@@ -100,6 +138,7 @@ class EarlyReviewTests(unittest.TestCase):
                 "speed":9.4,"cv":0.2,
             }
             class Stub:
+                pixel_verify = verifier
                 def audit_track_frames(self,c,f):pass
                 def comet_like(self,c):return True
                 def live_candidate_rank(self,c):return 1
@@ -107,7 +146,7 @@ class EarlyReviewTests(unittest.TestCase):
                     "status":"STRONG","hits":5,"samples":5,"hit_fraction":1,
                     "peak_snr":12,"longest_hit_run":5,"evidence_score":80}
                 def classify_for_review(self,c,p):return ("STRONG_REVIEW",False)
-                def verify_temporal_motion(self,c,f,gray_cache=None):return{
+                def verify_temporal_motion(self,c,f,gray_cache=None,earlier_control_minutes=0):return{
                     "tested":2,"supported":2,"support_fraction":1.0}
                 def edge_review_evidence(self,c):return {"status":"CLEAR"}
                 def annotate_star_field(self,rows):pass
@@ -117,6 +156,7 @@ class EarlyReviewTests(unittest.TestCase):
                 result=early.process_early_tracks(
                     [c],[Path("20261023_1436_c3_1024.jpg")],
                     Path(temp),args,"sample",Stub(),report_fetch=lambda:"bad")
+            self.assertEqual(result["strong_pixel_tracks"],1)
             self.assertEqual(result["report_check_status"],"UNAVAILABLE")
             self.assertEqual(result["early_alert_ready"],0)
             self.assertTrue((Path(temp)/"early_candidates.json").exists())

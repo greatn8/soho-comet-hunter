@@ -6,6 +6,7 @@ from __future__ import annotations
 import math
 import statistics
 import subprocess
+from datetime import timedelta
 from pathlib import Path
 
 
@@ -271,7 +272,8 @@ def classify_for_review(candidate, pixel_result):
 
 
 def verify_temporal_motion(candidate, frame_paths, gray_cache=None, model="velocity",
-                           max_samples=18, min_separation_px=5.0):
+                           max_samples=18, min_separation_px=5.0,
+                           earlier_control_minutes=0):
     """Independent moving-source evidence against same-pixel background.
 
     At a tracked position in a middle frame, compare the compact source
@@ -279,7 +281,8 @@ def verify_temporal_motion(candidate, frame_paths, gray_cache=None, model="veloc
     feature or occulting-edge artifact should remain at that pixel; a moving
     compact source may appear only while passing through it.
 
-    Diagnostic only until measured against historical known-comet controls.
+    The early review can use earlier cached frames as fixed-position controls.
+    Those frames are never counted as detections on the fitted track.
     """
     cache = gray_cache if gray_cache is not None else {}
     min_separation_px *= WIDTH / 512.0
@@ -290,6 +293,8 @@ def verify_temporal_motion(candidate, frame_paths, gray_cache=None, model="veloc
         return {"status": "UNAVAILABLE", "tested": 0, "supported": 0,
                 "support_fraction": 0.0, "reason": "ZERO_TIME_SPAN"}
     eligible = []
+    earlier_controls = []
+    earliest_control = t0 - timedelta(minutes=earlier_control_minutes)
     for f in frame_paths:
         try:
             t = _frame_time(f)
@@ -297,7 +302,10 @@ def verify_temporal_motion(candidate, frame_paths, gray_cache=None, model="veloc
             continue
         if t0 <= t <= t1:
             eligible.append((Path(f), t))
+        elif earliest_control <= t < t0:
+            earlier_controls.append((Path(f), t))
     eligible.sort(key=lambda entry: entry[1])
+    earlier_controls.sort(key=lambda entry: entry[1], reverse=True)
     if len(eligible) < 5:
         return {"status": "UNAVAILABLE", "tested": 0, "supported": 0,
                 "support_fraction": 0.0, "reason": "TOO_FEW_SOURCE_FRAMES"}
@@ -311,7 +319,7 @@ def verify_temporal_motion(candidate, frame_paths, gray_cache=None, model="veloc
         return (float(first["x"]) + hours * float(candidate["vx"]),
                 float(first["y"]) + hours * float(candidate["vy"]))
 
-    selected = list(range(1, len(eligible)-1))
+    selected = list(range(0 if earlier_controls else 1, len(eligible)-1))
     if len(selected) > max_samples:
         selected = sorted({selected[round(i*(len(selected)-1)/(max_samples-1))]
                            for i in range(max_samples)})
@@ -326,10 +334,17 @@ def verify_temporal_motion(candidate, frame_paths, gray_cache=None, model="veloc
                      if math.dist(position(eligible[j][1]),(x,y)) >= min_separation_px),None)
         right = next((j for j in range(i+1,len(eligible))
                       if math.dist(position(eligible[j][1]),(x,y)) >= min_separation_px),None)
-        if left is None or right is None:
+        if right is None:
+            continue
+        before_path = eligible[left][0] if left is not None else next(
+            (path for path, when in earlier_controls
+             if math.dist(position(when), (x, y)) >= min_separation_px),
+            None,
+        )
+        if before_path is None:
             continue
         current = _decode_gray(target,cache)
-        before = _decode_gray(eligible[left][0],cache)
+        before = _decode_gray(before_path,cache)
         after = _decode_gray(eligible[right][0],cache)
         if current is None or before is None or after is None:
             continue

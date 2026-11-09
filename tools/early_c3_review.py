@@ -116,7 +116,7 @@ def process_early_tracks(raw_candidates, frames, results_dir, args, run_id, hunt
             if review_class!="STRONG_REVIEW":
                 continue
             pixel["temporal_motion"]=hunter.verify_temporal_motion(
-                c,frames,gray_cache=gray_cache)
+                c,frames,gray_cache=gray_cache,earlier_control_minutes=90)
             c["pixel_verification"]=pixel
             c["review_class"]=review_class
             c["edge_review"]=hunter.edge_review_evidence(c)
