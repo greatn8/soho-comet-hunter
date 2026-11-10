@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -606,22 +607,32 @@ def realtime_has_review_video(source, row):
         return False
 
 
+@lru_cache(maxsize=1)
+def index_realtime_reviews(root):
+    """Read the review metadata once per publisher invocation."""
+    index = {}
+    for meta_path in root.glob("*/review.json"):
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(meta, dict):
+            continue
+        first, last = meta.get("first"), meta.get("last")
+        if isinstance(first, str) and isinstance(last, str) and first and last:
+            index.setdefault((first, last), clean(meta.get("review_id")) or meta_path.parent.name)
+    return index
+
+
 def find_realtime_review_id(source, row):
     explicit = clean(row.get("review_id"))
     if explicit:
         return explicit
-    first = clean(row.get("first")); last = clean(row.get("last"))
-    root = source / "review"
-    if not root.exists():
+    first, last = clean(row.get("first")), clean(row.get("last"))
+    if not first or not last:
         return None
-    for meta_path in root.glob("*/review.json"):
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if first and last and meta.get("first") == first and meta.get("last") == last:
-            return clean(meta.get("review_id")) or meta_path.parent.name
-    return None
+    return index_realtime_reviews(source / "review").get((first, last))
+
 
 def publish_realtime_review_assets(source, data_dir, row):
     # Publish exactly one stitched annotated zoom video plus its lightweight
@@ -1431,6 +1442,7 @@ def publish_realtime_data(realtime_source, data_dir, age_hours=48):
 
 
 def main():
+    index_realtime_reviews.cache_clear()
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description="Update the comet dashboard from pipeline output.")
     parser.add_argument("--source", default=str(root / "results" / "visual"))

@@ -35,7 +35,8 @@ git pull --rebase --autostash origin main
 LIVE_MEDIA_STAGE="${COMET_LIVE_MEDIA_STAGE:-/dev/shm/soho_comet_dashboard_live_media}"
 export COMET_LIVE_MEDIA_STAGE="$LIVE_MEDIA_STAGE"
 
-python3 tools/update_dashboard.py \
+echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Preparing dashboard data and review media"
+python3 -u tools/update_dashboard.py \
   --source "$SOURCE_DIR" \
   --results-root results \
   --realtime-source "$REALTIME_DIR"
@@ -50,6 +51,7 @@ fi
 # is rebuilt from scratch on every cycle in /dev/shm, so old video blobs do
 # not accumulate in the main checkout or its Git history.
 if [[ -d "$LIVE_MEDIA_STAGE" ]] && find "$LIVE_MEDIA_STAGE" -type f -print -quit | grep -q .; then
+  echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Publishing live review media"
   LIVE_PUSH_DIR="$(mktemp -d /dev/shm/comet-live-media-push.XXXXXX)"
   cleanup_live_push() { rm -rf "$LIVE_PUSH_DIR"; }
   trap 'cleanup_live_push; cleanup_lock' EXIT INT TERM
