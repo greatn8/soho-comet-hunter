@@ -32,7 +32,12 @@ import tempfile
 
 import numpy as np
 from PIL import Image
-from ccor_native_fits_audit import load_fits, iso
+from ccor_native_fits_audit import load_fits
+
+def iso(value):
+    """Preserve all datetime precision; never truncate the FITS observation time."""
+    from datetime import timezone
+    return value.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 SHAPE=(1920,2048)
 SOURCE_PATTERN=re.compile(r"CCOR[12]_[A-Za-z0-9_-]+\.fits(?:\.gz)?$",re.I)
@@ -66,13 +71,21 @@ def native_preview(data):
     valid=arr[np.isfinite(arr)]
     if valid.size<10000:
         raise ValueError("Too few finite science pixels for preview")
-    low,high=np.percentile(valid,[3,99.9])
+    positive=valid[valid>0]
+    if positive.size<10000:
+        raise ValueError("Too few positive science pixels for logarithmic preview")
+    scale=float(np.median(positive))
+    logged=np.log1p(np.maximum(valid,0)/scale)
+    low,high=np.percentile(logged,[1,99.9])
     if not math.isfinite(low) or not math.isfinite(high) or high<=low:
         raise ValueError("No meaningful image contrast")
-    scaled=np.zeros(arr.shape,dtype=np.uint8)
-    scaled[np.isfinite(arr)]=np.uint8(np.clip(
-        (arr[np.isfinite(arr)]-low)/(high-low),0,1)**0.55*255)
-    return Image.fromarray(scaled,mode="L")
+    # 16-bit monotonic display mapping preserves much more faint-field detail.
+    # Pixel indices are unchanged; this is not a calibrated brightness product.
+    scaled=np.zeros(arr.shape,dtype=np.uint16)
+    scaled[np.isfinite(arr)]=np.uint16(np.rint(np.clip(
+        (logged-low)/(high-low),0,1)*65535))
+    return Image.fromarray(scaled)
+
 
 
 def prepare(fits_dir,output_dir,max_files=MAX_FILES):
@@ -82,13 +95,16 @@ def prepare(fits_dir,output_dir,max_files=MAX_FILES):
         raise ValueError(f"Require 1..{max_files} native FITS sources (found {len(sources)})")
     if output_dir==fits_dir or fits_dir in output_dir.parents or output_dir in fits_dir.parents:
         raise ValueError("Output directory must be separate from source FITS")
+    if (output_dir/"preview_manifest.json").exists():
+        raise FileExistsError("Refusing to overwrite existing manifest; use a new output directory")
     output_dir.mkdir(parents=True,exist_ok=True)
     previews=output_dir/"native_previews"
     previews.mkdir(exist_ok=True)
-    manifest={"format_version":1,"coordinate_origin":"TOP_LEFT_ZERO_BASED",
+    manifest={"format_version":2,"coordinate_origin":"TOP_LEFT_ZERO_BASED",
               "rendering":"DIRECT_FITS_ARRAY_NO_ROTATION_NO_RESAMPLING",
               "coordinate_system":"PIXEL_INDEX_NOT_CELESTIAL",
               "native_dimensions":[2048,1920],
+              "intensity_mapping":"LOG1P_MONOTONIC_16BIT_DISPLAY_ONLY",
               "source_to_png":"PNG x=FITS numpy column, PNG y=FITS numpy row",
               "sources":[]}
     seen=set()
@@ -240,3 +256,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
