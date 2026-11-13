@@ -1,9 +1,9 @@
 {
   "available": true,
-  "source_updated_at": "2026-11-13T19:05:51.412928Z",
+  "source_updated_at": "2026-11-13T19:22:53.908300Z",
   "last_frame": "20261113_1330_c3_1024.jpg",
   "latest_frame_image": null,
-  "hunter_heartbeat_at": "2026-11-13T19:04:49.662387Z",
+  "hunter_heartbeat_at": "2026-11-13T19:22:49.725340Z",
   "hunter_status": "running",
   "hunter_phase": "Running multiscale CUDA detector",
   "hunter_progress": null,
@@ -17,8 +17,8 @@
   "current_known_total": 3,
   "alerts_total": 687,
   "alerts_lifetime_total": 1807,
-  "known_matches_total": 728,
-  "known_matches_lifetime_total": 738,
+  "known_matches_total": 733,
+  "known_matches_lifetime_total": 743,
   "view_reset_at": "2026-10-19T07:49:38Z",
   "latest_alert": "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nREALTIME COMET ALERT - PIXEL-VERIFIED HIGH-PRIORITY EVENT\nCandidate: C9000000381880 raw_class=HIGH review_class=STRONG_REVIEW frames=8 RMS=0.62\nMotion: speed=5.02 px/h vx=-0.42 vy=5.00 sunward=2.35\nPixel evidence: hits=8/8 hit_fraction=1.00 peak_snr=9.71 longest_run=8\nEvent group: LEG062_C9000000381880 members=1\nMotion family: 21 track(s) within 0.35 px/h\nFirst: 20261113_1130_c3_1024.jpg (63.0,183.0) [1024]\nLast : 20261113_1254_c3_1024.jpg (62.0,190.0) [1024]\nACTION: visually inspect and verify independently before reporting.\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
   "github_email_alert_issues": [
@@ -1519,7 +1519,12 @@
       "available_source_frames": 31,
       "endpoint_order_corrected": false,
       "edge_relevant": true,
-      "hours_behind_latest": 0.6
+      "hours_behind_latest": 0.6,
+      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T0455_21E66F6C/zoom_annotated.mp4",
+      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T0455_21E66F6C/zoom_raw.mp4",
+      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T0455_21E66F6C/full_annotated.mp4",
+      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T0455_21E66F6C/zoom_contact_sheet.jpg",
+      "media_status": "AVAILABLE"
     },
     {
       "candidate": "C9000000381683",
@@ -22954,48 +22959,42 @@
       "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261112T0930_4B23E763/zoom_contact_sheet.jpg"
     },
     {
-      "candidate": "C9000000368575",
+      "candidate": "C9000000381648",
       "resolution": 1024,
       "source_window_hours": 12,
-      "status": "UNMATCHED",
+      "status": "SEEN_ALREADY",
       "report_id": "",
       "match_error_1024": "",
-      "review_class": "STRONG_REVIEW",
+      "review_class": "SECONDARY",
       "historical_recovery_profile": true,
       "pixel_verification": {
-        "status": "STRONG",
-        "samples": 13,
-        "hits": 13,
-        "hit_fraction": 1.0,
-        "median_snr": 5.171,
-        "peak_snr": 7.183,
-        "median_contrast": 44.6,
-        "median_compactness": 2.084,
-        "longest_hit_run": 13,
-        "evidence_score": 102.46,
+        "status": "EMPTY",
+        "samples": 31,
+        "hits": 0,
+        "hit_fraction": 0.0,
+        "median_snr": 1.404,
+        "peak_snr": 2.118,
+        "median_contrast": 47.4,
+        "median_compactness": 41.0,
+        "longest_hit_run": 0,
+        "evidence_score": 8.79,
         "temporal_motion": {
-          "status": "UNAVAILABLE",
-          "tested": 0,
+          "status": "MEASURED",
+          "tested": 14,
           "supported": 0,
           "support_fraction": 0.0,
-          "median_excess": 0.0
+          "median_excess": -1.0
         }
       },
       "star_field": {
-        "status": "NO_CONSENSUS",
+        "status": "INSUFFICIENT_EVIDENCE",
         "neighbors": 0,
         "independent_neighbors": 0,
         "spread_512": 0.0,
         "velocity_tolerance_512": 0.45
       },
       "image_star_motion": {
-        "status": "NO_CONSENSUS",
-        "matches": 26,
-        "max_control_matches": 44,
-        "field_tiles": 18,
-        "spread_512": 582.7,
-        "tested_hours": 4.0,
-        "method": "two_frame_compact_sources"
+        "status": "OUTSIDE_REFERENCE_RANGE"
       },
       "edge_review": {
         "status": "CLEAR",
@@ -23003,7 +23002,7 @@
       },
       "bright_streak_review": {
         "status": "CLEAR",
-        "frames_checked": 13,
+        "frames_checked": 16,
         "frames_near_streak": 0,
         "near_fraction": 0.0,
         "margin_px_512": 18,
@@ -23011,39 +23010,105 @@
         "line_samples": []
       },
       "coronal_structure_review": {
-        "status": "UNAVAILABLE",
-        "frames_checked": 0,
-        "broad_frames": 0,
-        "reason": "Insufficient usable image frames"
+        "status": "CLEAR",
+        "frames_checked": 12,
+        "broad_frames": 1,
+        "broad_fraction": 0.083,
+        "motion_checks": 14,
+        "motion_supported": 0,
+        "min_broad_fraction": 0.6,
+        "samples": [
+          {
+            "frame": "20261113_0455_c3_1024.jpg",
+            "broad": false,
+            "core": 12.0,
+            "central_pixel": 96,
+            "inward": 15.0,
+            "outward": 49.0,
+            "broad_ratio": 1.25,
+            "radial_asymmetry": 2.833
+          },
+          {
+            "frame": "20261113_0530_c3_1024.jpg",
+            "broad": false,
+            "core": 62.0,
+            "central_pixel": 96,
+            "inward": 16.0,
+            "outward": 49.0,
+            "broad_ratio": 0.258,
+            "radial_asymmetry": 0.532
+          },
+          {
+            "frame": "20261113_0554_c3_1024.jpg",
+            "broad": false,
+            "core": 2.0,
+            "central_pixel": 2,
+            "inward": 12.0,
+            "outward": 49.0,
+            "broad_ratio": 6.0,
+            "radial_asymmetry": 18.5
+          },
+          {
+            "frame": "20261113_0654_c3_1024.jpg",
+            "broad": false,
+            "core": 17.0,
+            "central_pixel": 85,
+            "inward": 27.0,
+            "outward": 11.0,
+            "broad_ratio": 0.647,
+            "radial_asymmetry": 0.941
+          },
+          {
+            "frame": "20261113_0730_c3_1024.jpg",
+            "broad": false,
+            "core": 10.0,
+            "central_pixel": 9,
+            "inward": 46.0,
+            "outward": 27.0,
+            "broad_ratio": 2.7,
+            "radial_asymmetry": 1.9
+          },
+          {
+            "frame": "20261113_0830_c3_1024.jpg",
+            "broad": false,
+            "core": 45.0,
+            "central_pixel": 1,
+            "inward": 13.0,
+            "outward": 16.0,
+            "broad_ratio": 0.289,
+            "radial_asymmetry": 0.067
+          }
+        ]
       },
-      "first": "20261112_1654_c3_1024.jpg",
-      "last": "20261112_1918_c3_1024.jpg",
-      "frames": 12,
-      "rms": 0.77,
-      "speed": 2.52,
-      "vx": 0.66,
-      "vy": 2.43,
-      "sunward": 2.63,
-      "score": 156.61,
-      "motion_family_size": 2,
-      "event_group": "LEG027_C9000000368575",
-      "members": 1,
+      "first": "20261113_0455_c3_1024.jpg",
+      "last": "20261113_1254_c3_1024.jpg",
+      "frames": 23,
+      "rms": 1.24,
+      "speed": 15.18,
+      "vx": 7.88,
+      "vy": -12.97,
+      "sunward": 14.7,
+      "score": 300.18,
+      "motion_family_size": 1,
+      "event_group": "LEG001_C9000000381648",
+      "members": 2,
       "member_ids": [
-        "C9000000368575"
+        "C9000000381648",
+        "C9000000381709"
       ],
-      "review_id": "RT20261112T1654_BDA59FFB",
+      "review_id": "RT20261113T0455_21E66F6C",
       "review_error": "",
       "trajectory_warning": "",
       "quality_issues": [],
-      "available_source_frames": 13,
+      "available_source_frames": 31,
       "endpoint_order_corrected": false,
       "edge_relevant": true,
-      "hours_behind_latest": 1.8,
-      "media_status": "AVAILABLE",
-      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261112T1654_BDA59FFB/zoom_annotated.mp4",
-      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261112T1654_BDA59FFB/zoom_raw.mp4",
-      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261112T1654_BDA59FFB/full_annotated.mp4",
-      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261112T1654_BDA59FFB/zoom_contact_sheet.jpg"
+      "hours_behind_latest": 0.6,
+      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T0455_21E66F6C/zoom_annotated.mp4",
+      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T0455_21E66F6C/zoom_raw.mp4",
+      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T0455_21E66F6C/full_annotated.mp4",
+      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T0455_21E66F6C/zoom_contact_sheet.jpg",
+      "media_status": "AVAILABLE"
     }
   ],
   "review_retention_limit": 100,
@@ -23432,46 +23497,6 @@
   "recent_known_matches": [
     {
       "utc": "20261113T142340Z",
-      "candidate": "C9000000380449",
-      "first": "20261113_0130_c3_1024.jpg",
-      "last": "20261113_0330_c3_1024.jpg",
-      "report_id": "report_nu_20261112162752",
-      "median_error_1024": "4.1"
-    },
-    {
-      "utc": "20261113T142340Z",
-      "candidate": "C9000000380904",
-      "first": "20261112_1806_c3_1024.jpg",
-      "last": "20261112_2154_c3_1024.jpg",
-      "report_id": "report_nu_20261112162752",
-      "median_error_1024": "0.9"
-    },
-    {
-      "utc": "20261113T142340Z",
-      "candidate": "C9000000381013",
-      "first": "20261112_0554_c3_1024.jpg",
-      "last": "20261112_0930_c3_1024.jpg",
-      "report_id": "report_nu_20261112144428",
-      "median_error_1024": "0.4"
-    },
-    {
-      "utc": "20261113T142340Z",
-      "candidate": "C9000000381053",
-      "first": "20261112_1506_c3_1024.jpg",
-      "last": "20261112_1754_c3_1024.jpg",
-      "report_id": "report_nu_20261112162752",
-      "median_error_1024": "1.2"
-    },
-    {
-      "utc": "20261113T142340Z",
-      "candidate": "C9000000381024",
-      "first": "20261112_2154_c3_1024.jpg",
-      "last": "20261113_0142_c3_1024.jpg",
-      "report_id": "report_nu_20261112162752",
-      "median_error_1024": "2.2"
-    },
-    {
-      "utc": "20261113T142340Z",
       "candidate": "C9000000381094",
       "first": "20261112_0054_c3_1024.jpg",
       "last": "20261112_0418_c3_1024.jpg",
@@ -23589,6 +23614,46 @@
       "last": "20261113_0142_c3_1024.jpg",
       "report_id": "report_nu_20261112162752",
       "median_error_1024": "2.0"
+    },
+    {
+      "utc": "20261113T181554Z",
+      "candidate": "C9000000383875",
+      "first": "20261108_1642_c3_1024.jpg",
+      "last": "20261108_1742_c3_1024.jpg",
+      "report_id": "report_nu_20261112085005",
+      "median_error_1024": "4.0"
+    },
+    {
+      "utc": "20261113T181554Z",
+      "candidate": "C9000000383840",
+      "first": "20261113_0054_c3_1024.jpg",
+      "last": "20261113_0242_c3_1024.jpg",
+      "report_id": "report_nu_20261112162752",
+      "median_error_1024": "5.2"
+    },
+    {
+      "utc": "20261113T181554Z",
+      "candidate": "C9000000383956",
+      "first": "20261108_1730_c3_1024.jpg",
+      "last": "20261108_1818_c3_1024.jpg",
+      "report_id": "report_nu_20261112085005",
+      "median_error_1024": "3.5"
+    },
+    {
+      "utc": "20261113T181554Z",
+      "candidate": "C9000000383943",
+      "first": "20261108_1806_c3_1024.jpg",
+      "last": "20261108_1918_c3_1024.jpg",
+      "report_id": "report_nu_20261112085005",
+      "median_error_1024": "3.4"
+    },
+    {
+      "utc": "20261113T181554Z",
+      "candidate": "C9000000383958",
+      "first": "20261112_0642_c3_1024.jpg",
+      "last": "20261112_0730_c3_1024.jpg",
+      "report_id": "report_nu_20261112144428",
+      "median_error_1024": "1.0"
     }
   ]
 }
