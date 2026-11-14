@@ -1,9 +1,9 @@
 {
   "available": true,
-  "source_updated_at": "2026-11-14T14:14:54.568557Z",
+  "source_updated_at": "2026-11-14T14:32:54.625555Z",
   "last_frame": "20261114_0954_c3_1024.jpg",
   "latest_frame_image": null,
-  "hunter_heartbeat_at": "2026-11-14T14:14:54.568368Z",
+  "hunter_heartbeat_at": "2026-11-14T14:32:54.625094Z",
   "hunter_status": "running",
   "hunter_phase": "Running multiscale CUDA detector",
   "hunter_progress": null,
@@ -8429,31 +8429,31 @@
       "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T1742_6D3D3201/zoom_contact_sheet.jpg"
     },
     {
-      "candidate": "C9000000396598",
+      "candidate": "C9000000396880",
       "resolution": 1024,
       "source_window_hours": 48,
       "status": "SEEN_ALREADY",
       "report_id": "",
       "match_error_1024": "",
-      "review_class": "STRONG_REVIEW",
+      "review_class": "SECONDARY",
       "historical_recovery_profile": true,
       "pixel_verification": {
         "status": "STRONG",
-        "samples": 33,
-        "hits": 33,
+        "samples": 15,
+        "hits": 15,
         "hit_fraction": 1.0,
-        "median_snr": 13.605,
-        "peak_snr": 17.852,
-        "median_contrast": 157.4,
-        "median_compactness": 58.7,
-        "longest_hit_run": 33,
+        "median_snr": 137.333,
+        "peak_snr": 137.333,
+        "median_contrast": 206.0,
+        "median_compactness": 206.0,
+        "longest_hit_run": 15,
         "evidence_score": 107.0,
         "temporal_motion": {
           "status": "UNAVAILABLE",
-          "tested": 2,
-          "supported": 2,
-          "support_fraction": 1.0,
-          "median_excess": 149.5
+          "tested": 0,
+          "supported": 0,
+          "support_fraction": 0.0,
+          "median_excess": 0.0
         }
       },
       "star_field": {
@@ -8465,20 +8465,24 @@
       },
       "image_star_motion": {
         "status": "NO_CONSENSUS",
-        "matches": 25,
-        "max_control_matches": 45,
-        "field_tiles": 18,
-        "spread_512": 608.2,
+        "matches": 37,
+        "max_control_matches": 52,
+        "field_tiles": 23,
+        "spread_512": 571.3,
         "tested_hours": 4.0,
         "method": "two_frame_compact_sources"
       },
       "edge_review": {
-        "status": "CLEAR",
-        "effective_mask_px": 48
+        "status": "BORDER_CONFINED",
+        "edge": "BOTTOM",
+        "max_edge_distance_512": 16.5,
+        "original_mask_512": 24.0,
+        "effective_mask_px": 48,
+        "reason": "Entire candidate endpoint path remains inside the original 512-scale border mask"
       },
       "bright_streak_review": {
         "status": "CLEAR",
-        "frames_checked": 16,
+        "frames_checked": 15,
         "frames_near_streak": 0,
         "near_fraction": 0.0,
         "margin_px_512": 18,
@@ -8486,106 +8490,41 @@
         "line_samples": []
       },
       "coronal_structure_review": {
-        "status": "CLEAR",
-        "frames_checked": 12,
-        "broad_frames": 6,
-        "broad_fraction": 0.5,
-        "motion_checks": 2,
-        "motion_supported": 2,
-        "min_broad_fraction": 0.6,
-        "samples": [
-          {
-            "frame": "20261113_0542_c3_1024.jpg",
-            "broad": true,
-            "core": 67.0,
-            "central_pixel": 255,
-            "inward": 56.0,
-            "outward": 49.0,
-            "broad_ratio": 0.731,
-            "radial_asymmetry": 0.104
-          },
-          {
-            "frame": "20261113_0642_c3_1024.jpg",
-            "broad": false,
-            "core": 71.0,
-            "central_pixel": 254,
-            "inward": 55.0,
-            "outward": 49.0,
-            "broad_ratio": 0.69,
-            "radial_asymmetry": 0.085
-          },
-          {
-            "frame": "20261113_0718_c3_1024.jpg",
-            "broad": false,
-            "core": 72.0,
-            "central_pixel": 67,
-            "inward": 56.0,
-            "outward": 49.0,
-            "broad_ratio": 0.681,
-            "radial_asymmetry": 0.097
-          },
-          {
-            "frame": "20261113_0806_c3_1024.jpg",
-            "broad": true,
-            "core": 66.0,
-            "central_pixel": 42,
-            "inward": 55.0,
-            "outward": 49.0,
-            "broad_ratio": 0.742,
-            "radial_asymmetry": 0.091
-          },
-          {
-            "frame": "20261113_0906_c3_1024.jpg",
-            "broad": true,
-            "core": 60.0,
-            "central_pixel": 65,
-            "inward": 54.0,
-            "outward": 49.0,
-            "broad_ratio": 0.817,
-            "radial_asymmetry": 0.083
-          },
-          {
-            "frame": "20261113_0954_c3_1024.jpg",
-            "broad": true,
-            "core": 63.0,
-            "central_pixel": 66,
-            "inward": 52.0,
-            "outward": 49.0,
-            "broad_ratio": 0.778,
-            "radial_asymmetry": 0.048
-          }
-        ]
+        "status": "UNAVAILABLE",
+        "frames_checked": 0,
+        "broad_frames": 0,
+        "reason": "Insufficient usable image frames"
       },
-      "first": "20261113_0542_c3_1024.jpg",
-      "last": "20261113_1430_c3_1024.jpg",
-      "frames": 30,
-      "rms": 1.38,
-      "speed": 2.85,
-      "vx": 2.58,
-      "vy": -1.22,
-      "sunward": 2.31,
-      "score": 364.36,
-      "motion_family_size": 15,
-      "event_group": "LEG081_C9000000396598",
+      "first": "20261114_0054_c3_1024.jpg",
+      "last": "20261114_0406_c3_1024.jpg",
+      "frames": 15,
+      "rms": 0.71,
+      "speed": 3.02,
+      "vx": 0.28,
+      "vy": -3.0,
+      "sunward": 2.63,
+      "score": 185.39,
+      "motion_family_size": 5,
+      "event_group": "LEG083_C9000000396880",
       "members": 1,
       "member_ids": [
-        "C9000000396598"
+        "C9000000396880"
       ],
-      "review_id": "RT20261113T0542_98C8E6E3",
+      "review_id": "RT20261114T0054_13DD0EF5",
       "review_error": "",
       "trajectory_warning": "",
       "quality_issues": [],
-      "available_source_frames": 33,
+      "available_source_frames": 15,
       "endpoint_order_corrected": false,
       "edge_relevant": true,
-      "hours_behind_latest": 19.4,
+      "hours_behind_latest": 5.8,
       "track": {
-        "first_x": 213.0,
-        "first_y": 939.0,
-        "last_x": 236.0,
-        "last_y": 930.0,
-        "vx": 2.58,
-        "vy": -1.22
+        "first_x": 255.0,
+        "first_y": 999.0,
+        "last_x": 256.0,
+        "last_y": 990.0,
+        "vx": 0.28,
+        "vy": -3.0
       }
     }
   ],
