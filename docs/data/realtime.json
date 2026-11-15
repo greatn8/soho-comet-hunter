@@ -1,9 +1,9 @@
 {
   "available": true,
-  "source_updated_at": "2026-11-15T02:54:58.056956Z",
+  "source_updated_at": "2026-11-15T03:12:37.795554Z",
   "last_frame": "20261114_2330_c3_1024.jpg",
   "latest_frame_image": null,
-  "hunter_heartbeat_at": "2026-11-15T02:54:58.032313Z",
+  "hunter_heartbeat_at": "2026-11-15T03:10:58.100064Z",
   "hunter_status": "running",
   "hunter_phase": "Running multiscale CUDA detector",
   "hunter_progress": null,
@@ -13,12 +13,12 @@
   "near_realtime_latest": "2026-11-14T23:54:00Z",
   "completed_latest": "2026-11-15T00:54:00Z",
   "completed_lag_minutes": 0.0,
-  "current_unmatched_total": 40,
+  "current_unmatched_total": 39,
   "current_known_total": 0,
   "alerts_total": 724,
   "alerts_lifetime_total": 1844,
-  "known_matches_total": 848,
-  "known_matches_lifetime_total": 858,
+  "known_matches_total": 853,
+  "known_matches_lifetime_total": 863,
   "view_reset_at": "2026-10-19T07:49:38Z",
   "latest_alert": null,
   "github_email_alert_issues": [
@@ -1524,7 +1524,12 @@
       "available_source_frames": 23,
       "endpoint_order_corrected": false,
       "edge_relevant": true,
-      "hours_behind_latest": 3.2
+      "hours_behind_latest": 3.2,
+      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1554_66B86BE7/zoom_annotated.mp4",
+      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1554_66B86BE7/zoom_raw.mp4",
+      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1554_66B86BE7/full_annotated.mp4",
+      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1554_66B86BE7/zoom_contact_sheet.jpg",
+      "media_status": "AVAILABLE"
     },
     {
       "candidate": "C9000000405372",
@@ -1678,7 +1683,12 @@
       "available_source_frames": 30,
       "endpoint_order_corrected": false,
       "edge_relevant": true,
-      "hours_behind_latest": 0.0
+      "hours_behind_latest": 0.0,
+      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1442_8C999194/zoom_annotated.mp4",
+      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1442_8C999194/zoom_raw.mp4",
+      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1442_8C999194/full_annotated.mp4",
+      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1442_8C999194/zoom_contact_sheet.jpg",
+      "media_status": "AVAILABLE"
     },
     {
       "candidate": "C9000000405318",
@@ -21117,48 +21127,42 @@
       "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T0230_CD76B897/zoom_contact_sheet.jpg"
     },
     {
-      "candidate": "C9000000390834",
+      "candidate": "C9000000405399",
       "resolution": 1024,
       "source_window_hours": 12,
-      "status": "UNMATCHED",
+      "status": "SEEN_ALREADY",
       "report_id": "",
       "match_error_1024": "",
-      "review_class": "STRONG_REVIEW",
+      "review_class": "SECONDARY",
       "historical_recovery_profile": true,
       "pixel_verification": {
-        "status": "STRONG",
-        "samples": 17,
-        "hits": 17,
-        "hit_fraction": 1.0,
-        "median_snr": 6.61,
-        "peak_snr": 7.605,
-        "median_contrast": 93.8,
-        "median_compactness": 2.865,
-        "longest_hit_run": 17,
-        "evidence_score": 106.41,
+        "status": "EMPTY",
+        "samples": 23,
+        "hits": 0,
+        "hit_fraction": 0.0,
+        "median_snr": 1.204,
+        "peak_snr": 2.256,
+        "median_contrast": 46.2,
+        "median_compactness": 46.2,
+        "longest_hit_run": 0,
+        "evidence_score": 8.2,
         "temporal_motion": {
           "status": "MEASURED",
-          "tested": 8,
+          "tested": 14,
           "supported": 0,
           "support_fraction": 0.0,
-          "median_excess": -3.3
+          "median_excess": 0.65
         }
       },
       "star_field": {
-        "status": "NO_CONSENSUS",
+        "status": "INSUFFICIENT_EVIDENCE",
         "neighbors": 0,
         "independent_neighbors": 0,
         "spread_512": 0.0,
         "velocity_tolerance_512": 0.45
       },
       "image_star_motion": {
-        "status": "NO_CONSENSUS",
-        "matches": 18,
-        "max_control_matches": 41,
-        "field_tiles": 14,
-        "spread_512": 547.3,
-        "tested_hours": 4.0,
-        "method": "two_frame_compact_sources"
+        "status": "OUTSIDE_REFERENCE_RANGE"
       },
       "edge_review": {
         "status": "CLEAR",
@@ -21174,87 +21178,148 @@
         "line_samples": []
       },
       "coronal_structure_review": {
-        "status": "UNAVAILABLE",
-        "frames_checked": 0,
-        "broad_frames": 0,
-        "reason": "Insufficient usable image frames"
+        "status": "CLEAR",
+        "frames_checked": 12,
+        "broad_frames": 1,
+        "broad_fraction": 0.083,
+        "motion_checks": 14,
+        "motion_supported": 0,
+        "min_broad_fraction": 0.6,
+        "samples": [
+          {
+            "frame": "20261114_1554_c3_1024.jpg",
+            "broad": false,
+            "core": 35.0,
+            "central_pixel": 81,
+            "inward": 36.0,
+            "outward": 38.0,
+            "broad_ratio": 1.029,
+            "radial_asymmetry": 0.057
+          },
+          {
+            "frame": "20261114_1618_c3_1024.jpg",
+            "broad": false,
+            "core": 15.0,
+            "central_pixel": 70,
+            "inward": 34.0,
+            "outward": 31.0,
+            "broad_ratio": 2.067,
+            "radial_asymmetry": 0.2
+          },
+          {
+            "frame": "20261114_1642_c3_1024.jpg",
+            "broad": false,
+            "core": 35.0,
+            "central_pixel": 1,
+            "inward": 20.0,
+            "outward": 37.0,
+            "broad_ratio": 0.571,
+            "radial_asymmetry": 0.486
+          },
+          {
+            "frame": "20261114_1706_c3_1024.jpg",
+            "broad": false,
+            "core": 29.0,
+            "central_pixel": 1,
+            "inward": 35.0,
+            "outward": 28.0,
+            "broad_ratio": 0.966,
+            "radial_asymmetry": 0.241
+          },
+          {
+            "frame": "20261114_1730_c3_1024.jpg",
+            "broad": false,
+            "core": 27.0,
+            "central_pixel": 40,
+            "inward": 35.0,
+            "outward": 26.0,
+            "broad_ratio": 0.963,
+            "radial_asymmetry": 0.333
+          },
+          {
+            "frame": "20261114_1754_c3_1024.jpg",
+            "broad": false,
+            "core": 35.0,
+            "central_pixel": 41,
+            "inward": 35.0,
+            "outward": 42.0,
+            "broad_ratio": 1.0,
+            "radial_asymmetry": 0.2
+          }
+        ]
       },
-      "first": "20261113_2318_c3_1024.jpg",
-      "last": "20261114_0306_c3_1024.jpg",
-      "frames": 17,
-      "rms": 1.13,
-      "speed": 11.05,
-      "vx": -4.88,
-      "vy": -9.91,
-      "sunward": 11.22,
-      "score": 229.48,
-      "motion_family_size": 4,
-      "event_group": "LEG008_C9000000390834",
-      "members": 5,
+      "first": "20261114_1554_c3_1024.jpg",
+      "last": "20261114_2018_c3_1024.jpg",
+      "frames": 19,
+      "rms": 1.29,
+      "speed": 18.66,
+      "vx": 13.06,
+      "vy": -13.32,
+      "sunward": 18.61,
+      "score": 251.56,
+      "motion_family_size": 1,
+      "event_group": "LEG003_C9000000405399",
+      "members": 7,
       "member_ids": [
-        "C9000000390834",
-        "C9000000390848",
-        "C9000000390785",
-        "C9000000390855",
-        "C9000000391032"
+        "C9000000405399",
+        "C9000000405309",
+        "C9000000405419",
+        "C9000000405483",
+        "C9000000405312",
+        "C9000000405302",
+        "C9000000405320"
       ],
-      "review_id": "RT20261113T2318_075C4371",
+      "review_id": "RT20261114T1554_66B86BE7",
       "review_error": "",
       "trajectory_warning": "",
       "quality_issues": [],
-      "available_source_frames": 17,
+      "available_source_frames": 23,
       "endpoint_order_corrected": false,
       "edge_relevant": true,
-      "hours_behind_latest": 0.0,
-      "media_status": "AVAILABLE",
-      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T2318_075C4371/zoom_annotated.mp4",
-      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T2318_075C4371/zoom_raw.mp4",
-      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T2318_075C4371/full_annotated.mp4",
-      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T2318_075C4371/zoom_contact_sheet.jpg"
+      "hours_behind_latest": 3.2,
+      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1554_66B86BE7/zoom_annotated.mp4",
+      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1554_66B86BE7/zoom_raw.mp4",
+      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1554_66B86BE7/full_annotated.mp4",
+      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1554_66B86BE7/zoom_contact_sheet.jpg",
+      "media_status": "AVAILABLE"
     },
     {
-      "candidate": "C9000000390777",
+      "candidate": "C9000000405372",
       "resolution": 1024,
       "source_window_hours": 12,
-      "status": "UNMATCHED",
+      "status": "SEEN_ALREADY",
       "report_id": "",
       "match_error_1024": "",
-      "review_class": "STRONG_REVIEW",
+      "review_class": "SECONDARY",
       "historical_recovery_profile": true,
       "pixel_verification": {
-        "status": "STRONG",
-        "samples": 24,
-        "hits": 24,
-        "hit_fraction": 1.0,
-        "median_snr": 5.426,
-        "peak_snr": 9.809,
-        "median_contrast": 64.1,
-        "median_compactness": 2.656,
-        "longest_hit_run": 24,
-        "evidence_score": 104.7,
+        "status": "EMPTY",
+        "samples": 30,
+        "hits": 1,
+        "hit_fraction": 0.0333,
+        "median_snr": 1.348,
+        "peak_snr": 5.451,
+        "median_contrast": 47.95,
+        "median_compactness": 43.95,
+        "longest_hit_run": 1,
+        "evidence_score": 17.4,
         "temporal_motion": {
           "status": "MEASURED",
-          "tested": 4,
+          "tested": 16,
           "supported": 0,
           "support_fraction": 0.0,
-          "median_excess": -1.6
+          "median_excess": -6.25
         }
       },
       "star_field": {
-        "status": "NO_CONSENSUS",
+        "status": "INSUFFICIENT_EVIDENCE",
         "neighbors": 0,
         "independent_neighbors": 0,
         "spread_512": 0.0,
         "velocity_tolerance_512": 0.45
       },
       "image_star_motion": {
-        "status": "NO_CONSENSUS",
-        "matches": 24,
-        "max_control_matches": 41,
-        "field_tiles": 19,
-        "spread_512": 546.9,
-        "tested_hours": 4.0,
-        "method": "two_frame_compact_sources"
+        "status": "OUTSIDE_REFERENCE_RANGE"
       },
       "edge_review": {
         "status": "CLEAR",
@@ -21270,43 +21335,112 @@
         "line_samples": []
       },
       "coronal_structure_review": {
-        "status": "UNAVAILABLE",
-        "frames_checked": 0,
-        "broad_frames": 0,
-        "reason": "Insufficient usable image frames"
+        "status": "CLEAR",
+        "frames_checked": 12,
+        "broad_frames": 3,
+        "broad_fraction": 0.25,
+        "motion_checks": 16,
+        "motion_supported": 0,
+        "min_broad_fraction": 0.6,
+        "samples": [
+          {
+            "frame": "20261114_1442_c3_1024.jpg",
+            "broad": true,
+            "core": 45.0,
+            "central_pixel": 100,
+            "inward": 49.0,
+            "outward": 49.0,
+            "broad_ratio": 1.089,
+            "radial_asymmetry": 0.0
+          },
+          {
+            "frame": "20261114_1518_c3_1024.jpg",
+            "broad": false,
+            "core": 32.0,
+            "central_pixel": 59,
+            "inward": 40.0,
+            "outward": 50.0,
+            "broad_ratio": 1.25,
+            "radial_asymmetry": 0.312
+          },
+          {
+            "frame": "20261114_1542_c3_1024.jpg",
+            "broad": false,
+            "core": 38.0,
+            "central_pixel": 93,
+            "inward": 55.0,
+            "outward": 49.0,
+            "broad_ratio": 1.289,
+            "radial_asymmetry": 0.158
+          },
+          {
+            "frame": "20261114_1618_c3_1024.jpg",
+            "broad": true,
+            "core": 47.0,
+            "central_pixel": 12,
+            "inward": 49.0,
+            "outward": 45.0,
+            "broad_ratio": 0.957,
+            "radial_asymmetry": 0.085
+          },
+          {
+            "frame": "20261114_1654_c3_1024.jpg",
+            "broad": true,
+            "core": 53.0,
+            "central_pixel": 37,
+            "inward": 46.0,
+            "outward": 51.0,
+            "broad_ratio": 0.868,
+            "radial_asymmetry": 0.094
+          },
+          {
+            "frame": "20261114_1718_c3_1024.jpg",
+            "broad": false,
+            "core": 22.0,
+            "central_pixel": 19,
+            "inward": 24.0,
+            "outward": 29.0,
+            "broad_ratio": 1.091,
+            "radial_asymmetry": 0.227
+          }
+        ]
       },
-      "first": "20261113_2142_c3_1024.jpg",
-      "last": "20261114_0306_c3_1024.jpg",
-      "frames": 23,
-      "rms": 0.92,
-      "speed": 5.47,
-      "vx": -4.97,
-      "vy": 2.29,
-      "sunward": 5.55,
-      "score": 289.61,
-      "motion_family_size": 3,
-      "event_group": "LEG009_C9000000390777",
-      "members": 5,
+      "first": "20261114_1442_c3_1024.jpg",
+      "last": "20261114_2330_c3_1024.jpg",
+      "frames": 21,
+      "rms": 1.23,
+      "speed": 16.06,
+      "vx": 9.98,
+      "vy": -12.58,
+      "sunward": 15.95,
+      "score": 276.19,
+      "motion_family_size": 1,
+      "event_group": "LEG004_C9000000405372",
+      "members": 9,
       "member_ids": [
-        "C9000000390777",
-        "C9000000390761",
-        "C9000000391062",
-        "C9000000391355",
-        "C9000000391647"
+        "C9000000405372",
+        "C9000000405306",
+        "C9000000405387",
+        "C9000000405324",
+        "C9000000405429",
+        "C9000000405463",
+        "C9000000405505",
+        "C9000000405580",
+        "C9000000405651"
       ],
-      "review_id": "RT20261113T2142_F9F69145",
+      "review_id": "RT20261114T1442_8C999194",
       "review_error": "",
       "trajectory_warning": "",
       "quality_issues": [],
-      "available_source_frames": 24,
+      "available_source_frames": 30,
       "endpoint_order_corrected": false,
       "edge_relevant": true,
       "hours_behind_latest": 0.0,
-      "media_status": "AVAILABLE",
-      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T2142_F9F69145/zoom_annotated.mp4",
-      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T2142_F9F69145/zoom_raw.mp4",
-      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T2142_F9F69145/full_annotated.mp4",
-      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261113T2142_F9F69145/zoom_contact_sheet.jpg"
+      "review_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1442_8C999194/zoom_annotated.mp4",
+      "review_raw_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1442_8C999194/zoom_raw.mp4",
+      "review_full_video": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1442_8C999194/full_annotated.mp4",
+      "review_thumbnail": "https://raw.githubusercontent.com/greatn8/soho-comet-hunter/live-media/RT20261114T1442_8C999194/zoom_contact_sheet.jpg",
+      "media_status": "AVAILABLE"
     }
   ],
   "review_retention_limit": 100,
@@ -21694,46 +21828,6 @@
   ],
   "recent_known_matches": [
     {
-      "utc": "20261114T192441Z",
-      "candidate": "C9000000401997",
-      "first": "20261112_1918_c3_1024.jpg",
-      "last": "20261113_0030_c3_1024.jpg",
-      "report_id": "report_nu_20261112162752",
-      "median_error_1024": "1.2"
-    },
-    {
-      "utc": "20261114T192441Z",
-      "candidate": "C9000000402367",
-      "first": "20261108_1354_c3_1024.jpg",
-      "last": "20261108_1454_c3_1024.jpg",
-      "report_id": "report_nu_20261112085005",
-      "median_error_1024": "1.3"
-    },
-    {
-      "utc": "20261114T192441Z",
-      "candidate": "C9000000402313",
-      "first": "20261112_0554_c3_1024.jpg",
-      "last": "20261112_0754_c3_1024.jpg",
-      "report_id": "report_nu_20261112144428",
-      "median_error_1024": "0.5"
-    },
-    {
-      "utc": "20261114T192441Z",
-      "candidate": "C9000000402430",
-      "first": "20261108_1330_c3_1024.jpg",
-      "last": "20261108_1418_c3_1024.jpg",
-      "report_id": "report_nu_20261112085005",
-      "median_error_1024": "4.1"
-    },
-    {
-      "utc": "20261114T192441Z",
-      "candidate": "C9000000402317",
-      "first": "20261113_0130_c3_1024.jpg",
-      "last": "20261113_0306_c3_1024.jpg",
-      "report_id": "report_nu_20261112162752",
-      "median_error_1024": "2.1"
-    },
-    {
       "utc": "20261114T210412Z",
       "candidate": "C9000000403676",
       "first": "20261108_1354_c3_1024.jpg",
@@ -21852,6 +21946,46 @@
       "last": "20261108_1418_c3_1024.jpg",
       "report_id": "report_nu_20261112085005",
       "median_error_1024": "4.1"
+    },
+    {
+      "utc": "20261115T015448Z",
+      "candidate": "C9000000407424",
+      "first": "20261108_1418_c3_1024.jpg",
+      "last": "20261108_1518_c3_1024.jpg",
+      "report_id": "report_nu_20261112085005",
+      "median_error_1024": "4.0"
+    },
+    {
+      "utc": "20261115T015448Z",
+      "candidate": "C9000000407347",
+      "first": "20261112_2154_c3_1024.jpg",
+      "last": "20261112_2330_c3_1024.jpg",
+      "report_id": "report_nu_20261112162752",
+      "median_error_1024": "1.7"
+    },
+    {
+      "utc": "20261115T015448Z",
+      "candidate": "C9000000407495",
+      "first": "20261108_1330_c3_1024.jpg",
+      "last": "20261108_1418_c3_1024.jpg",
+      "report_id": "report_nu_20261112085005",
+      "median_error_1024": "4.1"
+    },
+    {
+      "utc": "20261115T015448Z",
+      "candidate": "C9000000407385",
+      "first": "20261113_0130_c3_1024.jpg",
+      "last": "20261113_0306_c3_1024.jpg",
+      "report_id": "report_nu_20261112162752",
+      "median_error_1024": "2.1"
+    },
+    {
+      "utc": "20261115T015448Z",
+      "candidate": "C9000000407380",
+      "first": "20261112_0554_c3_1024.jpg",
+      "last": "20261112_0754_c3_1024.jpg",
+      "report_id": "report_nu_20261112144428",
+      "median_error_1024": "0.5"
     }
   ]
 }
